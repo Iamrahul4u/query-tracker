@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function AuthCallback() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState("Authenticating...");
@@ -109,5 +109,27 @@ export default function AuthCallback() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4 text-center">
+            <div className="w-16 h-16 bg-google-blue rounded-xl flex items-center justify-center mx-auto mb-6">
+              <span className="text-3xl font-bold text-white">Q</span>
+            </div>
+            <div className="w-12 h-12 border-4 border-gray-200 border-t-google-blue rounded-full animate-spin mx-auto mb-4"></div>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              Loading...
+            </h2>
+          </div>
+        </div>
+      }
+    >
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

@@ -6,6 +6,7 @@ import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { useAuth } from "../hooks/useAuth";
 import { useDashboardPreferences } from "../hooks/useDashboardPreferences";
 import { useToast } from "../hooks/useToast";
+import { AuthProvider } from "../components/AuthProvider";
 import { DashboardHeader } from "../components/DashboardHeader";
 import { CollapsibleFilterBar } from "../components/CollapsibleFilterBar";
 import { BucketView } from "../components/BucketView";
@@ -24,7 +25,7 @@ import {
 } from "../utils/queryFilters";
 import { Query } from "../utils/sheets";
 
-export default function Dashboard() {
+function DashboardContent() {
   // Hooks
   const { authChecked, logout } = useAuth();
   const {
@@ -65,15 +66,9 @@ export default function Dashboard() {
     assignQueryOptimistic(query["Query ID"], assignee);
   };
 
-  // Loading state
-  if (!authChecked || (isLoading && queries.length === 0)) {
-    return (
-      <LoadingScreen
-        message={
-          !authChecked ? "Checking authentication..." : "Loading queries..."
-        }
-      />
-    );
+  // Loading state - removed authChecked check since AuthProvider handles it
+  if (isLoading && queries.length === 0) {
+    return <LoadingScreen message="Loading queries..." />;
   }
 
   return (
@@ -152,5 +147,13 @@ export default function Dashboard() {
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={hideToast} />
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <AuthProvider>
+      <DashboardContent />
+    </AuthProvider>
   );
 }
