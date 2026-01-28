@@ -168,6 +168,11 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
                 "user_name",
                 userInfo.name || userInfo.email,
               );
+              // Store expiry time (50 minutes from now - refresh before 60min expiry)
+              localStorage.setItem(
+                "token_expiry",
+                String(Date.now() + 50 * 60 * 1000),
+              );
 
               setStatus("Redirecting to dashboard...");
               router.push("/dashboard");

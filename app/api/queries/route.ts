@@ -327,9 +327,18 @@ async function handleUpdateStatus(
   queryId: string,
   data: { newStatus: string; fields?: any },
 ) {
+  console.log("🔧 API handleUpdateStatus called");
+  console.log("  Query ID:", queryId);
+  console.log("  New Status:", data.newStatus);
+  console.log("  Fields:", JSON.stringify(data.fields, null, 2));
+
   const rowIndex = await findRowIndex(sheets, queryId);
-  if (!rowIndex)
+  console.log("  Row index found:", rowIndex);
+
+  if (!rowIndex) {
+    console.error("❌ Query not found in sheet");
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
+  }
 
   const now = new Date().toLocaleString("en-GB");
   const updates: any = {
@@ -338,7 +347,11 @@ async function handleUpdateStatus(
     ...data.fields,
   };
 
+  console.log("  Updates to apply:", JSON.stringify(updates, null, 2));
+
   await updateRowCells(sheets, rowIndex, updates);
+  console.log("✅ Row updated successfully");
+
   return NextResponse.json({ success: true });
 }
 

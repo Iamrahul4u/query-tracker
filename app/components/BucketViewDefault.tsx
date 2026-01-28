@@ -37,13 +37,6 @@ export function BucketViewDefault({
     gridClass = "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
   }
 
-  console.log(
-    "BucketViewDefault - columnCount:",
-    columnCount,
-    "gridClass:",
-    gridClass,
-  );
-
   // Dynamic max height based on filter bar state
   const maxHeight = isFilterExpanded
     ? "calc(100vh - 220px)"

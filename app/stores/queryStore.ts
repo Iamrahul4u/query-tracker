@@ -231,6 +231,19 @@ export const useQueryStore = create<QueryState>()(
         const currentQueries = get().queries;
         const currentUser = get().currentUser;
 
+        // Add pending action to block background refresh
+        const pendingId = `status_${queryId}_${Date.now()}`;
+        set((state) => {
+          state.pendingActions.push({
+            id: pendingId,
+            type: "updateStatus",
+            queryId,
+            data: { newStatus, fields },
+            timestamp: Date.now(),
+            retries: 0,
+          });
+        });
+
         const result = await syncManager.updateStatusOptimistic(
           queryId,
           newStatus,
@@ -239,6 +252,13 @@ export const useQueryStore = create<QueryState>()(
           (queries) => set({ queries }),
           currentUser?.Email || "",
         );
+
+        // Remove pending action
+        set((state) => {
+          state.pendingActions = state.pendingActions.filter(
+            (a) => a.id !== pendingId,
+          );
+        });
 
         if (result.success) {
           useToast

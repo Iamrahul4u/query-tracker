@@ -88,9 +88,14 @@ export function useAuth() {
     // Check and refresh function
     const checkAndRefresh = async () => {
       const tokenExpiry = localStorage.getItem("token_expiry");
-      const timeUntilExpiry = tokenExpiry
-        ? Number(tokenExpiry) - Date.now()
-        : 0;
+
+      // If no expiry set, don't check (defensive - shouldn't happen but prevents loops)
+      if (!tokenExpiry) {
+        console.warn("⚠️ No token_expiry found, skipping expiry check");
+        return;
+      }
+
+      const timeUntilExpiry = Number(tokenExpiry) - Date.now();
 
       // If less than 10 minutes until expiry, try to extend/refresh
       if (timeUntilExpiry < 10 * 60 * 1000 && timeUntilExpiry > 0) {

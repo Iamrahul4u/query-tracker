@@ -51,9 +51,19 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
     if (status !== query.Status) {
       // Status Changed -> Use updateStatusOptimistic
+      console.log("📝 Status changed:", query.Status, "→", status);
+      console.log("📝 Query ID:", query["Query ID"]);
+      console.log("📝 Current status state:", status);
+      console.log("📝 FormData.Status:", formData.Status);
+      console.log("📝 Full form data:", formData);
+
+      // Pass the status explicitly, not from formData (they should match but be explicit)
       updateStatusOptimistic(query["Query ID"], status, formData);
     } else {
       // Only fields changed -> Use editQueryOptimistic
+      console.log("📝 Fields changed (no status change)");
+      console.log("📝 Query ID:", query["Query ID"]);
+      console.log("📝 Form data:", formData);
       editQueryOptimistic(query["Query ID"], formData);
     }
     onClose();
@@ -152,7 +162,12 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
             </label>
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={(e) => {
+                const newStatus = e.target.value;
+                setStatus(newStatus);
+                // Also update formData to keep them in sync
+                setFormData((prev) => ({ ...prev, Status: newStatus }));
+              }}
               disabled={!canEdit}
               className="w-full border border-gray-300 rounded-md p-2 text-sm"
             >

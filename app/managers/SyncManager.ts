@@ -492,7 +492,29 @@ export class SyncManager {
     updateStore: (queries: Query[]) => void,
     currentUserEmail: string,
   ): Promise<SyncResult> {
+    console.log("🔄 SyncManager.updateStatusOptimistic called");
+    console.log("  Query ID:", queryId);
+    console.log("  New Status:", newStatus);
+    console.log("  Fields:", JSON.stringify(fields, null, 2));
+    console.log("  Current user:", currentUserEmail);
+
     const now = new Date().toLocaleString("en-GB");
+
+    // Find the query to update
+    const targetQuery = currentQueries.find((q) => q["Query ID"] === queryId);
+    if (!targetQuery) {
+      console.error("❌ Query not found:", queryId);
+      return {
+        success: false,
+        error: "Query not found",
+      };
+    }
+
+    console.log("  Target query current status:", targetQuery.Status);
+    console.log(
+      "  Target query description:",
+      targetQuery["Query Description"],
+    );
 
     // Optimistic update
     const optimisticQueries = currentQueries.map((q) => {
@@ -521,12 +543,33 @@ export class SyncManager {
           updated["Discarded Date Time"] = now;
         }
 
+        console.log("  Optimistic update applied:", {
+          oldStatus: q.Status,
+          newStatus: updated.Status,
+          description: updated["Query Description"],
+        });
+
         return updated;
       }
       return q;
     });
 
     updateStore(optimisticQueries);
+    console.log("  ✅ UI updated optimistically");
+
+    console.log("📤 Sending status update to API...");
+    console.log(
+      "  Payload:",
+      JSON.stringify(
+        {
+          action: "updateStatus",
+          queryId,
+          data: { newStatus, fields },
+        },
+        null,
+        2,
+      ),
+    );
 
     try {
       const response = await fetch("/api/queries", {
@@ -542,18 +585,32 @@ export class SyncManager {
         }),
       });
 
+      console.log("📥 API response status:", response.status);
+      console.log("📥 API response ok:", response.ok);
+
       if (!response.ok) {
-        throw new Error("Status update failed");
+        const errorText = await response.text();
+        console.error("❌ API error response:", errorText);
+        throw new Error(
+          `Status update failed: ${response.status} ${errorText}`,
+        );
       }
 
+      const responseData = await response.json();
+      console.log("✅ Status update successful, response:", responseData);
+
       LocalStorageCache.saveQueries(optimisticQueries);
+      console.log("✅ Cache updated");
 
       return {
         success: true,
         data: { message: "Status updated successfully" },
       };
     } catch (error: any) {
+      console.error("❌ Status update failed:", error);
+      console.error("❌ Error details:", error.message);
       updateStore(currentQueries);
+      console.log("↩️ Rolled back to original state");
 
       return {
         success: false,
