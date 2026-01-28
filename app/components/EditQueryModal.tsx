@@ -1,0 +1,341 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useQueryStore } from "../stores/queryStore";
+import { QUERY_TYPE_ORDER, BUCKETS } from "../config/sheet-constants";
+import { Query } from "../utils/sheets";
+
+interface EditQueryModalProps {
+  query: Query;
+  onClose: () => void;
+}
+
+export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
+  const {
+    currentUser,
+    updateStatusOptimistic,
+    editQueryOptimistic,
+    deleteQueryOptimistic,
+  } = useQueryStore();
+
+  // Local state for all fields
+  const [formData, setFormData] = useState<Partial<Query>>({ ...query });
+  const [status, setStatus] = useState(query.Status);
+  const [error, setError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Determine Role
+  const role = (currentUser?.Role || "").toLowerCase();
+  const isAdminOrSenior = ["admin", "senior"].includes(role);
+  const isAssignedToMe =
+    (query["Assigned To"] || "").toLowerCase() ===
+    (currentUser?.Email || "").toLowerCase();
+
+  // Permission Check
+  // Junior: Can change own queries only (Plan 5.7)
+  // Senior/Admin: Can change any
+  const canEdit = isAdminOrSenior || isAssignedToMe || query.Status === "A"; // Junior can edit unassigned? Plan says "Change own status". Assuming yes if unassigned or own.
+
+  const handleSave = () => {
+    if (!canEdit) return;
+
+    // Validation?
+    // Plan 5.6: D requires Whats Pending. E/F requires Event stuff?
+    // Let's add basic validation.
+    if (["E", "F"].includes(status)) {
+      if (!formData["Event ID"] || !formData["Event Title"]) {
+        setError("Event ID and Title are required for this status.");
+        return;
+      }
+    }
+
+    if (status !== query.Status) {
+      // Status Changed -> Use updateStatusOptimistic
+      updateStatusOptimistic(query["Query ID"], status, formData);
+    } else {
+      // Only fields changed -> Use editQueryOptimistic
+      editQueryOptimistic(query["Query ID"], formData);
+    }
+    onClose();
+  };
+
+  const handleDelete = () => {
+    if (confirm("Are you sure you want to delete this query?")) {
+      deleteQueryOptimistic(query["Query ID"]);
+      onClose();
+    }
+  };
+
+  // Field helper
+  const updateField = (field: keyof Query, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Determine which fields are editable based on Bucket (Plan 5.3)
+  // But also based on Role? Assuming Fields per bucket logic applies to all allowed editors.
+
+  const showField = (field: string) => {
+    // Always show Status
+    // Logic from Plan:
+    // A: Desc, Type, Added By (Added By is usually read only? Plan says editable in A? "Bucket A: Query Description, Query Type, Added By")
+    // B: Desc, Type, Remarks
+    // C/D: Desc, Whats Pending (D only for Pending? Plan says "Bucket C/D: Query Description, Whats Pending (D only)")
+    // E/F: Whats Pending, Event ID, Event Title
+
+    // I'll make Desc editable in A, B, C, D.
+    // Type editable in A, B.
+    // Remarks editable in B.
+    // Whats Pending editable in D, E, F.
+    // Event ID/Title editable in E, F.
+
+    const s = status; // Use current selected status to show relevant fields for NEXT step
+
+    // Common
+    if (field === "Query Description") return ["A", "B", "C", "D"].includes(s);
+    if (field === "Query Type") return ["A", "B"].includes(s);
+    if (field === "Remarks") return ["B"].includes(s); // Or always show but optional? Plan says B.
+    if (field === "Whats Pending") return ["D", "E", "F"].includes(s);
+    if (field === "Event ID") return ["E", "F"].includes(s);
+    if (field === "Event Title") return ["E", "F"].includes(s);
+
+    return false;
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-800">Edit Query</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 overflow-y-auto">
+          {/* Read-Only Info */}
+          <div className="text-xs text-gray-400 mb-4 flex gap-4">
+            <span>ID: {query["Query ID"]}</span>
+            <span>Added: {query["Added Date Time"]}</span>
+          </div>
+
+          {!canEdit && (
+            <div className="bg-yellow-50 text-yellow-800 p-3 rounded text-sm mb-4">
+              You do not have permission to edit this query.
+            </div>
+          )}
+
+          {/* Status Selector */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Status
+            </label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              disabled={!canEdit}
+              className="w-full border border-gray-300 rounded-md p-2 text-sm"
+            >
+              {/* Show allowed transitions or all? Plan says "Show valid next statuses (progressive flow)". 
+                      For simplicity and flexibility, showing all for now, or just allow manual override. 
+                      Admins/Seniors might need to jump. 
+                  */}
+              {Object.entries(BUCKETS).map(([key, config]) => (
+                <option key={key} value={key}>
+                  {config.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dynamic Fields */}
+
+          {/* Query Description (A, B, C, D) */}
+          {showField("Query Description") && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Query Description
+              </label>
+              <textarea
+                value={formData["Query Description"]}
+                onChange={(e) =>
+                  updateField("Query Description", e.target.value)
+                }
+                disabled={!canEdit}
+                rows={3}
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+              />
+            </div>
+          )}
+
+          {/* Query Type (A, B) */}
+          {showField("Query Type") && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Query Type
+              </label>
+              <div className="flex gap-2">
+                {QUERY_TYPE_ORDER.map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => updateField("Query Type", type)}
+                    disabled={!canEdit}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                      formData["Query Type"] === type
+                        ? "bg-blue-50 border-blue-500 text-blue-700"
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* GM Indicator Checkbox */}
+          <div className="mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.GmIndicator === "TRUE"}
+                onChange={(e) =>
+                  updateField(
+                    "GmIndicator",
+                    e.target.checked ? "TRUE" : "FALSE",
+                  )
+                }
+                disabled={!canEdit}
+                className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                GM Indicator
+              </span>
+              <span className="text-xs text-gray-500">
+                (Shows ✉️ icon in all buckets)
+              </span>
+            </label>
+          </div>
+
+          {/* Remarks (B) */}
+          {showField("Remarks") && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Remarks
+              </label>
+              <input
+                type="text"
+                value={formData["Remarks"]}
+                onChange={(e) => updateField("Remarks", e.target.value)}
+                disabled={!canEdit}
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+              />
+            </div>
+          )}
+
+          {/* Whats Pending (D, E, F) */}
+          {showField("Whats Pending") && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                What's Pending?
+              </label>
+              <input
+                type="text"
+                value={formData["Whats Pending"]}
+                onChange={(e) => updateField("Whats Pending", e.target.value)}
+                disabled={!canEdit}
+                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+              />
+            </div>
+          )}
+
+          {/* Event ID/Title (E, F) */}
+          {(showField("Event ID") || showField("Event Title")) && (
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Event ID
+                </label>
+                <input
+                  type="text"
+                  value={formData["Event ID"]}
+                  onChange={(e) => updateField("Event ID", e.target.value)}
+                  disabled={!canEdit}
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Event Title
+                </label>
+                <input
+                  type="text"
+                  value={formData["Event Title"]}
+                  onChange={(e) => updateField("Event Title", e.target.value)}
+                  disabled={!canEdit}
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                />
+              </div>
+            </div>
+          )}
+
+          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+        </div>
+
+        <div className="bg-gray-50 px-6 py-4 flex justify-between items-center border-t border-gray-100">
+          {/* Delete Button (Senior/Admin Only) */}
+          {isAdminOrSenior ? (
+            <button
+              onClick={handleDelete}
+              className="text-red-500 text-sm hover:text-red-700 font-medium"
+            >
+              Delete Query
+            </button>
+          ) : (
+            <div></div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 text-sm"
+            >
+              Cancel
+            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={handleSave}
+                className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 text-sm"
+              >
+                Save Changes
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

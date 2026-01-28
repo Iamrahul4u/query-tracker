@@ -1,0 +1,70 @@
+import { SyncStatus } from "./SyncStatus";
+import { DashboardStats } from "./DashboardStats";
+import { UserMenu } from "./UserMenu";
+import { User } from "../utils/sheets";
+
+interface DashboardHeaderProps {
+  currentUser: User | null;
+  stats: {
+    pending: number;
+    inProgress: number;
+    sent: number;
+  };
+  onAddQuery: () => void;
+  onLogout: () => void;
+}
+
+export function DashboardHeader({
+  currentUser,
+  stats,
+  onAddQuery,
+  onLogout,
+}: DashboardHeaderProps) {
+  return (
+    <header className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
+      <div className="w-full px-3 py-2 sm:px-4">
+        <div className="flex items-center justify-between h-10 sm:h-12">
+          {/* Logo & Title - Compact for Mobile */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-sm sm:text-lg font-bold text-white">Q</span>
+            </div>
+            <h1 className="text-xs sm:text-base font-semibold text-gray-800">
+              Query Tracker
+            </h1>
+          </div>
+
+          {/* Stats - Hidden on mobile */}
+          <div className="hidden lg:block">
+            <DashboardStats {...stats} />
+          </div>
+
+          {/* Actions - Compact */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              onClick={onAddQuery}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-1.5 px-2 sm:px-3 rounded-md shadow-sm flex items-center gap-1 transition-colors"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span className="hidden sm:inline">Add</span>
+            </button>
+
+            <UserMenu currentUser={currentUser} onLogout={onLogout} />
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}

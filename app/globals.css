@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bucket-a: #ea4335;
+  --bucket-b: #fbbc04;
+  --bucket-c: #34a853;
+  --bucket-d: #ff9800;
+  --bucket-e: #1a73e8;
+  --bucket-f: #673ab7;
+  --bucket-g: #9e9e9e;
+}
+
+body {
+  font-family:
+    "Segoe UI",
+    "Google Sans",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Bucket colors */
+.bucket-a {
+  border-left-color: var(--bucket-a);
+}
+.bucket-b {
+  border-left-color: var(--bucket-b);
+}
+.bucket-c {
+  border-left-color: var(--bucket-c);
+}
+.bucket-d {
+  border-left-color: var(--bucket-d);
+}
+.bucket-e {
+  border-left-color: var(--bucket-e);
+}
+.bucket-f {
+  border-left-color: var(--bucket-f);
+}
+.bucket-g {
+  border-left-color: var(--bucket-g);
+}
+
+.bucket-header-a {
+  background-color: var(--bucket-a);
+}
+.bucket-header-b {
+  background-color: var(--bucket-b);
+}
+.bucket-header-c {
+  background-color: var(--bucket-c);
+}
+.bucket-header-d {
+  background-color: var(--bucket-d);
+}
+.bucket-header-e {
+  background-color: var(--bucket-e);
+}
+.bucket-header-f {
+  background-color: var(--bucket-f);
+}
+.bucket-header-g {
+  background-color: var(--bucket-g);
+}
+
+/* Toast animations */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
