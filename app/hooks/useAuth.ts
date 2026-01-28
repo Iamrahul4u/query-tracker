@@ -42,9 +42,6 @@ export function useAuth() {
         // Initialize data loading
         await initialize(urlToken);
         setAuthChecked(true);
-
-        // Start token refresh timer
-        startTokenRefreshTimer();
         return;
       }
 
@@ -75,52 +72,54 @@ export function useAuth() {
       if (currentToken) {
         await initialize(currentToken);
         setAuthChecked(true);
-
-        // Start token refresh timer
-        startTokenRefreshTimer();
       }
     };
 
     checkAuth();
-  }, [searchParams, router, initialize]);
+  }, [searchParams, router, initialize, showToast]);
 
-  // Token refresh timer - checks every 5 minutes
-  const startTokenRefreshTimer = () => {
-    const interval = setInterval(
-      async () => {
-        const tokenExpiry = localStorage.getItem("token_expiry");
-        const timeUntilExpiry = tokenExpiry
-          ? Number(tokenExpiry) - Date.now()
-          : 0;
+  // Token refresh timer - separate useEffect for proper cleanup
+  useEffect(() => {
+    // Don't start timer until auth is checked
+    if (!authChecked) return;
 
-        // If less than 10 minutes until expiry, try to extend/refresh
-        if (timeUntilExpiry < 10 * 60 * 1000 && timeUntilExpiry > 0) {
-          console.log(
-            `Token expiring in ${Math.floor(timeUntilExpiry / 60000)} minutes, attempting refresh...`,
-          );
-          await refreshAccessToken();
-        }
+    console.log("🔄 Starting token refresh timer");
 
-        // If already expired, force logout
-        if (timeUntilExpiry <= 0) {
-          console.log("Token expired, logging out...");
-          showToast("Session expired. Please login again.", "error");
-          logout();
-        }
-      },
-      5 * 60 * 1000,
-    ); // Check every 5 minutes
+    // Check and refresh function
+    const checkAndRefresh = async () => {
+      const tokenExpiry = localStorage.getItem("token_expiry");
+      const timeUntilExpiry = tokenExpiry
+        ? Number(tokenExpiry) - Date.now()
+        : 0;
 
-    // Also check immediately on mount
-    const tokenExpiry = localStorage.getItem("token_expiry");
-    const timeUntilExpiry = tokenExpiry ? Number(tokenExpiry) - Date.now() : 0;
-    if (timeUntilExpiry < 10 * 60 * 1000 && timeUntilExpiry > 0) {
-      refreshAccessToken();
-    }
+      // If less than 10 minutes until expiry, try to extend/refresh
+      if (timeUntilExpiry < 10 * 60 * 1000 && timeUntilExpiry > 0) {
+        console.log(
+          `Token expiring in ${Math.floor(timeUntilExpiry / 60000)} minutes, attempting refresh...`,
+        );
+        await refreshAccessToken();
+      }
+
+      // If already expired, force logout
+      if (timeUntilExpiry <= 0) {
+        console.log("Token expired, logging out...");
+        showToast("Session expired. Please login again.", "error");
+        logout();
+      }
+    };
+
+    // Immediate check on mount
+    checkAndRefresh();
+
+    // Set up interval - check every 5 minutes
+    const interval = setInterval(checkAndRefresh, 5 * 60 * 1000);
 
     // Cleanup on unmount
-    return () => clearInterval(interval);
-  };
+    return () => {
+      console.log("🛑 Stopping token refresh timer");
+      clearInterval(interval);
+    };
+  }, [authChecked, showToast]);
 
   // Refresh access token by validating current token
   const refreshAccessToken = async (): Promise<boolean> => {
