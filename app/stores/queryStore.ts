@@ -53,7 +53,9 @@ interface QueryState {
     updates: Partial<Query>,
   ) => Promise<void>;
 
-  deleteQueryOptimistic: (queryId: string) => Promise<void>;
+  deleteQueryOptimistic: (queryId: string, requestedBy: string, isAdmin?: boolean) => Promise<void>;
+  approveDeleteOptimistic: (queryId: string) => Promise<void>;
+  rejectDeleteOptimistic: (queryId: string) => Promise<void>;
   savePreferences: (prefs: Partial<Preferences>) => Promise<void>;
 
   // Sync Actions (Background)
@@ -66,9 +68,14 @@ interface QueryState {
 
 export const useQueryStore = create<QueryState>()(
   immer((set, get) => {
-    // Listen for background refresh events from SyncManager
-    if (typeof window !== "undefined") {
-      window.addEventListener("data-refreshed", ((event: CustomEvent) => {
+    // Set up background refresh listener with cleanup
+    // Use a flag to prevent multiple registrations (hot reload safe)
+    const LISTENER_KEY = "__queryStore_dataRefreshed_registered__";
+    
+    if (typeof window !== "undefined" && !(window as any)[LISTENER_KEY]) {
+      (window as any)[LISTENER_KEY] = true;
+      
+      const handleDataRefreshed = ((event: CustomEvent) => {
         const { queries, users, preferences } = event.detail;
 
         set((state) => {
@@ -105,8 +112,17 @@ export const useQueryStore = create<QueryState>()(
           state.preferences = preferences;
           state.lastSyncedAt = new Date();
         });
-      }) as EventListener);
+      }) as EventListener;
+
+      window.addEventListener("data-refreshed", handleDataRefreshed);
+      
+      // Cleanup on page unload to prevent memory leaks
+      window.addEventListener("beforeunload", () => {
+        window.removeEventListener("data-refreshed", handleDataRefreshed);
+        delete (window as any)[LISTENER_KEY];
+      });
     }
+
 
     return {
       queries: [],
@@ -178,12 +194,31 @@ export const useQueryStore = create<QueryState>()(
         const currentQueries = get().queries;
         const currentUser = get().currentUser;
 
+        // Add pending action to block background refresh
+        const pendingId = `add_${Date.now()}`;
+        set((state) => {
+          state.pendingActions.push({
+            id: pendingId,
+            type: "add",
+            data: queryData,
+            timestamp: Date.now(),
+            retries: 0,
+          });
+        });
+
         const result = await syncManager.addQueryOptimistic(
           queryData,
           currentQueries,
           (queries) => set({ queries }),
           currentUser?.Email || "",
         );
+
+        // Remove pending action
+        set((state) => {
+          state.pendingActions = state.pendingActions.filter(
+            (a) => a.id !== pendingId,
+          );
+        });
 
         if (result.success) {
           useToast.getState().showToast("Query added successfully", "success");
@@ -204,6 +239,19 @@ export const useQueryStore = create<QueryState>()(
         const currentQueries = get().queries;
         const currentUser = get().currentUser;
 
+        // Add pending action to block background refresh
+        const pendingId = `assign_${queryId}_${Date.now()}`;
+        set((state) => {
+          state.pendingActions.push({
+            id: pendingId,
+            type: "assign",
+            queryId,
+            data: { assignee, remarks },
+            timestamp: Date.now(),
+            retries: 0,
+          });
+        });
+
         const result = await syncManager.assignQueryOptimistic(
           queryId,
           assignee,
@@ -211,6 +259,13 @@ export const useQueryStore = create<QueryState>()(
           (queries) => set({ queries }),
           currentUser?.Email || "",
         );
+
+        // Remove pending action
+        set((state) => {
+          state.pendingActions = state.pendingActions.filter(
+            (a) => a.id !== pendingId,
+          );
+        });
 
         if (result.success) {
           useToast
@@ -279,6 +334,19 @@ export const useQueryStore = create<QueryState>()(
         const currentQueries = get().queries;
         const currentUser = get().currentUser;
 
+        // Add pending action to block background refresh
+        const pendingId = `edit_${queryId}_${Date.now()}`;
+        set((state) => {
+          state.pendingActions.push({
+            id: pendingId,
+            type: "edit",
+            queryId,
+            data: updates,
+            timestamp: Date.now(),
+            retries: 0,
+          });
+        });
+
         const result = await syncManager.updateQueryOptimistic(
           queryId,
           updates,
@@ -286,6 +354,13 @@ export const useQueryStore = create<QueryState>()(
           (queries) => set({ queries }),
           currentUser?.Email || "",
         );
+
+        // Remove pending action
+        set((state) => {
+          state.pendingActions = state.pendingActions.filter(
+            (a) => a.id !== pendingId,
+          );
+        });
 
         if (result.success) {
           useToast
@@ -301,24 +376,85 @@ export const useQueryStore = create<QueryState>()(
       // ═══════════════════════════════════════════════════════════════
       // OPTIMISTIC DELETE (Using SyncManager)
       // ═══════════════════════════════════════════════════════════════
-      deleteQueryOptimistic: async (queryId) => {
+      deleteQueryOptimistic: async (queryId, requestedBy, isAdmin = false) => {
         const syncManager = SyncManager.getInstance();
         const currentQueries = get().queries;
 
+        // Add pending action to block background refresh
+        const pendingId = `delete_${queryId}_${Date.now()}`;
+        set((state) => {
+          state.pendingActions.push({
+            id: pendingId,
+            type: "delete",
+            queryId,
+            timestamp: Date.now(),
+            retries: 0,
+          });
+        });
+
         const result = await syncManager.deleteQueryOptimistic(
+          queryId,
+          currentQueries,
+          (queries) => set({ queries }),
+          requestedBy,
+          isAdmin,
+        );
+
+        // Remove pending action
+        set((state) => {
+          state.pendingActions = state.pendingActions.filter(
+            (a) => a.id !== pendingId,
+          );
+        });
+
+        if (result.success) {
+          useToast
+            .getState()
+            .showToast(isAdmin ? "Query permanently deleted" : "Delete request submitted", "success");
+        } else {
+          useToast
+            .getState()
+            .showToast(result.error || "Failed to delete query", "error");
+        }
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // APPROVE DELETE (Admin only)
+      // ═══════════════════════════════════════════════════════════════
+      approveDeleteOptimistic: async (queryId) => {
+        const syncManager = SyncManager.getInstance();
+        const currentQueries = get().queries;
+
+        const result = await syncManager.approveDeleteOptimistic(
           queryId,
           currentQueries,
           (queries) => set({ queries }),
         );
 
         if (result.success) {
-          useToast
-            .getState()
-            .showToast("Query deleted successfully", "success");
+          useToast.getState().showToast("Deletion approved", "success");
         } else {
-          useToast
-            .getState()
-            .showToast(result.error || "Failed to delete query", "error");
+          useToast.getState().showToast(result.error || "Failed to approve deletion", "error");
+        }
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // REJECT DELETE (Admin only)
+      // ═══════════════════════════════════════════════════════════════
+      rejectDeleteOptimistic: async (queryId) => {
+        const syncManager = SyncManager.getInstance();
+        const currentQueries = get().queries;
+
+        const result = await syncManager.rejectDeleteOptimistic(
+          queryId,
+          currentQueries,
+          (queries) => set({ queries }),
+        );
+
+        if (result.success) {
+          useToast.getState().showToast("Deletion rejected, query restored", "success");
+        } else {
+          useToast.getState().showToast(result.error || "Failed to reject deletion", "error");
         }
       },
 

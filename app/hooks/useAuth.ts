@@ -8,7 +8,7 @@ import { useToast } from "./useToast";
  * Custom hook to handle authentication flow
  * - Checks URL token (from Chrome extension)
  * - Validates localStorage token
- * - Implements automatic token refresh (50 minutes)
+ * - Implements automatic token refresh using refresh_token
  * - Initializes data loading with cache
  * - Redirects to login if invalid
  */
@@ -30,7 +30,7 @@ export function useAuth() {
         if (urlEmail) {
           localStorage.setItem("user_email", urlEmail);
         }
-        // Store expiry time (50 minutes from now - refresh before 60min expiry)
+        // For extension tokens, set 50 min expiry (no refresh token available)
         localStorage.setItem(
           "token_expiry",
           String(Date.now() + 50 * 60 * 1000),
@@ -53,7 +53,7 @@ export function useAuth() {
         return;
       }
 
-      // 3. Check if token is expired or about to expire
+      // 3. Check if token is expired
       const tokenExpiry = localStorage.getItem("token_expiry");
       if (tokenExpiry && Date.now() >= Number(tokenExpiry)) {
         console.log("Token expired, attempting refresh...");
@@ -78,18 +78,15 @@ export function useAuth() {
     checkAuth();
   }, [searchParams, router, initialize, showToast]);
 
-  // Token refresh timer - separate useEffect for proper cleanup
+  // Token refresh timer - check every 5 minutes for 1-hour tokens
   useEffect(() => {
-    // Don't start timer until auth is checked
     if (!authChecked) return;
 
-    console.log("🔄 Starting token refresh timer");
+    console.log("🔄 Starting token refresh timer (5 minute interval)");
 
-    // Check and refresh function
     const checkAndRefresh = async () => {
       const tokenExpiry = localStorage.getItem("token_expiry");
 
-      // If no expiry set, don't check (defensive - shouldn't happen but prevents loops)
       if (!tokenExpiry) {
         console.warn("⚠️ No token_expiry found, skipping expiry check");
         return;
@@ -97,71 +94,103 @@ export function useAuth() {
 
       const timeUntilExpiry = Number(tokenExpiry) - Date.now();
 
-      // If less than 10 minutes until expiry, try to extend/refresh
-      if (timeUntilExpiry < 10 * 60 * 1000 && timeUntilExpiry > 0) {
+      // Refresh when less than 10 minutes until expiry (for 1-hour tokens)
+      const REFRESH_THRESHOLD = 10 * 60 * 1000; // 10 minutes before expiry
+      
+      if (timeUntilExpiry < REFRESH_THRESHOLD && timeUntilExpiry > 0) {
         console.log(
-          `Token expiring in ${Math.floor(timeUntilExpiry / 60000)} minutes, attempting refresh...`,
+          `⏰ Token expiring in ${(timeUntilExpiry / 1000 / 60).toFixed(1)} min, refreshing...`,
         );
         await refreshAccessToken();
       }
 
-      // If already expired, force logout
+      // If already expired, force refresh or logout
       if (timeUntilExpiry <= 0) {
-        console.log("Token expired, logging out...");
-        showToast("Session expired. Please login again.", "error");
-        logout();
+        console.log("❌ Token expired, attempting refresh...");
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+          showToast("Session expired. Please login again.", "error");
+          logout();
+        }
       }
     };
 
-    // Immediate check on mount
+    // Immediate check
     checkAndRefresh();
 
-    // Set up interval - check every 5 minutes
+    // Check every 5 minutes for 1-hour tokens
     const interval = setInterval(checkAndRefresh, 5 * 60 * 1000);
 
-    // Cleanup on unmount
     return () => {
       console.log("🛑 Stopping token refresh timer");
       clearInterval(interval);
     };
   }, [authChecked, showToast]);
 
-  // Refresh access token by validating current token
+  // Refresh access token using server-side refresh endpoint
   const refreshAccessToken = async (): Promise<boolean> => {
-    const currentToken = localStorage.getItem("auth_token");
-    if (!currentToken) {
-      return false;
+    const refreshToken = localStorage.getItem("refresh_token");
+    
+    // If no refresh token, try to validate current token (extension flow)
+    if (!refreshToken) {
+      const currentToken = localStorage.getItem("auth_token");
+      if (!currentToken) return false;
+      
+      try {
+        const response = await fetch(
+          `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${currentToken}`,
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          const expiresIn = data.expires_in || 3600;
+          // For extension tokens, just update expiry if still valid
+          localStorage.setItem(
+            "token_expiry",
+            String(Date.now() + expiresIn * 1000),
+          );
+          console.log(`✓ Token validated. Expires in ${expiresIn}s`);
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
+      }
     }
 
+    // Use server-side refresh endpoint
     try {
-      // Validate token with Google
-      const response = await fetch(
-        `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${currentToken}`,
-      );
+      console.log("🔄 Calling /api/auth/refresh...");
+      const response = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
 
       if (response.ok) {
         const data = await response.json();
-        // Token is still valid
-        // Calculate new expiry based on token's actual expiry
-        const expiresIn = data.expires_in || 3600; // seconds
-        const newExpiry = Date.now() + (expiresIn - 600) * 1000; // Refresh 10 min before actual expiry
-
-        console.log(
-          `Token validated. Expires in ${expiresIn}s. Next refresh in ${Math.floor((newExpiry - Date.now()) / 60000)} minutes`,
+        
+        // Update stored token
+        localStorage.setItem("auth_token", data.access_token);
+        localStorage.setItem(
+          "token_expiry",
+          String(Date.now() + data.expires_in * 1000),
         );
 
-        localStorage.setItem("token_expiry", String(newExpiry));
+        console.log(`✅ Token refreshed! New token expires in ${data.expires_in}s`);
         return true;
       } else {
-        // Token is invalid
-        console.error("Token validation failed:", response.status);
-        showToast("Session expired. Please login again.", "error");
-        logout();
+        const error = await response.json();
+        console.error("Token refresh failed:", error);
+        
+        if (error.requireReauth) {
+          // Refresh token is invalid, must re-login
+          return false;
+        }
         return false;
       }
     } catch (error) {
       console.error("Token refresh error:", error);
-      // Don't logout on network errors, just log
       return false;
     }
   };

@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { Query } from "../utils/sheets";
+import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { Query, User } from "../utils/sheets";
 
 interface QueryDetailModalProps {
   query: Query;
+  users: User[];
+  currentUser: User | null;
   onClose: () => void;
+  onEdit?: (query: Query) => void;
 }
 
 const BUCKET_NAMES: Record<string, string> = {
@@ -17,8 +20,87 @@ const BUCKET_NAMES: Record<string, string> = {
   G: "Discarded",
 };
 
-export function QueryDetailModal({ query, onClose }: QueryDetailModalProps) {
-  const [showAuditTrail, setShowAuditTrail] = useState(false);
+/**
+ * Format date from DD/MM/YYYY, HH:MM:SS to user-friendly format
+ * Returns "6:30 PM, 21 January 2026"
+ */
+function formatAuditDate(dateStr: string | undefined): string {
+  if (!dateStr) return "—";
+
+  try {
+    // Parse DD/MM/YYYY, HH:MM:SS format
+    const parts = dateStr.split(",")[0].split("/");
+    if (parts.length !== 3) return dateStr;
+
+    const [day, month, year] = parts.map((p) => parseInt(p, 10));
+    const timePart = dateStr.split(",")[1]?.trim() || "00:00:00";
+    const [hours, minutes] = timePart.split(":").map((t) => parseInt(t, 10));
+    const date = new Date(year, month - 1, day, hours || 0, minutes || 0);
+
+    if (isNaN(date.getTime())) return dateStr;
+
+    // Format as "6:30 PM, 21 January 2026"
+    const timeStr = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    
+    const dateFormatted = date.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    return `${timeStr}, ${dateFormatted}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
+ * Convert email to display name
+ * Looks up user by email and returns their name, or extracts name from email if not found
+ */
+function getDisplayName(email: string | undefined, users: User[]): string {
+  if (!email) return "—";
+  
+  // Find user by email
+  const user = users.find((u) => u.Email?.toLowerCase() === email.toLowerCase());
+  if (user?.Name) return user.Name;
+  
+  // Fallback: extract name from email (before @)
+  const namePart = email.split("@")[0];
+  // Convert to title case: "rahulgupta" -> "Rahulgupta"
+  return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+}
+
+export function QueryDetailModal({ query, users, currentUser, onClose, onEdit }: QueryDetailModalProps) {
+  // Audit trail expanded by default (client requirement)
+  const [showAuditTrail, setShowAuditTrail] = useState(true);
+
+  // Role-based Edit button visibility (same logic as QueryCardCompact)
+  const roleLC = (currentUser?.Role || "").toLowerCase();
+  const isJunior = roleLC === "junior";
+  const bucketStatus = query.Status;
+  const userEmailLC = (currentUser?.Email || "").toLowerCase();
+  const assignedToLC = (query["Assigned To"] || "").toLowerCase().trim();
+  const isOwnQuery = assignedToLC && assignedToLC === userEmailLC;
+  
+  // Junior Edit restrictions:
+  // - Bucket A: NEVER show Edit (Junior can only self-assign, not edit)
+  // - Bucket B-G: Only show if it's their own query
+  // Senior/Admin: Can edit any query
+  const canEdit = !isJunior || (bucketStatus !== "A" && isOwnQuery);
+
+  const handleEdit = () => {
+    onEdit?.(query);
+    onClose();
+  };
+
+  // Helper to get display name for audit trail
+  const displayName = (email: string | undefined) => getDisplayName(email, users);
+
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]"
@@ -38,24 +120,27 @@ export function QueryDetailModal({ query, onClose }: QueryDetailModalProps) {
               ID: {query["Query ID"]}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 flex-shrink-0"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Close Button */}
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 p-1.5 rounded hover:bg-gray-100 transition"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -87,7 +172,7 @@ export function QueryDetailModal({ query, onClose }: QueryDetailModalProps) {
                 Assigned To
               </p>
               <p className="font-medium text-gray-800">
-                {query["Assigned To"]}
+                {displayName(query["Assigned To"])}
               </p>
               {query["Remarks"] && (
                 <p className="text-sm text-gray-600 mt-1 italic">
@@ -140,76 +225,148 @@ export function QueryDetailModal({ query, onClose }: QueryDetailModalProps) {
 
             {showAuditTrail && (
               <div className="space-y-2 text-xs text-gray-600 mt-3">
+                {/* Added */}
                 {query["Added By"] && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span>
-                      Added by{" "}
+                      <span className="text-green-600 font-medium">Added</span>{" "}
+                      by{" "}
                       <span className="font-medium text-gray-700">
-                        {query["Added By"]}
+                        {displayName(query["Added By"])}
                       </span>
                     </span>
-                    <span className="text-gray-400">
-                      {query["Added Date Time"] || "—"}
+                    <span className="text-gray-400 text-right">
+                      {formatAuditDate(query["Added Date Time"])}
                     </span>
                   </div>
                 )}
+
+                {/* Assigned/Allocated */}
                 {query["Assigned By"] && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span>
-                      Assigned by{" "}
+                      <span className="text-blue-600 font-medium">
+                        Allocated
+                      </span>{" "}
+                      by{" "}
                       <span className="font-medium text-gray-700">
-                        {query["Assigned By"]}
+                        {displayName(query["Assigned By"])}
                       </span>
+                      {query["Assigned To"] && (
+                        <span className="text-gray-500">
+                          {" "}
+                          → {displayName(query["Assigned To"])}
+                        </span>
+                      )}
                     </span>
-                    <span className="text-gray-400">
-                      {query["Assignment Date Time"] || "—"}
+                    <span className="text-gray-400 text-right">
+                      {formatAuditDate(query["Assignment Date Time"])}
                     </span>
                   </div>
                 )}
+
+                {/* Proposal Sent */}
                 {query["Proposal Sent Date Time"] && (
-                  <div className="flex justify-between">
-                    <span>Proposal sent</span>
-                    <span className="text-gray-400">
-                      {query["Proposal Sent Date Time"]}
-                    </span>
-                  </div>
-                )}
-                {query["Entered In SF Date Time"] && (
-                  <div className="flex justify-between">
-                    <span>Entered in SF</span>
-                    <span className="text-gray-400">
-                      {query["Entered In SF Date Time"]}
-                    </span>
-                  </div>
-                )}
-                {query["Last Edited By"] && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span>
-                      Last edited by{" "}
-                      <span className="font-medium text-gray-700">
-                        {query["Last Edited By"]}
+                      <span className="text-green-600 font-medium">
+                        Proposal sent
                       </span>
                     </span>
-                    <span className="text-gray-400">
-                      {query["Last Edited Date Time"] || "—"}
+                    <span className="text-gray-400 text-right">
+                      {formatAuditDate(query["Proposal Sent Date Time"])}
                     </span>
                   </div>
                 )}
+
+                {/* Entered in Salesforce */}
+                {query["Entered In SF Date Time"] && (
+                  <div className="flex justify-between items-center">
+                    <span>
+                      <span className="text-purple-600 font-medium">
+                        Entered in SF
+                      </span>
+                    </span>
+                    <span className="text-gray-400 text-right">
+                      {formatAuditDate(query["Entered In SF Date Time"])}
+                    </span>
+                  </div>
+                )}
+
+                {/* Last Edited */}
+                {query["Last Edited By"] && (
+                  <div className="flex justify-between items-center">
+                    <span>
+                      <span className="text-orange-600 font-medium">
+                        Edited
+                      </span>{" "}
+                      by{" "}
+                      <span className="font-medium text-gray-700">
+                        {displayName(query["Last Edited By"])}
+                      </span>
+                    </span>
+                    <span className="text-gray-400 text-right">
+                      {formatAuditDate(query["Last Edited Date Time"])}
+                    </span>
+                  </div>
+                )}
+
+                {/* Discarded */}
                 {query["Discarded Date Time"] && (
-                  <div className="flex justify-between">
-                    <span className="text-red-600">Discarded</span>
-                    <span className="text-gray-400">
-                      {query["Discarded Date Time"]}
+                  <div className="flex justify-between items-center">
+                    <span>
+                      <span className="text-red-600 font-medium">
+                        Discarded
+                      </span>
+                    </span>
+                    <span className="text-gray-400 text-right">
+                      {formatAuditDate(query["Discarded Date Time"])}
                     </span>
                   </div>
                 )}
+
+                {/* Delete Requested (for pending deletions) */}
+                {query["Delete Requested By"] && (
+                  <div className="flex justify-between items-center bg-red-50 -mx-2 px-2 py-1 rounded">
+                    <span>
+                      <span className="text-red-600 font-medium">
+                        Delete requested
+                      </span>{" "}
+                      by{" "}
+                      <span className="font-medium text-gray-700">
+                        {displayName(query["Delete Requested By"])}
+                      </span>
+                    </span>
+                    <span className="text-gray-400 text-right">
+                      {formatAuditDate(query["Delete Requested Date Time"])}
+                    </span>
+                  </div>
+                )}
+
+                {/* No audit entries */}
+                {!query["Added By"] &&
+                  !query["Assigned By"] &&
+                  !query["Last Edited By"] && (
+                    <div className="text-gray-400 italic">
+                      No audit trail available
+                    </div>
+                  )}
               </div>
             )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end">
+        <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+          {onEdit && canEdit && (
+            <button
+              onClick={handleEdit}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium flex items-center gap-2 transition"
+            >
+              <Pencil className="w-4 h-4" />
+              Edit
+            </button>
+          )}
           <button
             onClick={onClose}
             className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"

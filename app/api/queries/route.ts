@@ -62,16 +62,23 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("API Error:", error);
+    // Google API errors can be objects, not strings
+    const errorMessage = typeof error.message === 'string' 
+      ? error.message 
+      : JSON.stringify(error.message || error);
+    
     // Google API 401/400 often means token issues
     if (
       error.code === 401 ||
-      error.message?.includes("invalid_token") ||
-      error.message?.includes("Invalid Credentials")
+      error.status === 400 ||
+      error.status === 401 ||
+      errorMessage.includes("invalid_token") ||
+      errorMessage.includes("Invalid Credentials")
     ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.json(
-      { error: error.message || "Failed to fetch data" },
+      { error: errorMessage || "Failed to fetch data" },
       { status: 500 },
     );
   }
@@ -105,6 +112,10 @@ export async function POST(request: NextRequest) {
         return await handleAdd(sheets, data);
       case "delete":
         return await handleDelete(sheets, queryId, data);
+      case "approveDelete":
+        return await handleApproveDelete(sheets, queryId);
+      case "rejectDelete":
+        return await handleRejectDelete(sheets, queryId);
       default:
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
@@ -254,7 +265,7 @@ async function updateRowCells(
 async function handleAssign(
   sheets: any,
   queryId: string,
-  data: { assignee: string; remarks?: string },
+  data: { assignee: string; assignedBy?: string; remarks?: string },
 ) {
   const rowIndex = await findRowIndex(sheets, queryId);
   if (!rowIndex)
@@ -285,38 +296,16 @@ async function handleAssign(
   const updates: any = {
     "Assigned To": data.assignee,
     "Assignment Date Time": now,
-    // "Assigned By" is handled by store? No, store sets currentUser locally, logic needs to be secure here?
-    // Store sends `assignee`, we can get `assignedBy` from token userEmail?
-    // Plan says: "Assigned By: current user email". Store sets it.
-    // The Store optimistic update sets it. But the API should probably set "Assigned By" from the token for security.
     "Last Activity Date Time": now,
   };
 
-  // Get token user email (we can decode it or pass it.
-  // For now let's reuse helper logic. But we need to get user email again from token or rely on store/client?
-  // Store sends data.assignee. It doesn't strictly send "assignedBy", assuming API does it.
-  // Wait, `queryStore` optimistic update sets "Assigned By" locally.
-  // But strictly, we should set "Assigned By" on server based on token.
-  // Let's get user email from token again (inefficient but secure) OR assume client is trusted enough here?
-  // Given "Google Sheets as backend" and simple auth, let's get email from token again for "Last Edited By" etc. if feasible.
-  // Actually, let's pass it in `data` from client for now to match store behavior, or just fetch it once.
-  // Getting it once is better.
-
-  // NOTE: For simplicity, I will re-fetch token email in the POST handler if needed,
-  // but better to just pass it or extract it once.
-  // Let's extract email once in POST wrapper.
+  // Add Assigned By if provided (who performed the assignment)
+  if (data.assignedBy) {
+    updates["Assigned By"] = data.assignedBy;
+  }
 
   if (data.remarks) updates["Remarks"] = data.remarks;
   if (currentStatus === "A") updates["Status"] = "B";
-
-  // We need the user's email for "Assigned By".
-  // Let's grab it from the token again (it's fast, cached usually or just a decode if JWT, but here it's Google Check).
-  // Actually, let's skip strict server-side "Assigned By" enforcement for this prototype and rely on client
-  // OR just fetch it. I'll fetch it to be robust.
-
-  // Okay, re-fetching token info is an extra call.
-  // Let's optimize: The store sends 'Assign' action.
-  // I will fetch token info ONCE at top of POST.
 
   await updateRowCells(sheets, rowIndex, updates);
   return NextResponse.json({ success: true });
@@ -417,7 +406,7 @@ async function handleAdd(sheets: any, data: Query) {
 async function handleDelete(
   sheets: any,
   queryId: string,
-  data: { requestedBy: string },
+  data: { requestedBy: string; isAdmin?: boolean },
 ) {
   const rowIndex = await findRowIndex(sheets, queryId);
   if (!rowIndex)
@@ -425,22 +414,120 @@ async function handleDelete(
 
   const now = new Date().toLocaleString("en-GB");
 
-  // Soft Delete
+  if (data.isAdmin) {
+    // Admin/Pseudo Admin: Permanent delete - remove the row from sheet
+    try {
+      // Get sheet ID for Queries sheet
+      const spreadsheet = await sheets.spreadsheets.get({
+        spreadsheetId: SPREADSHEET_ID,
+      });
+      const queriesSheet = spreadsheet.data.sheets?.find(
+        (s: any) => s.properties?.title === "Queries"
+      );
+      const sheetId = queriesSheet?.properties?.sheetId || 0;
+
+      // Delete the row
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: {
+          requests: [
+            {
+              deleteDimension: {
+                range: {
+                  sheetId,
+                  dimension: "ROWS",
+                  startIndex: rowIndex - 1, // 0-indexed
+                  endIndex: rowIndex, // exclusive
+                },
+              },
+            },
+          ],
+        },
+      });
+
+      // Invalidate cache since row indices shifted
+      rowIndexCache.clear();
+
+      return NextResponse.json({ success: true, permanent: true });
+    } catch (error: any) {
+      console.error("Failed to delete row:", error);
+      return NextResponse.json(
+        { error: "Failed to permanently delete query" },
+        { status: 500 }
+      );
+    }
+  } else {
+    // Non-admin: Soft Delete - mark for approval
+    const updates = {
+      "Delete Requested Date Time": now,
+      "Delete Requested By": data.requestedBy,
+    };
+
+    await updateRowCells(sheets, rowIndex, updates);
+    return NextResponse.json({ success: true, pending: true });
+  }
+}
+
+/**
+ * Approve a pending deletion (Admin only) - permanently removes the row
+ */
+async function handleApproveDelete(sheets: any, queryId: string) {
+  const rowIndex = await findRowIndex(sheets, queryId);
+  if (!rowIndex)
+    return NextResponse.json({ error: "Query not found" }, { status: 404 });
+
+  try {
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+    const queriesSheet = spreadsheet.data.sheets?.find(
+      (s: any) => s.properties?.title === "Queries"
+    );
+    const sheetId = queriesSheet?.properties?.sheetId || 0;
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId,
+                dimension: "ROWS",
+                startIndex: rowIndex - 1,
+                endIndex: rowIndex,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    rowIndexCache.clear();
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Failed to approve delete:", error);
+    return NextResponse.json(
+      { error: "Failed to approve deletion" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Reject a pending deletion (Admin only) - clears the delete request flags
+ */
+async function handleRejectDelete(sheets: any, queryId: string) {
+  const rowIndex = await findRowIndex(sheets, queryId);
+  if (!rowIndex)
+    return NextResponse.json({ error: "Query not found" }, { status: 404 });
+
   const updates = {
-    "Delete Requested Date Time": now,
-    "Delete Requested By": data.requestedBy,
-    // We might want a "Deleted" status or just these flags?
-    // Plan says "Mark as deleted (don't remove yet)".
-    // Usually that implies a status change or just these flags.
-    // Dashboard filters out if DeleteRequested matches?
-    // Store implementation of deleteQueryOptimistic marks `_isDeleted = true`.
-    // It filters them out in UI?
-    // Actually the Plan 8.2 says: "Query hidden immediately from view".
-    // AND "Synced to sheets".
-    // So if we just set these flags, we need to ensure GET filters them out?
-    // Or we assume they are filtered by client if flags exist.
+    "Delete Requested Date Time": "",
+    "Delete Requested By": "",
   };
 
   await updateRowCells(sheets, rowIndex, updates);
   return NextResponse.json({ success: true });
 }
+

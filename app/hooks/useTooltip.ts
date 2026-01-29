@@ -1,14 +1,16 @@
 import { create } from "zustand";
-import { Query } from "../utils/sheets";
+import { Query, User } from "../utils/sheets";
 
 interface TooltipState {
   activeInstanceId: string | null;
   position: { top: number; left: number };
   placement: "top" | "bottom";
   query: Query | null;
+  users: User[];
   showTooltip: (
     instanceId: string,
     query: Query,
+    users: User[],
     position: { top: number; left: number },
     placement: "top" | "bottom",
   ) => void;
@@ -20,12 +22,14 @@ export const useTooltipStore = create<TooltipState>((set) => ({
   position: { top: 0, left: 0 },
   placement: "top",
   query: null,
-  showTooltip: (instanceId, query, position, placement) =>
-    set({ activeInstanceId: instanceId, query, position, placement }),
+  users: [],
+  showTooltip: (instanceId, query, users, position, placement) =>
+    set({ activeInstanceId: instanceId, query, users, position, placement }),
   hideTooltip: () =>
     set({
       activeInstanceId: null,
       query: null,
+      users: [],
       position: { top: 0, left: 0 },
       placement: "top",
     }),

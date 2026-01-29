@@ -1,28 +1,49 @@
+import { BUCKETS, BUCKET_ORDER } from "../config/sheet-constants";
+
 interface DashboardStatsProps {
-  pending: number;
-  inProgress: number;
-  sent: number;
+  stats: Record<string, number>;
 }
 
-export function DashboardStats({
-  pending,
-  inProgress,
-  sent,
-}: DashboardStatsProps) {
+// Short names for compact display
+const BUCKET_SHORT_NAMES: Record<string, string> = {
+  A: "Unassigned",
+  B: "Pending",
+  C: "Sent Full",
+  D: "Sent Partial",
+  E: "Partial+SF",
+  F: "Full+SF",
+  G: "Discarded",
+};
+
+export function DashboardStats({ stats }: DashboardStatsProps) {
   return (
-    <div className="hidden md:flex items-center gap-6">
-      <div className="text-center">
-        <div className="text-2xl font-bold text-red-500">{pending}</div>
-        <div className="text-xs text-gray-500">Pending</div>
-      </div>
-      <div className="text-center">
-        <div className="text-2xl font-bold text-yellow-500">{inProgress}</div>
-        <div className="text-xs text-gray-500">In Progress</div>
-      </div>
-      <div className="text-center">
-        <div className="text-2xl font-bold text-green-500">{sent}</div>
-        <div className="text-xs text-gray-500">Proposal Sent</div>
-      </div>
+    <div className="flex items-center gap-1.5 lg:gap-3">
+      {BUCKET_ORDER.map((bucket) => {
+        const config = BUCKETS[bucket];
+        const count = stats[bucket] || 0;
+        const shortName = BUCKET_SHORT_NAMES[bucket] || config.name;
+
+        return (
+          <div
+            key={bucket}
+            className="text-center px-2 py-1 rounded-lg"
+            style={{ backgroundColor: `${config.color}15` }}
+          >
+            <div
+              className="text-lg lg:text-xl font-bold"
+              style={{ color: config.color }}
+            >
+              {count}
+            </div>
+            <div
+              className="text-[10px] lg:text-xs font-medium truncate max-w-[60px] lg:max-w-[80px]"
+              style={{ color: config.color }}
+            >
+              {shortName}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

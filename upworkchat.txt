@@ -1,0 +1,793 @@
+Raj Bhanushali
+1:10 PM
+Hello!
+
+
+
+I'd like to invite you to take a look at the job I've posted. Please submit a proposal if you're available and interested.
+
+
+
+Raj B.
+
+Rahul Gupta
+1:10 PM
+Here is the updated proposal with the price adjusted to $230.
+
+
+
+Subject: Simple AppSheet Lead Tracker (Gmail Integrated) for $230
+
+
+
+Hi there,
+
+
+
+I read your request for a "non-CRM" and I love the focus on simplicity. You are absolutely right to consider AppSheet—it is the perfect tool for this because it is native to Google Workspace and handles the SSO authentication automatically.
+
+
+
+I can build this system for you using AppSheet connected to a structured Google Sheet. Here is how I will address your specific requirements:
+
+
+
+Gmail Integration: I will configure the AppSheet Gmail add-on so your team can view and edit leads without leaving their inbox.
+
+
+
+The "Junior vs. Senior" Logic: This is the most critical part. I will set up "Slices" and User Roles so that:
+
+
+
+Juniors: See a "Claim" button to self-assign, but cannot change the assignee to others.
+
+
+
+Seniors: Have a full dropdown to assign leads to any user email in the organization.
+
+
+
+Data Retention: I will create a simple automation bot (or Google Apps Script) that runs nightly to archive or delete leads older than 30 days, keeping the system lightweight.
+
+
+
+My Offer: I am currently focused on building my profile on Upwork, so I am looking for straightforward, high-quality projects like this to earn a 5-star review.
+
+
+
+I am offering to build this complete system, including the user permission logic and Gmail setup, for a fixed price of $230.
+
+
+
+I can have the initial prototype ready for you to test within 24 hours. I’m available to start immediately.
+
+
+
+Best regards, Rahul Gupta
+
+View details
+RB
+Raj Bhanushali
+1:18 PM
+Hi Rahul. I am seriously considering you but can you provide some relevant details of any similar project you have done?
+
+
+
+Also one clarification:
+The senior users can see all new leads coming in, which when entered to the common pool are giving status bucket A ( which is for all new leads, unassigned yet) . This status bucket is not visible to junior users , while all remaining status buckets are also visible to junior users
+
+Rahul Gupta
+1:44 PM
+Hi,
+I’ve worked with Google Scripts and Google Sheets, but I haven’t used AppSheet yet. However, I expect it to be similar to other no-code tools I’ve used. I’ve worked with advanced no-code platforms like Bubble.io, FlutterFlow, and Zite to build apps.
+
+
+
+I don't have any similar project with Appsheet but have one with sheets and google scripts.
+
+Bubble: AI app development meets visual, no-code editing
+Launch real apps without limits on an all-in-one platform that lets you switch seamlessly between AI prompting and a visual editor. No code required — ever.
+Bubble
+RB
+Raj Bhanushali
+8:44 PM
+Hi Rahul
+
+Are u available for a quick meet via google meet
+
+Rahul Gupta
+8:57 PM
+Sure
+
+RB
+Raj Bhanushali
+9:15 PM
+Give me an hour
+
+Can u?
+
+Rahul Gupta
+9:34 PM
+Sure
+
+please take your time.
+
+RB
+Raj Bhanushali
+10:25 PM
+Lets do a call tomorrow
+
+First half
+
+Rahul Gupta
+10:29 PM
+Sure
+
+Wednesday, Jan 21
+RB
+Raj Bhanushali
+9:49 PM
+https://docs.google.com/document/d/1EqzFOJbZp0pFfgl6UOqPJONkLqwz-yU_/edit?usp=sharing&ouid=114701037880690187493&rtpof=true&sd=true Refer this google doc to understand the targeted outcome. The overall task is divided into two separate projects since both are independent of each other although there is some interconnection , therefore have given an understanding of the flow in a common document. You may propose your cost and timeline for either of the two projects and/or both. Thanks
+
+Rahul Gupta
+9:49 PM
+Sure
+
+Thursday, Jan 22
+RB
+Raj Bhanushali
+7:40 AM
+Hi Rahul. So in the above FRD document, you may just read the portions highlighted in Blue + the portions not marked in colour ( which is common explanation) to understand and focus on the project we were discussing earlier, to be executed via appsheet. The portions highlighted in green ( Gmail X Salesforce integration for Lead creation) can be ignored by you and considered out of scope for yourself. The only reason i have made a common document is for understanding of the flow as both projects although independent, are some inter dependency. Understood?
+
+Rahul Gupta
+9:27 AM
+Yes,I got it. I was looking at both and cross checking some things for second project.
+
+RB
+Raj Bhanushali
+9:40 AM
+Based on what you had proposed, the second project in green I guess is out of scope for you
+
+RB
+Raj Bhanushali
+11:50 AM
+Hey Rahul
+
+R u there
+
+Rahul Gupta
+12:10 PM
+Hi Raj,
+
+
+
+Thanks for the detailed FRD! I've gone through it and have a few options for you.
+
+
+
+🔷 Option A: Gmail Add-on Only — $250
+
+
+
+I'll build a Gmail sidebar add-on using Google Apps Script. It will appear directly inside Gmail on both desktop and mobile.
+
+
+
+What's included: • All 7 status buckets (A to G) • 3 user roles - Junior, Senior, Admin • Self-assign for juniors, assign-anyone for seniors • View by Bucket → then by User • 3-day filter for buckets E and G • Works on Gmail mobile app • Google Workspace login only (SSO)
+
+
+
+What's NOT included: • View by User → then by Bucket • Saved preferences • "gm" indicator
+
+
+
+Timeline: ~2 weeks
+
+
+
+🔷 Option B: AppSheet + Gmail Plugin — $400
+
+
+
+This gives you the best of both worlds.
+
+
+
+AppSheet for: • Rich visual interface • All views and filters • Native mobile app
+
+
+
+Gmail Add-on for: • Quick access button inside Gmail • Opens AppSheet without separate login
+
+
+
+What's included: • Everything from Option A • Plus View by User → Bucket • Better mobile experience via AppSheet app
+
+
+
+Timeline: ~2-3 weeks
+
+
+
+Note: Requires Google Workspace with AppSheet access.
+
+
+
+Quick question before we start:
+
+
+
+The FRD says "Bucket A visible to all users" but earlier we discussed it should be visible to seniors only. Which one is correct?
+
+
+
+Let me know which option works better for you, or if you'd like to discuss on a quick call!
+
+
+
+Best, Rahul
+
+RB
+Raj Bhanushali
+12:17 PM
+Hi rahul
+
+Rahul Gupta
+12:18 PM
+Hello
+
+RB
+Raj Bhanushali
+12:18 PM
+So basically this is for Project A only?
+
+Rahul Gupta
+12:18 PM
+Yes
+
+RB
+Raj Bhanushali
+12:19 PM
+Which is your recommendation considering feature , view and user friendliness , UI UX are our priorities and should be doable from mobile app
+
+Rahul Gupta
+12:21 PM
+Based on your priorities (UI/UX, mobile-friendly, all features), I recommend Option B at $400. AppSheet gives you a much better user experience on mobile with proper cards, filters, and a native app feel. The Gmail plugin will just be a shortcut to access it without switching tabs.
+
+RB
+Raj Bhanushali
+1:19 PM
+I pursued with you based on your quote of 230 usd for the same requirement. I have just detailed it out now which was the next step in any case
+
+Rahul Gupta
+1:33 PM
+I can implement the AppSheet + Apps Script + Google Sheets solution as per my proposal for $230. However, if you require mobile integration along with a Gmail Add-on, that would mean building two separate applications for the same workflow (one for AppSheet/mobile and one Gmail Add-on for inside Gmail).
+
+RB
+Raj Bhanushali
+1:36 PM
+Mobile integration was mentioned in my requirement earlier also na
+
+Rahul Gupta
+1:37 PM
+You're right, mobile was in the requirement. Let me clarify:
+
+
+
+AppSheet itself works on mobile — it has its own mobile app that your team can install. So for $230, you'll get:
+
+
+
+✅ AppSheet web app (desktop browser)
+✅ AppSheet mobile app (Android/iOS)
+✅ Google Sheets backend
+✅ Google Workspace SSO
+✅ All features from my original proposal
+
+
+
+The $400 quote was for an additional Gmail Add-on if you specifically wanted the system to appear inside Gmail itself (as a sidebar), on top of the AppSheet app.
+
+
+
+If AppSheet's mobile app is sufficient for mobile access, then $230 covers everything.
+
+
+
+Does that work for you?
+
+RB
+Raj Bhanushali
+1:39 PM
+Advanced AppSheet features beyond Core may need a separate paid plan.
+
+
+
+https://support.google.com/a/answer/10100275?hl=en
+
+
+
+We have Google work space starter plan— which has appsheet access included but advanced appsheet features are necessary?
+
+Manage AppSheet in your organization - Google Workspace Admin Help
+AppSheet is available as an add-on paid subscription to all Google Workspace editions. AppSheet Core licenses are included at no cost with most Google Workspace editions. See Google Workspace editions
+Rahul Gupta
+1:41 PM
+"Google Workspace Business Starter" includes AppSheet Core licenses for each domain-verified user at no additional cost.
+
+
+
+I checked Google Workspace Business Starter plan. It already includes AppSheet Core at no extra cost.
+
+RB
+Raj Bhanushali
+1:57 PM
+I prefer it to appear inside gmail.. can u share a no regret cost for that
+
+Rahul Gupta
+2:01 PM
+You removed this message
+
+For $300, I'll build a custom Gmail Add-on with everything:
+
+
+
+✅ Gmail sidebar integration (desktop + mobile)
+✅ All 7 status buckets (A to G)
+✅ 3 user roles (Junior, Senior, Admin)
+✅ Role-based visibility rules
+✅ Self-assign + assign to others
+✅ Progressive status changes
+✅ View Type I (Bucket → User)
+✅ View Type II (User → Bucket)
+✅ 3-day visibility filter for E/G
+✅ 7-day expansion option
+✅ Saved user preferences
+✅ Query subgroups (New/Ongoing/SEO)
+✅ "gm" indicator (manual toggle — user marks when Lead is entered in SF)
+✅ Google Sheets backend
+✅ Google Workspace SSO
+
+
+
+No AppSheet required — pure Gmail Add-on + Google Sheets.
+
+
+
+Timeline: 2-3 weeks
+
+
+
+Does this work for you?
+
+RB
+Raj Bhanushali
+2:04 PM
+The option B was your recommended approach right
+
+Rahul Gupta
+2:05 PM
+yes
+
+Option B was my recommendation for best UI/UX on mobile.
+
+RB
+Raj Bhanushali
+2:05 PM
+And how is the UI/ UX on desktop with that? As desktop is largely used
+
+Rahul Gupta
+2:10 PM
+On dashboard UI would be clean as we've more options with appsheet.
+
+Another offer I can propose is: $250 for the Gmail Add-on only, and $100 for the AppSheet app, so both together would be $350.
+In return, I would request that these be treated as two separate jobs/contracts, since that will help me receive separate reviews and improve visibility on my profile.In this way, you're first getting option A then if you want to proceed with option B as well it'll be additionally available to get.
+
+RB
+Raj Bhanushali
+2:13 PM
+So that means I will be actually getting Option B fully and paying 350 usd total?
+
+Rahul Gupta
+2:18 PM
+Yes
+
+RB
+Raj Bhanushali
+2:20 PM
+Can u chat for 2 mins so we can close this
+
+What would be the proposed start date and timeline to execute
+
+Rahul Gupta
+2:32 PM
+Sure, i could start from tomorrow. And the option a will take me a week and another week for option b. You'll be able to test it in 3 days after the project starts. Post project deployment bugs fixes will be handled by me as well.
+
+RB
+Raj Bhanushali
+2:33 PM
+Post project issues and handholding for bugs or issues will be for how long?
+
+I am principally ok to go ahead but need visibility of the last thing
+
+mentioned above
+
+Rahul Gupta
+2:36 PM
+Sure, it's for one month. Any issues or bugs faced in the project will be handled by me.
+
+RB
+Raj Bhanushali
+2:46 PM
+Great. lets go ahead and sign off. Advise on the next steps. I am taking a break for lunch for 30 mins
+
+Rahul Gupta
+3:01 PM
+Sure
+
+For now i need the Gmail which has Google workspace access and sheets of leads if possible.
+
+RB
+Raj Bhanushali
+3:19 PM
+There is no old lead that needs to be entered
+
+Once the thing is ready is when we will start entering leads
+
+Message Blocked
+We blocked a message from this user because it included a reference to another messaging platform. Contact information can only be shared after a contract starts. Review our policy for details.
+Currently all queries are being assigned via WA
+
+U need gmail means? U need to access the gmail admin id?
+
+Can we do a quick and short call right now via zoom
+
+Rahul Gupta
+3:31 PM
+Sure
+
+https://meet.google.com/vnq-awox-rne
+
+RB
+Raj Bhanushali
+3:33 PM
+Joining
+
+Rahul Gupta
+3:33 PM
+Sure
+
+RB
+Raj Bhanushali
+3:44 PM
+image.png 
+image.png
+I have added the field details for each Status bucket
+
+in the same google doc
+
+Rahul Gupta
+3:44 PM
+Great. I can see it.
+
+RB
+Raj Bhanushali
+3:44 PM
+Please go through it and let me know once you have gone through
+
+and lets do a call after that
+
+Rahul Gupta
+3:45 PM
+Sure
+
+RB
+Raj Bhanushali
+3:45 PM
+any queries u may have, please make a note so that I can answer it over the call
+
+Rahul Gupta
+3:45 PM
+Got it.
+
+Rahul Gupta
+4:07 PM
+https://meet.google.com/naj-sxrg-csn
+
+Rahul Gupta
+4:18 PM
+Option 1: Client Creates a Developer Account (Recommended)
+Ask the client to:
+
+
+
+Create a new Google Workspace user just for you: developer@theircompany.com
+Grant it Admin access temporarily
+You use this account for development
+Client deletes or disables it after project completion
+
+Option 2: Limited Admin Access
+Client keeps their admin account, but:
+
+
+
+Adds you as a Delegated Admin with limited permissions
+Only grants access to: Apps Script, Gmail Add-on publishing, Google Sheets
+Admin Console Path:
+
+
+
+Admin Console → Users → Add User → Create developer account
+OR
+Admin Console → Admin Roles → Create custom role → Assign to your email
+
+I have changed the terms in this proposal.
+
+View details
+RB
+Raj Bhanushali
+4:21 PM
+What are the steps for me to do step 2
+
+can u come on a google meet call and help me do step two right now
+
+What will be your email is
+
+Id
+
+Rahul Gupta
+4:22 PM
+Sure give me 2 minutes please.
+
+https://meet.google.com/ogj-prjh-seb
+
+RB
+Raj Bhanushali
+4:26 PM
+Joining
+
+Rahul Gupta
+4:28 PM
+Sure
+
+RB
+Raj Bhanushali
+4:40 PM
+https://admin.google.com?ecid=C01y3ued7
+
+Sign in - Google Accounts
+https://admin.google.com?ecid=C01y3ued7
+
+Sign in - Google Accounts
+RB
+Raj Bhanushali
+5:11 PM
+Message Blocked
+We blocked a message from this user because it included an email address. Contact information can only be shared after a contract starts. Review our policy for details.
+Sharing passord shortly
+
+Password: developertemp2021
+
+image.png 
+image.png
+Check this
+
+confirm if u can see
+
+RB
+Raj Bhanushali sent an offer
+
+8:07 PM
+We are seeking a developer to create a minimal or no-code internal lead-tracking system integrated with Google Workspace (Gmail + SSO). This system is not a CRM and is intentionally simple and manual. The objective is to build a lightweight system where leads are manually added into a common intake pool, can be self-assigned or manually assigned, and are manually moved across predefined statuses. The system must be accessible from within or around the Gmail/Google Workspace periphery, using Workspace email as the only login and user identity. Key requirements include junior users self-assigning leads, senior users assigning leads to any user, and lead data storage for up to 30 days. Minimal/no-code solutions are preferred, with AppSheet as a consideration. Familiarity with Google Workspace is essential. Attached herewith is a detailed FRD to set the expectations clear
+
+Est. Budget: $250.00
+
+Milestone 1: Complete delivery as per discussed and share in FRD
+
+Due: Thursday, Feb 5, 2026
+
+Project funds: $250.00
+
+View details
+FRD_Colour coded_ project A & B_Raj B (2).docx 
+FRD_Colour coded_ project A & B_Raj B (2).docx
+37 kB
+Rahul Gupta accepted an offer
+
+8:08 PM
+View details
+[9:12 pm, 22/1/2026] Rahul Gupta: No worries leave it.
+[9:12 pm, 22/1/2026] +91 98203 39908: Email id 
+
+anamika@blackhattalent.com
+
+Senior 
+
+And for junior
+sumedha.b@blackhattalent.com
+[9:13 pm, 22/1/2026] Rahul Gupta: ok
+[9:17 pm, 22/1/2026] +91 98203 39908: My email id is raj@blackhattalent.com
+[9:17 pm, 22/1/2026] Rahul Gupta: Ok
+[9:18 pm, 22/1/2026] Rahul Gupta: Definitely you'll get the access to it.
+[9:19 pm, 22/1/2026] Rahul Gupta: Yes! got it.
+[10:29 pm, 22/1/2026] +91 98203 39908: For clarity of all doubts, a user may directly change status of a query in B bucket to E or F bucket and similar jumps
+[10:29 pm, 22/1/2026] Rahul Gupta: ok
+[11:15 am, 23/1/2026] +91 98203 39908: Morning Rahul
+[11:15 am, 23/1/2026] +91 98203 39908: How is it going?
+[11:15 am, 23/1/2026] +91 98203 39908: Just wanted to confirm if u were able to access and do the things u needed
+[11:15 am, 23/1/2026] Rahul Gupta: Good morning sir. I'm working on it right now.
+[11:16 am, 23/1/2026] Rahul Gupta: Yes i've tested some code and it's working
+[11:16 am, 23/1/2026] +91 98203 39908: Ok
+[11:16 am, 23/1/2026] Rahul Gupta: I'll be able to get you something to test by tommorrow evening.
+[11:16 am, 23/1/2026] +91 98203 39908: Sounds good
+[11:16 am, 23/1/2026] +91 98203 39908: Thanks
+[11:16 am, 23/1/2026] Rahul Gupta: My pleasure
+[10:39 pm, 23/1/2026] +91 98203 39908: Hi Rahul. It just occurred to me that we should also have the logic that if any query is deleted by any user (having the right to edit the record), the deletion should be approved by admin or pseudo admin before it disappears
+[10:44 pm, 23/1/2026] Rahul Gupta: Ok let me think about it
+[10:51 pm, 23/1/2026] +91 98203 39908: Ok. Thanks
+[10:51 pm, 23/1/2026] Rahul Gupta: Anything else? You would like to add?
+[10:56 pm, 23/1/2026] +91 98203 39908: Basically the users need to be pre defined
+Junior CS users
+Senior CS users
+
+Right for above already covered in document
+
+Below type of users — 1 each, need to have all rights as senior CS users + deletion approval right and direct deletion right
+
+Pseudo Admin
+Admin
+
+A query edited by anyone should be ideally show a sign of ‘edited’ similar to how it shows ok whats app
+[10:56 pm, 23/1/2026] Rahul Gupta: Okay
+[11:04 am, 24/1/2026] +91 98203 39908: Hi Rahul
+[11:04 am, 24/1/2026] +91 98203 39908: Just checking on this
+[11:23 am, 24/1/2026] Rahul Gupta: Yes implementing it as well
+[11:25 am, 24/1/2026] +91 98203 39908: If next the sign of edited— the first name of the user who last edited can appear if possible— or the name appears when one hovers over the edited sign— latter preferable — whatever best is possible
+[11:26 am, 24/1/2026] Rahul Gupta: Yes you can see the name. The hover part might not be possible as the design is too limited for addons
+[11:26 am, 24/1/2026] +91 98203 39908: Sure
+[11:26 am, 24/1/2026] +91 98203 39908: Possible to show Edited date and time also?
+[11:26 am, 24/1/2026] +91 98203 39908: Basically I realised
+[11:26 am, 24/1/2026] Rahul Gupta: Yes it's there
+[11:26 am, 24/1/2026] +91 98203 39908: That anyone can edit
+[11:27 am, 24/1/2026] +91 98203 39908: So better to have that visibility for accountability
+[11:27 am, 24/1/2026] +91 98203 39908: Because while users cannot delete without admin approval
+[11:28 am, 24/1/2026] +91 98203 39908: But if they can edit we better have the visibility to ensure we know whose edited last and when
+[11:28 am, 24/1/2026] Rahul Gupta: only admin and psedo admins can approve the delete request or request directly. Right?
+[11:28 am, 24/1/2026] +91 98203 39908: Correct
+[11:28 am, 24/1/2026] Rahul Gupta: I think these fields should fulfill our requirements
+[11:29 am, 24/1/2026] +91 98203 39908: Yes looks good
+[11:29 am, 24/1/2026] Rahul Gupta: Do we need to show who approved the delete request as well?
+[11:29 am, 24/1/2026] +91 98203 39908: No
+[11:29 am, 24/1/2026] Rahul Gupta: Ok
+[11:29 am, 24/1/2026] +91 98203 39908: The two admins - pseudo admin and admin are me and my family member
+[11:30 am, 24/1/2026] +91 98203 39908: So since they only can approve deletion its fine
+[11:30 am, 24/1/2026] +91 98203 39908: Also while I think I have tried marking fields should be mandatory to fill
+[11:31 am, 24/1/2026] Rahul Gupta: then it's good. What happens when we delete a query? Are we deleting it from the sheets or keeping it as deleted?
+[11:33 am, 24/1/2026] +91 98203 39908: While adding a new record into a say Bucket A- and/ or transferring status from one bucket to another, wherever applicable— I may want to see the final consolidated info sheet of mandatory and non mandatory fields — just to double check
+[11:33 am, 24/1/2026] +91 98203 39908: Keep a record for deleted — but keep it visible only for upto 3 days from approved date/ time of deletion
+[11:33 am, 24/1/2026] Rahul Gupta: Have you updated the FRD doc for it?
+[11:34 am, 24/1/2026] Rahul Gupta: Got it.
+[11:36 am, 24/1/2026] Rahul Gupta: Sure
+[11:37 am, 24/1/2026] Rahul Gupta: I'll get you first version to test with all the discussion we had till now, then we can iterate over it.
+[11:37 am, 24/1/2026] +91 98203 39908: Alright. Sounds good
+[11:37 am, 24/1/2026] Rahul Gupta: Great
+[12:55 pm, 24/1/2026] +91 98203 39908: One important aspect to keep in mind how do we keep the view for each user type: Aesthetic and easy to read and access considering the amount of data that would typically appear to them
+[12:56 pm, 24/1/2026] Rahul Gupta: Yes, we've limited styling option so we've to think about it properly.
+[1:03 pm, 24/1/2026] Rahul Gupta: Sure
+
+
+
+
+/// DAY 30th jan chats 
+This needs to be visible by default..after user clicks on the query description..currently its appearing after two clicks
+Try hovering over the queries
+ok..then why both
+if the second is appearing audit trail let it visible
+once user clicks and see the rectangular block
+Sure
+it should show there two..without second click
+Ok
+This should show numbers for total as well as each Status Bucket types with the corresponding colour and the title given to the bucket ( below it)
+Ok
+and for the senior users and admin, it should be total of all queries for all CS users including (self +  other senior users + pseudo admin + admin)
+Will it be possible for them to see the breakdown of total users?
+Or just the total numbers
+Yes they can see,..would be good to include
+Basically the sum of all users…only
+including junior, senior, pseudo admin, admin
+just total numbers
+not their names
+Ok
+names of different users are visible to the people allocation and both admins
+On hovered show 3 admins 
+4 users... Something like this?
+because they will choose the name to allocate
+so only there
+On hovered show 3 admins 
+4 users... Something like this?
+dont show that break up
+Ok
+Have you checked the assignment and reassignment?
+names of different users are visible to the people allocation and both admins
+that also only at the fields of picklist..where the users have to selected for allocation
+Ok
+however the audit trail can include any user name right
+so the audit trail view will be same for all type of users
+Yes
+just that junior users can see on the queries assigned to them + all queries in bucket A
+any user can add a query to bucket A
+Yes try adding the query as well
+Could you please open the sheets with developer account
+any proposed deletion by any user type except both admin, requires approval for one of the admins
+Okay
+Could you please open the sheets with developer account
+will try
+How will this function
+Sure open the sheet then in the"Users" sheet add more users
+How will this function
+It's not right now
+will search and display from query description?
+Yes i got it
+We haven't discussed about it if we need it
+but whats the plan for this
+yes it important
+good u suggested
+Ok then we will add functionality as per your requirement
+the word or words typed will search and show filtered results, by searching the match of the word or words from ‘all query descriptions’ visible or accessible to the user type..whichever is higher
+when I try to see the user wise view
+nothing is appearing
+whatever I see, largely the structure looks good
+except the above feedback
+u seem to be on the right track
+Sure let's iterate over it.
+also there doesnt seem to be any latency and I hope that is how it stays when this app is completed and say has data of 200 queries
+now only thing I am yet to check is the sheet right
+It's running in live
+lovable?
+No
+so if the speed is like this then we are good
+Sure
+I am happy with your work so far
+well done
+Thanks
+developer id se login karu?
+Please try to insert live queries with unique ids
+developer id se login karu?
+Sure
+Usi se try kijiye
+Usi id me sheet hai
+ok
+Sure sir
+Let me know once the sheet is shared to access with raj@blackhattalent.com
+https://docs.google.com/spreadsheets/d/1Itpin1gPmJIy0KK6kBDklfhgOnNapvqywgypZ0h2bqA/edit?usp=drivesdk
+https://docs.google.com/spreadsheets/d/1Itpin1gPmJIy0KK6kBDklfhgOnNapvqywgypZ0h2bqA/edit?usp=drivesdk
+Audit trail should include date and time too
+Apart from name of the person and the action ( allocated by, added by, status changed by, edited by, deleted by ( only if applicable as very few queries would be deleted, the approver name for deletion need not appear)
+Ok
+
+what'sapp group 
+
+[5:04 pm, 29/1/2026] +91 98203 39908: @Rahul Gupta 
+
+Hi Rahul
+
+I have added my colleague Smit Bhanushali- he is the General Manager - Strategy & Operations
+
+He is also a software engineer and handles and oversees all our tech implementation. He was on a holiday and has resumed today
+[5:05 pm, 29/1/2026] +91 98203 39908: I have shown him the app.. he has 1-2 suggestions or queries which he will share here. He will coordinate on things mostly from hereon
+[5:05 pm, 29/1/2026] Rahul Gupta: Sure
+[5:06 pm, 29/1/2026] +91 98203 39908: query-tracker-8hwm.vercel.app
+[5:06 pm, 29/1/2026] +91 98203 39908: https://docs.google.com/spreadsheets/d/1Itpin1gPmJIy0KK6kBDklfhgOnNapvqywgypZ0h2bqA/edit?usp=drivesdk
+[5:06 pm, 29/1/2026] +91 98203 39908: query-tracker-8hwm.vercel.app
+@~Smit Bhanushali the wip software link.. sign via your office google  account
+[5:07 pm, 29/1/2026] +91 98203 39908: Sure
+For the format, structure etc for the google sheet - he will review and come back.. might need 2-3 days for that.. but thats not urgent
+[5:07 pm, 29/1/2026] Rahul Gupta: Sure
+[5:07 pm, 29/1/2026] +91 98203 39908: Let us know when u are ready to show after u have completed or made considerable progress from what u showed me last
+[5:08 pm, 29/1/2026] +91 98203 39908: query-tracker-8hwm.vercel.app
+I showed Smit this
+[5:43 pm, 29/1/2026] +91 88794 16167: Hi @Rahul Gupta.. while I get back to you on the desired structure of the Google sheet, sharing below a point that we'd like to check on in the current functionality we've seen:
+
+Sorting the records within buckets + visibility of date fields i.e. assigned date, proposal sent date etc. within the buckets: The use case/purpose of this is for the Senior users to be able to evaluate the records/queries that have been in assigned state for the longest and not moved to the next bucket of Proposal sent / Partially sent etc., along with getting to see the date that it was assigned on. Similar usage for the other buckets
+[5:43 pm, 29/1/2026] +91 88794 16167: Also calling you to discuss a couple of other points pertaining to the current functioning of the app

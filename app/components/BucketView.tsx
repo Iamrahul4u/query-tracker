@@ -4,6 +4,7 @@ import { BUCKETS, BUCKET_ORDER } from "../config/sheet-constants";
 import { BucketColumn } from "./BucketColumn";
 import { BucketViewDefault } from "./BucketViewDefault";
 import { BucketViewLinear } from "./BucketViewLinear";
+import { DateFieldKey } from "../utils/queryFilters";
 
 interface BucketViewProps {
   groupedQueries: Record<string, Query[]>;
@@ -14,6 +15,10 @@ interface BucketViewProps {
   onAssignQuery: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   isFilterExpanded?: boolean;
+  showDateOnCards?: boolean;
+  dateField?: DateFieldKey;
+  currentUserRole?: string;
+  currentUserEmail?: string;
 }
 
 export function BucketView({
@@ -25,6 +30,10 @@ export function BucketView({
   onAssignQuery,
   onEditQuery,
   isFilterExpanded = true,
+  showDateOnCards = false,
+  dateField = "Added Date Time",
+  currentUserRole = "",
+  currentUserEmail = "",
 }: BucketViewProps) {
   const [activeTab, setActiveTab] = useState<string>("A");
 
@@ -60,6 +69,10 @@ export function BucketView({
             onAssignQuery={onAssignQuery}
             onEditQuery={onEditQuery}
             isFilterExpanded={isFilterExpanded}
+            showDateOnCards={showDateOnCards}
+            dateField={dateField}
+            currentUserRole={currentUserRole}
+            currentUserEmail={currentUserEmail}
           />
         ) : (
           <BucketViewLinear
@@ -69,6 +82,10 @@ export function BucketView({
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
             onEditQuery={onEditQuery}
+            showDateOnCards={showDateOnCards}
+            dateField={dateField}
+            currentUserRole={currentUserRole}
+            currentUserEmail={currentUserEmail}
           />
         )}
       </div>
@@ -86,9 +103,14 @@ export function BucketView({
             onAssignQuery={onAssignQuery}
             onEditQuery={onEditQuery}
             disableScroll={false}
+            showDateOnCards={showDateOnCards}
+            dateField={dateField}
+            currentUserRole={currentUserRole}
+            currentUserEmail={currentUserEmail}
           />
         )}
       </div>
     </>
   );
 }
+

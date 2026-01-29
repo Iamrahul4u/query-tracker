@@ -5,11 +5,7 @@ import { User } from "../utils/sheets";
 
 interface DashboardHeaderProps {
   currentUser: User | null;
-  stats: {
-    pending: number;
-    inProgress: number;
-    sent: number;
-  };
+  stats: Record<string, number>;
   onAddQuery: () => void;
   onLogout: () => void;
 }
@@ -34,9 +30,9 @@ export function DashboardHeader({
             </h1>
           </div>
 
-          {/* Stats - Hidden on mobile */}
+          {/* Stats - Hidden on mobile, shows all 7 buckets */}
           <div className="hidden lg:block">
-            <DashboardStats {...stats} />
+            <DashboardStats stats={stats} />
           </div>
 
           {/* Actions - Compact */}

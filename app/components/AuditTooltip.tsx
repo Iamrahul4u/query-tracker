@@ -1,8 +1,70 @@
-import { Query } from "../utils/sheets";
+import { Query, User } from "../utils/sheets";
 import { useTooltipStore } from "../hooks/useTooltip";
 
-export function AuditTooltip({ query }: { query: Query }) {
-  const { placement, position } = useTooltipStore();
+interface AuditTooltipProps {
+  query: Query;
+  users: User[];
+}
+
+/**
+ * Get display name from email using users list
+ */
+function getDisplayName(email: string | undefined, users: User[]): string {
+  if (!email) return "-";
+  
+  // Defensive check: ensure users is an array
+  if (!Array.isArray(users)) {
+    const namePart = email.split("@")[0];
+    return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+  }
+  
+  // Find user by email
+  const user = users.find((u) => u.Email?.toLowerCase() === email.toLowerCase());
+  if (user?.Name) return user.Name;
+  
+  // Fallback: extract name from email (before @)
+  const namePart = email.split("@")[0];
+  return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+}
+
+/**
+ * Format date to user-friendly format
+ */
+function formatDate(dateStr: string | undefined): string {
+  if (!dateStr) return "";
+  
+  try {
+    // Parse DD/MM/YYYY, HH:MM:SS format
+    const parts = dateStr.split(",")[0].split("/");
+    if (parts.length !== 3) return dateStr;
+
+    const [day, month, year] = parts.map((p) => parseInt(p, 10));
+    const timePart = dateStr.split(",")[1]?.trim() || "00:00:00";
+    const [hours, minutes] = timePart.split(":").map((t) => parseInt(t, 10));
+    const date = new Date(year, month - 1, day, hours || 0, minutes || 0);
+
+    if (isNaN(date.getTime())) return dateStr;
+
+    const timeStr = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    
+    const dateFormatted = date.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+
+    return `${timeStr}, ${dateFormatted}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+export function AuditTooltip({ query, users }: AuditTooltipProps) {
+  const { placement } = useTooltipStore();
 
   const auditItems = [
     {
@@ -15,11 +77,6 @@ export function AuditTooltip({ query }: { query: Query }) {
       value: query["Assigned By"],
       time: query["Assignment Date Time"],
     },
-    // Note: Last Status Change fields might need to be derived or added to Query interface if not present in sheet explicitly.
-    // Sheet has "Last Activity" but not specifically "Last Status Change By".
-    // Plan mentions "LastStatusChangeBy" in 9.4 but "Query" interface in 8.1 doesn't list it explicitly,
-    // it lists "Last Edited By", "Last Activity Date Time".
-    // I will use "Last Edited" as proxy or show what we have.
     {
       label: "Last Edited By",
       value: query["Last Edited By"],
@@ -36,8 +93,8 @@ export function AuditTooltip({ query }: { query: Query }) {
           <div key={idx} className="flex flex-col">
             <span className="text-gray-400 font-semibold">{item.label}:</span>
             <span>
-              {item.value ? item.value.split("@")[0] : "-"}
-              {item.time ? ` @ ${item.time}` : ""}
+              {item.value ? getDisplayName(item.value, users) : "-"}
+              {item.time ? ` @ ${formatDate(item.time)}` : ""}
             </span>
           </div>
         ))}
@@ -45,8 +102,8 @@ export function AuditTooltip({ query }: { query: Query }) {
           <div className="flex flex-col text-red-300 border-t border-gray-600 pt-1 mt-1">
             <span className="font-semibold">Deletion Requested:</span>
             <span>
-              {query["Delete Requested By"]} @{" "}
-              {query["Delete Requested Date Time"]}
+              {getDisplayName(query["Delete Requested By"], users)} @{" "}
+              {formatDate(query["Delete Requested Date Time"])}
             </span>
           </div>
         )}

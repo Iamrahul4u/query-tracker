@@ -1,10 +1,11 @@
 import { useRef, useEffect } from "react";
 import { Query, User } from "../utils/sheets";
-import { BUCKETS, BUCKET_ORDER } from "../config/sheet-constants";
+import { BUCKETS, QUERY_TYPE_ORDER } from "../config/sheet-constants";
 import { QueryCardCompact } from "./QueryCardCompact";
 import { DateFieldKey } from "../utils/queryFilters";
 
-interface BucketViewLinearProps {
+interface UserViewLinearProps {
+  sortedUsers: Array<{ email: string; name: string; isKnown: boolean }>;
   groupedQueries: Record<string, Query[]>;
   users: User[];
   columnCount: 2 | 3 | 4;
@@ -18,14 +19,13 @@ interface BucketViewLinearProps {
 }
 
 /**
- * Linear View (Synchronized Row Scrolling)
- * - Buckets arranged in rows based on column count
- * - Scrolling in any bucket in a row scrolls all buckets in that row
+ * Linear View for User View (Synchronized Row Scrolling)
+ * - Users arranged in rows based on column count
+ * - Scrolling in any user column in a row scrolls all columns in that row
  * - Each row scrolls independently
- * - Fixed height buckets with synchronized scroll behavior
- * - Page scroll prevented until all buckets in row reach scroll end
  */
-export function BucketViewLinear({
+export function UserViewLinear({
+  sortedUsers,
   groupedQueries,
   users,
   columnCount,
@@ -36,19 +36,19 @@ export function BucketViewLinear({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
-}: BucketViewLinearProps) {
-  // Split buckets into rows based on column count
-  const rows: string[][] = [];
-  for (let i = 0; i < BUCKET_ORDER.length; i += columnCount) {
-    rows.push(BUCKET_ORDER.slice(i, i + columnCount));
+}: UserViewLinearProps) {
+  // Split users into rows based on column count
+  const rows: Array<Array<{ email: string; name: string; isKnown: boolean }>> = [];
+  for (let i = 0; i < sortedUsers.length; i += columnCount) {
+    rows.push(sortedUsers.slice(i, i + columnCount));
   }
 
   return (
     <div className="space-y-4">
-      {rows.map((rowBuckets, rowIndex) => (
-        <SynchronizedRow
+      {rows.map((rowUsers, rowIndex) => (
+        <SynchronizedUserRow
           key={`row-${rowIndex}`}
-          buckets={rowBuckets}
+          rowUsers={rowUsers}
           groupedQueries={groupedQueries}
           users={users}
           columnCount={columnCount}
@@ -66,12 +66,11 @@ export function BucketViewLinear({
 }
 
 /**
- * A row of buckets with synchronized scrolling
- * All buckets in this row scroll together
- * Prevents page scroll until all buckets reach their scroll limits
+ * A row of user columns with synchronized scrolling
+ * All user columns in this row scroll together
  */
-function SynchronizedRow({
-  buckets,
+function SynchronizedUserRow({
+  rowUsers,
   groupedQueries,
   users,
   columnCount,
@@ -83,7 +82,7 @@ function SynchronizedRow({
   currentUserRole = "",
   currentUserEmail = "",
 }: {
-  buckets: string[];
+  rowUsers: Array<{ email: string; name: string; isKnown: boolean }>;
   groupedQueries: Record<string, Query[]>;
   users: User[];
   columnCount: number;
@@ -133,7 +132,11 @@ function SynchronizedRow({
     rafRef.current = requestAnimationFrame(animateScroll);
   };
 
-  // Synchronize scroll by adding same delta to all buckets
+  /* 
+   * Synchronize scroll by adding same delta to all columns
+   * Note: We use a lock here because we're handling 'wheel' events, which don't trigger recursively
+   * (unlike 'scroll' events). Using a lock avoids main-thread jank and ensures smooth animation.
+   */
   const syncScroll = (deltaY: number) => {
     // Get current scroll position from first element
     const firstElement = scrollRefs.current.values().next().value;
@@ -145,8 +148,14 @@ function SynchronizedRow({
     // Update target scroll position
     targetScrollRef.current += deltaY;
     
+    // Calculate max scroll across ALL columns (not just the first one)
+    let maxScroll = 0;
+    scrollRefs.current.forEach((element) => {
+      const elementMax = element.scrollHeight - element.clientHeight;
+      if (elementMax > maxScroll) maxScroll = elementMax;
+    });
+    
     // Clamp target to valid range
-    const maxScroll = firstElement ? firstElement.scrollHeight - firstElement.clientHeight : 0;
     targetScrollRef.current = Math.max(0, Math.min(maxScroll, targetScrollRef.current));
     
     // Start animation if not already running
@@ -162,7 +171,6 @@ function SynchronizedRow({
     if (!rowElement) return;
 
     const handleWheel = (e: WheelEvent) => {
-      // Check if ANY bucket can still scroll in the requested direction
       let canScrollDown = false;
       let canScrollUp = false;
 
@@ -170,23 +178,19 @@ function SynchronizedRow({
         const maxScroll = element.scrollHeight - element.clientHeight;
         const currentScroll = element.scrollTop;
 
-        // Can scroll down if not at bottom (with 1px tolerance)
         if (currentScroll < maxScroll - 1) {
           canScrollDown = true;
         }
-        // Can scroll up if not at top (with 1px tolerance)
         if (currentScroll > 1) {
           canScrollUp = true;
         }
       });
 
-      // Check if we're trying to scroll in a direction where at least one bucket can scroll
       const shouldPreventDefault =
         (e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp);
 
       if (shouldPreventDefault) {
         e.preventDefault();
-        // Apply the same scroll delta to all buckets
         syncScroll(e.deltaY);
       }
     };
@@ -212,21 +216,20 @@ function SynchronizedRow({
 
   return (
     <div ref={rowRef} className={`grid gap-4 ${gridClass}`}>
-      {buckets.map((bucketKey) => (
-        <BucketColumnWithSync
-          key={bucketKey}
-          bucketKey={bucketKey}
-          config={BUCKETS[bucketKey]}
-          queries={groupedQueries[bucketKey] || []}
+      {rowUsers.map((displayUser) => (
+        <UserColumnWithSync
+          key={displayUser.email}
+          displayUser={displayUser}
+          queries={groupedQueries[displayUser.email] || []}
           users={users}
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
           onEditQuery={onEditQuery}
           scrollRef={(el) => {
             if (el) {
-              scrollRefs.current.set(bucketKey, el);
+              scrollRefs.current.set(displayUser.email, el);
             } else {
-              scrollRefs.current.delete(bucketKey);
+              scrollRefs.current.delete(displayUser.email);
             }
           }}
           showDateOnCards={showDateOnCards}
@@ -240,13 +243,11 @@ function SynchronizedRow({
 }
 
 /**
- * Bucket column with scroll synchronization support
- * Fixed height with internal scrolling
- * Matches the styling of BucketColumn with color-coded type sections
+ * User column with scroll synchronization support
+ * Matches the styling of UserViewDefault with color-coded type sections
  */
-function BucketColumnWithSync({
-  bucketKey,
-  config,
+function UserColumnWithSync({
+  displayUser,
   queries,
   users,
   onSelectQuery,
@@ -258,8 +259,7 @@ function BucketColumnWithSync({
   currentUserRole = "",
   currentUserEmail = "",
 }: {
-  bucketKey: string;
-  config: any;
+  displayUser: { email: string; name: string; isKnown: boolean };
   queries: Query[];
   users: User[];
   onSelectQuery: (query: Query) => void;
@@ -295,45 +295,49 @@ function BucketColumnWithSync({
     },
   };
 
+  // Sort queries by Query Type
+  const sortedQueries = [...queries].sort((a, b) => {
+    const typeA = (a["Query Type"] || "").trim();
+    const typeB = (b["Query Type"] || "").trim();
+    const indexA = QUERY_TYPE_ORDER.indexOf(typeA);
+    const indexB = QUERY_TYPE_ORDER.indexOf(typeB);
+    return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+  });
+
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col border border-gray-100 h-[calc(100vh-220px)]">
-      {/* Bucket Header */}
-      <div
-        className="px-4 py-3 text-white flex items-center justify-between flex-shrink-0"
-        style={{ backgroundColor: config.color }}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-bold text-2xl truncate">
-            {config.name.split(") ")[0]})
-          </span>
-          <span className="font-medium text-sm text-white/90 truncate ml-1 pt-1.5">
-            {config.name.split(") ")[1]}
-          </span>
-        </div>
-        <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-sm font-bold ml-2 flex-shrink-0">
-          {queries.length}
+      {/* User Header */}
+      <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex items-center justify-between flex-shrink-0">
+        <span className="font-bold text-lg text-blue-900 truncate">
+          {displayUser.name}
+          {!displayUser.isKnown && displayUser.email !== "Unassigned" && (
+            <span className="text-xs text-gray-500 ml-2">(unknown)</span>
+          )}
+        </span>
+        <span className="bg-blue-200 text-blue-800 text-xs font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
+          {sortedQueries.length}
         </span>
       </div>
 
       {/* Scrollable Content */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gray-50">
-        {queries.length === 0 ? (
+        {sortedQueries.length === 0 ? (
           <p className="p-4 text-gray-400 text-sm text-center">No queries</p>
         ) : (
           <div className="p-2 space-y-3">
-            {/* Group by Query Type: SEO Query -> New -> Ongoing */}
-            {["SEO Query", "New", "Ongoing"].map((groupName) => {
-              const typeQueries = queries.filter((q) => {
+            {/* Group by Query Type */}
+            {QUERY_TYPE_ORDER.map((groupName) => {
+              const typeQueries = sortedQueries.filter((q) => {
                 const qType = (q["Query Type"] || "").trim();
                 return qType === groupName;
               });
               if (typeQueries.length === 0) return null;
 
-              const colors = typeColors[groupName];
+              const colors = typeColors[groupName] || typeColors.Other;
 
               return (
                 <div
-                  key={`${bucketKey}-${groupName}`}
+                  key={`${displayUser.email}-${groupName}`}
                   className={`rounded-lg border ${colors.border} ${colors.bg} overflow-hidden`}
                 >
                   {/* Type Header */}
@@ -356,10 +360,10 @@ function BucketColumnWithSync({
                   <div className="p-2 space-y-1 bg-white">
                     {typeQueries.map((query, idx) => (
                       <QueryCardCompact
-                        key={`${bucketKey}-${groupName}-${query["Query ID"]}-${idx}`}
+                        key={`${displayUser.email}-${groupName}-${query["Query ID"]}-${idx}`}
                         query={query}
                         users={users}
-                        bucketColor={config.color}
+                        bucketColor={BUCKETS[query.Status]?.color || "#gray"}
                         onClick={() => onSelectQuery(query)}
                         onAssign={onAssignQuery}
                         onEdit={onEditQuery}
@@ -374,10 +378,10 @@ function BucketColumnWithSync({
               );
             })}
 
-            {/* Other types (fallback for any unknown types) */}
-            {queries.filter((q) => {
+            {/* Other types */}
+            {sortedQueries.filter((q) => {
               const qType = (q["Query Type"] || "").trim();
-              return !["SEO Query", "New", "Ongoing"].includes(qType);
+              return !QUERY_TYPE_ORDER.includes(qType);
             }).length > 0 && (
               <div
                 className={`rounded-lg border ${typeColors.Other.border} ${typeColors.Other.bg} overflow-hidden`}
@@ -395,9 +399,9 @@ function BucketColumnWithSync({
                     className={`${typeColors.Other.text} text-xs font-bold px-2 py-0.5 rounded-full bg-white/50`}
                   >
                     {
-                      queries.filter((q) => {
+                      sortedQueries.filter((q) => {
                         const qType = (q["Query Type"] || "").trim();
-                        return !["SEO Query", "New", "Ongoing"].includes(qType);
+                        return !QUERY_TYPE_ORDER.includes(qType);
                       }).length
                     }
                   </span>
@@ -405,17 +409,17 @@ function BucketColumnWithSync({
 
                 {/* Type Content */}
                 <div className="p-2 space-y-1 bg-white">
-                  {queries
+                  {sortedQueries
                     .filter((q) => {
                       const qType = (q["Query Type"] || "").trim();
-                      return !["SEO Query", "New", "Ongoing"].includes(qType);
+                      return !QUERY_TYPE_ORDER.includes(qType);
                     })
                     .map((query, idx) => (
                       <QueryCardCompact
-                        key={`${bucketKey}-other-${query["Query ID"]}-${idx}`}
+                        key={`${displayUser.email}-other-${query["Query ID"]}-${idx}`}
                         query={query}
                         users={users}
-                        bucketColor={config.color}
+                        bucketColor={BUCKETS[query.Status]?.color || "#gray"}
                         onClick={() => onSelectQuery(query)}
                         onAssign={onAssignQuery}
                         onEdit={onEditQuery}

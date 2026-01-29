@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { BucketConfig, QUERY_TYPE_ORDER } from "../config/sheet-constants";
 import { Query, User } from "../utils/sheets";
 import { QueryCardCompact } from "./QueryCardCompact";
+import { DateFieldKey } from "../utils/queryFilters";
 
 export function BucketColumn({
   bucketKey,
@@ -14,6 +15,10 @@ export function BucketColumn({
   onEditQuery,
   disableScroll = false,
   maxHeight,
+  showDateOnCards = false,
+  dateField = "Added Date Time",
+  currentUserRole = "",
+  currentUserEmail = "",
 }: {
   bucketKey: string;
   config: BucketConfig;
@@ -24,6 +29,10 @@ export function BucketColumn({
   onEditQuery?: (query: Query) => void;
   disableScroll?: boolean;
   maxHeight?: string;
+  showDateOnCards?: boolean;
+  dateField?: DateFieldKey;
+  currentUserRole?: string;
+  currentUserEmail?: string;
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [collapsedTypes, setCollapsedTypes] = useState<Set<string>>(new Set());
@@ -165,6 +174,10 @@ export function BucketColumn({
                           onClick={() => onSelectQuery(query)}
                           onAssign={onAssignQuery}
                           onEdit={onEditQuery}
+                          showDate={showDateOnCards}
+                          dateField={dateField}
+                          currentUserRole={currentUserRole}
+                          currentUserEmail={currentUserEmail}
                         />
                       ))}
                     </div>
@@ -231,6 +244,10 @@ export function BucketColumn({
                           onClick={() => onSelectQuery(query)}
                           onAssign={onAssignQuery}
                           onEdit={onEditQuery}
+                          showDate={showDateOnCards}
+                          dateField={dateField}
+                          currentUserRole={currentUserRole}
+                          currentUserEmail={currentUserEmail}
                         />
                       ))}
                   </div>

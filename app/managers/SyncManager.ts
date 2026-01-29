@@ -34,18 +34,12 @@ export class SyncManager {
   }
 
   /**
-   * Initialize SyncManager with auth token and start background refresh
-   * Can be called multiple times to update token
+   * Initialize SyncManager with auth token
+   * Background refresh is handled by useAutoRefresh hook in the React component
    */
   initialize(token: string): void {
     this.token = token;
-
-    // Restart background refresh with new token
-    if (this.refreshInterval) {
-      clearInterval(this.refreshInterval);
-    }
-
-    this.startBackgroundRefresh();
+    // Note: Background refresh is handled by useAutoRefresh hook for proper React lifecycle
   }
 
   /**
@@ -222,7 +216,7 @@ export class SyncManager {
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date().toLocaleString("en-GB");
 
-    // Create optimistic query
+    // Create optimistic query with all required fields
     const newQuery: any = {
       "Query ID": tempId,
       "Query Description": queryData["Query Description"] || "",
@@ -240,7 +234,7 @@ export class SyncManager {
       "Event ID": "",
       "Event Title": "",
       "Discarded Date Time": "",
-      GmIndicator: "",
+      GmIndicator: queryData.GmIndicator || "", // Include GM Indicator from input
       "Delete Requested Date Time": "",
       "Delete Requested By": "",
       "Last Edited Date Time": now,
@@ -255,6 +249,11 @@ export class SyncManager {
     updateStore(optimisticQueries);
 
     try {
+      // Create a clean query object without internal flags for API
+      const queryForApi = { ...newQuery };
+      delete queryForApi._isPending;
+      delete queryForApi._tempId;
+      
       const response = await fetch("/api/queries", {
         method: "POST",
         headers: {
@@ -263,7 +262,7 @@ export class SyncManager {
         },
         body: JSON.stringify({
           action: "add",
-          data: queryData,
+          data: queryForApi, // Send full query object, not partial
         }),
       });
 
@@ -345,7 +344,7 @@ export class SyncManager {
         body: JSON.stringify({
           action: "assign",
           queryId,
-          data: { assignee },
+          data: { assignee, assignedBy: currentUserEmail },
         }),
       });
 
@@ -440,6 +439,8 @@ export class SyncManager {
     queryId: string,
     currentQueries: Query[],
     updateStore: (queries: Query[]) => void,
+    requestedBy: string,
+    isAdmin: boolean = false,
   ): Promise<SyncResult> {
     // Optimistic delete (remove from UI)
     const optimisticQueries = currentQueries.filter(
@@ -458,6 +459,7 @@ export class SyncManager {
         body: JSON.stringify({
           action: "delete",
           queryId,
+          data: { requestedBy, isAdmin },
         }),
       });
 
@@ -469,7 +471,7 @@ export class SyncManager {
 
       return {
         success: true,
-        data: { message: "Query deleted successfully" },
+        data: { message: isAdmin ? "Query permanently deleted" : "Delete request submitted for approval" },
       };
     } catch (error: any) {
       updateStore(currentQueries);
@@ -477,6 +479,103 @@ export class SyncManager {
       return {
         success: false,
         error: error.message || "Failed to delete query",
+      };
+    }
+  }
+
+  /**
+   * Approve a pending deletion (Admin only)
+   */
+  async approveDeleteOptimistic(
+    queryId: string,
+    currentQueries: Query[],
+    updateStore: (queries: Query[]) => void,
+  ): Promise<SyncResult> {
+    const optimisticQueries = currentQueries.filter(
+      (q) => q["Query ID"] !== queryId,
+    );
+
+    updateStore(optimisticQueries);
+
+    try {
+      const response = await fetch("/api/queries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.token}`,
+        },
+        body: JSON.stringify({
+          action: "approveDelete",
+          queryId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Approve delete failed");
+      }
+
+      LocalStorageCache.saveQueries(optimisticQueries);
+
+      return {
+        success: true,
+        data: { message: "Deletion approved" },
+      };
+    } catch (error: any) {
+      updateStore(currentQueries);
+
+      return {
+        success: false,
+        error: error.message || "Failed to approve deletion",
+      };
+    }
+  }
+
+  /**
+   * Reject a pending deletion (Admin only) - restores query visibility
+   */
+  async rejectDeleteOptimistic(
+    queryId: string,
+    currentQueries: Query[],
+    updateStore: (queries: Query[]) => void,
+  ): Promise<SyncResult> {
+    // Update query to remove delete flags
+    const optimisticQueries = currentQueries.map((q) =>
+      q["Query ID"] === queryId
+        ? { ...q, "Delete Requested By": "", "Delete Requested Date Time": "" }
+        : q
+    );
+
+    updateStore(optimisticQueries);
+
+    try {
+      const response = await fetch("/api/queries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.token}`,
+        },
+        body: JSON.stringify({
+          action: "rejectDelete",
+          queryId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Reject delete failed");
+      }
+
+      LocalStorageCache.saveQueries(optimisticQueries);
+
+      return {
+        success: true,
+        data: { message: "Deletion rejected, query restored" },
+      };
+    } catch (error: any) {
+      updateStore(currentQueries);
+
+      return {
+        success: false,
+        error: error.message || "Failed to reject deletion",
       };
     }
   }

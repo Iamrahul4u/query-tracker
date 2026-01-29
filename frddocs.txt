@@ -1,0 +1,238 @@
+Functional Requirements Document (FRD)- Raj B- 
+Please note that the assignment can be divided into two separate projects, as outlined below. A single document has been prepared to explain both, since while the two are independent in scope, there is a slight dependency between them, particularly with respect to timing. Both projects are also expected to be integrated with Gmail, with Gmail serving as the single sign-on (SSO) and authentication layer for each.
+You may choose to propose for either one of the projects or both, based on your capability and interest.
+Blue background: Query allocation mechanism to be created and integrated with Gmail. Please note that one feature within this project is optional and therefore requires two separate cost options, as outlined below.
+
+Green background: Gmail × Salesforce integration, wherein Gmail acts as the single sign-on and enables one-way creation and updating of Lead records in Salesforce from Gmail (Gmail → Salesforce), as demonstrated in the video reference shared herein.
+
+White background: Points that are common to both projects.
+Note:
+SF refers to Salesforce throughout this document.
+CS refers to Client Servicing.
+Definitions
+Query refers to an inquiry before it becomes a qualified Lead (hereinafter referred to as a “Lead”).
+Query to Lead Definition & Flow
+Query-related information is not to be entered into Salesforce and is to be handled entirely outside Salesforce. The allocation of Queries and the status buckets A to G, as defined herein, are to be applicable only to Queries.
+A Query is to become a qualified Lead only once it reaches a minimum status of Bucket C or D. At this stage, the Query is to be entered into Salesforce by the CS person through the creation of a new object, i.e., a Lead (parent object).
+The allocation of Queries and the movement of Queries across status buckets A to G are to be handled outside Salesforce, and no data relating to Query allocation or Query status changes is to be recorded or stored in Salesforce.
+Even after a Query is entered into Salesforce as a Lead (upon reaching Bucket C or D), subsequent status movements of the Query to Buckets E or F are to continue to be managed outside Salesforce.
+Accordingly, while the two functions—(a) Query allocation and status movement of Queries, and (b) Lead creation in Salesforce—are to be interdependent in terms of timing, the processes themselves are to remain independent. Query allocation and status management are to operate entirely outside Salesforce with no corresponding data capture in Salesforce, while the Lead record created in Salesforce is to function independently as the system-of-record entity.
+Both functions outlined above are to be integrated with Gmail (to appear in and around Gmail) and must not require a separate sign-on or authentication beyond Gmail login.
+1. Background & Problem Statement
+The Client Servicing (CS) team currently allocates and manages Queries (received via phone calls, emails, and WhatsApp) through a fragmented workflow, largely coordinated via WhatsApp groups. This approach is to be replaced with a structured, organised, and foolproof mechanism with live visibility, by bringing Query allocation and tracking within the Gmail ecosystem (at least visually), given that each user operates on a Google Workspace email (Gmail) and spends the majority of their working time within it.
+Queries that eventually qualify into Leads and are therefore required to be entered into Salesforce as Lead records are often delayed or skipped in the current process, resulting in poor visibility, incomplete CRM data, and reliance on individual discipline. To address this, a simple, intuitive, and natural interface and flow is to be created to enable the CS team to timely create and update Lead records in Salesforce via a single sign-on, without the need to separately log in to Salesforce.
+2. Core Salesforce Object (Unchanged)
+Root Object: Lead
+One record per client enquiry after it progresses from a query to Qualified lead ( Lead)
+Event ID is auto-generated, and the “Event Title” field is formula-based with character inputs from relevant fields
+Lookup fields prevent duplication (Company Name / Contact)
+No Salesforce schema changes are to be made
+3. Target State
+Salesforce-compliant Lead  creation, allocation, and updates are to be enabled directly from Gmail, reducing the need for Salesforce login while keeping Salesforce as the system of record. Access is to be enabled via SSO, such that a user’s Gmail login is sufficient to access, create, and update Salesforce records, without requiring any additional Salesforce sign-in or separate authentication steps.
+4. UX Principles
+The system is to align naturally with Gmail usage and is to be intent-driven, non-intrusive, and workflow-enabling. Similar video reference is below—ignore the part where the contents from email are auto-parsed and auto-populated into Salesforce fields, as that is not the desired expectation:
+https://drive.google.com/file/d/1-iJzc8Lq8z_ARI4kbp30qOtcnScoibEc/view
+
+
+5. Gmail Integration Availability
+The integration is to be persistently available whenever Gmail is logged in, independent of specific email actions.
+Mobile support via the Gmail app is to be provided, as Queries are sometimes allocated while allocators / users are travelling for events.
+
+6. Query Allocation
+ [QUERY FLOW – Outside Salesforce]
+Senior CS users are to assign Queries via Gmail to different CS users, including self. The CS user to whom the Query is assigned is to become responsible for sending the proposal for that Query and, accordingly, for creating the Lead in Salesforce only if and when the Query becomes a qualified Lead, as defined herein.
+
+7. User Roles
+Junior CS
+Senior CS (Allocators)
+Admin
+
+8. Status Buckets for Queries
+QUERY FLOW – Outside Salesforce]
+The status change for Queries is to be progressive, for example from A to B to (C or D) to (E or F), or in some cases directly from A or B to G.
+A: Pending Queries (Unassigned)
+B: Pending Proposal + Pending Entry in SF
+C: Proposal Sent
+D: Proposal Sent Partially
+E: Proposal Sent + Entered in SF
+F: Proposal Sent Partially + Entered in SF
+G: Query Discarded
+
+9. Gmail → Salesforce Indicator (Optional Feature)
+(Please provide two cost options: with and without this feature)
+🟦 [QUERY FLOW – Outside Salesforce]
+A visual “gm” indicator is to appear against a Query when the corresponding Lead is entered into Salesforce via the Gmail integration. This indicator is to be visible for Queries in status buckets E and F.
+🟦 [QUERY FLOW – Outside Salesforce]
+Where a Lead is created directly in Salesforce (outside Gmail), the “gm” indicator is not to appear. Accordingly, if a Query status is manually changed to E or F without entering the Lead into Salesforce via Gmail, the “gm” indicator is not to be displayed.
+🟦 [QUERY FLOW – Outside Salesforce]
+The “gm” indicator is to be a visual marker within the Query management layer only and is not to require any UI, logic, automation, or configuration to be implemented inside Salesforce. Salesforce is to continue to function solely as the system of record.
+
+10. Visibility Rules by User Type
+🟦 [QUERY FLOW – Outside Salesforce]
+Junior CS Users
+Are to view only Queries assigned to self
+Buckets visible are to be A to G (Bucket A visible to all users as it represents unassigned Queries)
+Are not to reassign or delete Queries
+Are to be able to self-assign Queries
+Are to be able to add Queries to Bucket A but not delete Queries
+🟦 [QUERY FLOW – Outside Salesforce]
+Senior CS Users & Admin
+Are to be able to view all Queries
+Buckets visible are to be A to G
+Are to be able to add Queries to Bucket A, assign, reassign, cancel, or delete Queries
+
+11. Sorting & Time-Based Visibility
+🟦 [QUERY FLOW – Outside Salesforce]
+Default sorting is to be latest activity first.
+For Bucket E:
+Records are to be shown where Proposal Sent Date < 3 days
+Option is to be provided to expand in rolling 7-day windows
+For Bucket G:
+Same 3-day logic is to apply using Discarded Date and Time
+
+12. Dashboard / View Types
+🟦 [QUERY FLOW – Outside Salesforce]
+View Type I
+Bucket-wise view (A to G, in that order) is to be provided, grouped CS-user-wise (Senior CS users only).
+View Type II
+CS-wise view is to be provided, with Buckets A to G grouped under each CS user (Senior CS users only).
+Preferences (Common):
+Senior CS users & Admin are to be able to reorder CS-user display sequence and save preferences
+Junior CS users are to be able to reorder Buckets A to G and save preferences
+For all user types, Queries under each bucket are to be further grouped as:
+a) New Query
+b) Ongoing
+c) SEO Query
+____________________________________________
+
+Detailing for Fields to be visible for each Status bucket
+
+
+
+Bucket A – Pending Queries (Unassigned)
+Represents all incoming event inquiries (email / phone / WhatsApp, etc.) that have not yet been assigned.
+Visible fields: Refer the explanation of the respective field including field type, given at the first occurrence, for all subsequent common fields
+· Query description: Text field
+·  Query type* ( Picklist with 2 values a) New b) Ongoing c) SEO query – default = New)
+· Added by (picklist of CS users including Junior and Senior; default = creator)
+· Added date & time (auto-captured, editable): Date and time fields
+
+Assignment from Bucket A → Bucket B
+While assigning, the assignor (Senior CS) must populate:
+· Query type* ( Picklist with 3 values a) New b) Ongoing c) SEO query – default = New)—This will by default retain the value assigned previously while the query was in Bucket A but may be changed/ corrected during assignment)
+· CS person assigned to* (picklist of all users including self)
+· Remarks: text field (e.g., “Proposal to be sent before 1 pm”)
+
+Bucket B – Pending Proposal + Entered in SF
+This is the default status once a query is assigned.
+ 
+Visible fields:
+· Query description (editable by assignor and assignee)
+· Query type (editable by both)
+· Remarks
+· Assigned to (assignee): Will have a CS user ( could be Junior or Senior) name based on to whom the Event enquiry was allocated
+· Assigned by (assignor):  Will have a Senior CS user name based on who allocated it
+· Assignment date & time: Field type: Date and time  (auto populated based on time of assignment but manually editable only by Senior CS / Admin)
+Important notes:
+· Any user, including Junior CS, should be able to self-assign a query.
+· Senior CS users and Admin should be able to reassign or cancel an allocated Event Enquiry.
+
+Bucket C – Proposal Sent
+Visible fields:
+· Query description (editable)
+· Query type
+· Proposal sent date & time (auto populated on status change; editable by assignee / Senior CS / Admin)
+· Assignment date & time
+· Assigned by
+
+Bucket D – Proposal Sent Partially
+Visible fields:
+· Query description
+· Query type
+· Proposal sent date & time (auto populated on status change; editable by assignee / Senior CS / Admin)
+· What’s pending* (mandatory on selecting this status)
+· Assignment date & time
+· Assigned by
+
+Bucket E – Proposal Sent + Entered in SF
+Visible fields:
+· Query description
+· Query type
+· Entered in SF date & time
+(auto populated if entered in SF via Gmail integration, or manual entered if status is changed manually which will happen when the Event enquiry was entered directly in SF)
+· Proposal sent date & time
+· Assignment date & time (editable by assignor)
+· Assigned by:
+· Event ID (SF lookup; auto if created via Gmail, else blank)
+· Event title (auto-linked to Event ID, else blank)
+
+Bucket F – Proposal Sent Partially + Entered in SF
+Visible fields:
+· Query description
+· Query type
+· Entered in SF date & time
+· Proposal sent date & time
+· What’s pending: Text field (editable by assignee / Senior CS / Admin)
+· Assignment date & time
+· Assigned by
+· Event ID (SF lookup)
+· Event title
+
+ 
+ 
+Bucket G – Query Discarded
+ 
+Visible fields: Refer explanation above for common fields
+· Query description
+· Query type
+· Discarded on: Time and date field type (Auto populated when status changed to this; manually editable by CS person to whom it was assigned and/or any Senior CS user/ Admin)
+· Assignment date & time
+· Assigned by
+
+5. Gmail → SF Indicator (“gm”)
+If an Event Enquiry record is entered in SF via the Gmail integration which is going to be advised to CS team as preferred SOP, a visual “gm” indicator should appear for status buckets E and F.
+If the entry is created directly in Salesforce (outside Gmail), this indicator will not appear. This helps Senior CS users quickly identify records that do not require a manual verification from their end to confirm if they have been entered timely and correctly as claimed by the Junior CS user. Sometime Senior CS users may want to do a random check upon status change but that shouldn’t be necessary wherever there is ‘gm’ sign
+
+6. Visibility Rules by User Type
+Junior CS Users
+· Can view only queries assigned to self ( which could be assigned by Senior CS users or by self)
+· Buckets visible: A to G --Bucket A bucket represents the pool of unassigned queries so it means for Bucket A all queries in the pool are visible to all users because the queries an unassigned at Bucket A stage
+· Cannot reassign or delete queries
+· Can self-assign queries
+· However can add queries to Bucket A but cannot delete queries from Bucket A or from any bucket
+ 
+Senior CS Users & Admin
+· Can view all queries
+· Buckets visible: A to G
+· Can add queries to bucket A, assign, reassign, cancel, or delete queries
+
+7. Sorting & Time-Based Visibility
+· Default sorting: latest activity first
+· But for Buckets E and F:
+·   	Show records where Proposal sent date < 7 days. The proposal sent date is basically based on when the status was manually changed by the CS user who sent the proposal ( to whom the query was assigned)
+·   	Option to expand in rolling 7-day windows
+·   	Incase of E & F, we are limiting to last 7 days as the number of Event enquiries under E & F buckets is ever expanding and therefore unlimited
+· Bucket G:
+·   	Same 7-day logic using Discarded date and time
+
+8. Dashboard / View Types
+View Type I
+· Bucket-wise view ( A to G, in that order)
+· Entries grouped CS user-wise within each bucket—applicable for senior CS users
+ 
+View Type II
+· CS-wise view—applicable to senior CS users
+· A to G Buckets grouped under each CS user
+ 
+Senior CS users and Admin should be able to:
+· Reorder the CS user display sequence
+· Save personal viewing preferences
+ 
+Junior CS users should:
+Reorder the A to G buckets as per their preferred view
+Save viewing preference
+ 
+For all user types, Queries under each bucket , will be further grouped  as per Query status field which is either a) New Query b) Ongoing c) SEO query as explained above
+
+
+

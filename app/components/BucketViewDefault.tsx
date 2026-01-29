@@ -1,6 +1,7 @@
 import { Query, User } from "../utils/sheets";
 import { BUCKETS, BUCKET_ORDER } from "../config/sheet-constants";
 import { BucketColumn } from "./BucketColumn";
+import { DateFieldKey } from "../utils/queryFilters";
 
 interface BucketViewDefaultProps {
   groupedQueries: Record<string, Query[]>;
@@ -10,6 +11,10 @@ interface BucketViewDefaultProps {
   onAssignQuery: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   isFilterExpanded?: boolean;
+  showDateOnCards?: boolean;
+  dateField?: DateFieldKey;
+  currentUserRole?: string;
+  currentUserEmail?: string;
 }
 
 /**
@@ -26,6 +31,10 @@ export function BucketViewDefault({
   onAssignQuery,
   onEditQuery,
   isFilterExpanded = true,
+  showDateOnCards = false,
+  dateField = "Added Date Time",
+  currentUserRole = "",
+  currentUserEmail = "",
 }: BucketViewDefaultProps) {
   // Dynamic grid classes - simplified for better responsiveness
   let gridClass = "";
@@ -54,8 +63,12 @@ export function BucketViewDefault({
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
           onEditQuery={onEditQuery}
-          disableScroll={false} // Enable independent scroll per bucket
-          maxHeight={maxHeight} // Dynamic height based on filter bar
+          disableScroll={false}
+          maxHeight={maxHeight}
+          showDateOnCards={showDateOnCards}
+          dateField={dateField}
+          currentUserRole={currentUserRole}
+          currentUserEmail={currentUserEmail}
         />
       ))}
     </div>

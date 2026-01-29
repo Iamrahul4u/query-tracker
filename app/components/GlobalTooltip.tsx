@@ -2,7 +2,7 @@ import { useTooltipStore } from "../hooks/useTooltip";
 import { AuditTooltip } from "./AuditTooltip";
 
 export function GlobalTooltip() {
-  const { activeInstanceId, query, position, placement } = useTooltipStore();
+  const { activeInstanceId, query, users, position, placement } = useTooltipStore();
 
   if (!activeInstanceId || !query) {
     return null;
@@ -30,7 +30,7 @@ export function GlobalTooltip() {
 
   return (
     <div style={style}>
-      <AuditTooltip query={query} />
+      <AuditTooltip query={query} users={users} />
     </div>
   );
 }

@@ -20,14 +20,15 @@ declare global {
     google: {
       accounts: {
         oauth2: {
-          initTokenClient: (config: {
+          initCodeClient: (config: {
             client_id: string;
             scope: string;
+            ux_mode: "popup" | "redirect";
             callback: (response: {
-              access_token?: string;
+              code?: string;
               error?: string;
             }) => void;
-          }) => { requestAccessToken: () => void };
+          }) => { requestCode: () => void };
         };
       };
     };
@@ -67,7 +68,7 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
   useEffect(() => {
     // 1. Check URL Params (Extension Flow)
     const urlToken = searchParams.get("token");
-    const urlEmail = searchParams.get("user_email"); // Optional, validating via tokeninfo is safer
+    const urlEmail = searchParams.get("user_email");
 
     if (urlToken) {
       setStatus("Validating token from extension...");
@@ -77,9 +78,15 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
         .then(async (res) => {
           if (res.ok) {
             const info = await res.json();
-            // Store
+            // Store token from extension (no refresh token available)
             localStorage.setItem("auth_token", urlToken);
             localStorage.setItem("user_email", info.email);
+            // Set expiry based on token info
+            const expiresIn = info.expires_in || 3600;
+            localStorage.setItem(
+              "token_expiry",
+              String(Date.now() + expiresIn * 1000),
+            );
             setStatus("Redirecting to dashboard...");
             router.push("/dashboard");
           } else {
@@ -96,12 +103,55 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
       return;
     }
 
-    // 2. Check LocalStorage
+    // 2. Check LocalStorage for existing session
     const token = localStorage.getItem("auth_token");
-    const email = localStorage.getItem("user_email");
+    const refreshToken = localStorage.getItem("refresh_token");
+    const tokenExpiry = localStorage.getItem("token_expiry");
 
-    if (token && email) {
-      // Validate the token is still valid
+    if (token) {
+      // Check if token is still valid
+      const now = Date.now();
+      if (tokenExpiry && now < Number(tokenExpiry)) {
+        // Token still valid
+        setStatus("Redirecting to dashboard...");
+        router.push("/dashboard");
+        return;
+      }
+
+      // Token expired, try to refresh
+      if (refreshToken) {
+        setStatus("Refreshing session...");
+        fetch("/api/auth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.access_token) {
+              localStorage.setItem("auth_token", data.access_token);
+              localStorage.setItem(
+                "token_expiry",
+                String(Date.now() + data.expires_in * 1000),
+              );
+              setStatus("Redirecting to dashboard...");
+              router.push("/dashboard");
+            } else {
+              // Refresh failed, need re-login
+              localStorage.clear();
+              setStatus("Session expired. Please sign in again.");
+              setIsLoading(false);
+            }
+          })
+          .catch(() => {
+            localStorage.clear();
+            setStatus("Session expired. Please sign in again.");
+            setIsLoading(false);
+          });
+        return;
+      }
+
+      // No refresh token, validate current token
       fetch(
         `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${token}`,
       )
@@ -110,7 +160,6 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
             setStatus("Redirecting to dashboard...");
             router.push("/dashboard");
           } else {
-            // Token expired, clear and show login
             localStorage.clear();
             setStatus("Sign in to access Query Tracker");
             setIsLoading(false);
@@ -127,7 +176,7 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
     }
   }, [router, searchParams]);
 
-  // Handle Google Sign-In
+  // Handle Google Sign-In with Code Client
   const handleGoogleSignIn = useCallback(() => {
     if (!window.google?.accounts?.oauth2) {
       setStatus("Google Sign-In not loaded. Please refresh.");
@@ -137,9 +186,10 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
     setStatus("Signing in...");
     setIsLoading(true);
 
-    const client = window.google.accounts.oauth2.initTokenClient({
+    const client = window.google.accounts.oauth2.initCodeClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: SCOPES,
+      ux_mode: "popup",
       callback: async (response) => {
         if (response.error) {
           console.error("OAuth error:", response.error);
@@ -148,39 +198,44 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
           return;
         }
 
-        if (response.access_token) {
-          // Get user info
+        if (response.code) {
+          setStatus("Completing sign-in...");
+          
           try {
-            const userInfoRes = await fetch(
-              "https://www.googleapis.com/oauth2/v2/userinfo",
-              {
-                headers: { Authorization: `Bearer ${response.access_token}` },
-              },
+            // Exchange code for tokens via our API
+            const tokenRes = await fetch("/api/auth/callback", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ code: response.code }),
+            });
+
+            if (!tokenRes.ok) {
+              throw new Error("Token exchange failed");
+            }
+
+            const data = await tokenRes.json();
+
+            // Store tokens
+            localStorage.setItem("auth_token", data.access_token);
+            localStorage.setItem("user_email", data.email);
+            localStorage.setItem("user_name", data.name || data.email);
+            
+            // Store refresh token for silent refresh
+            if (data.refresh_token) {
+              localStorage.setItem("refresh_token", data.refresh_token);
+            }
+            
+            // Store expiry time
+            localStorage.setItem(
+              "token_expiry",
+              String(Date.now() + data.expires_in * 1000),
             );
 
-            if (userInfoRes.ok) {
-              const userInfo = await userInfoRes.json();
-
-              // Store auth data
-              localStorage.setItem("auth_token", response.access_token);
-              localStorage.setItem("user_email", userInfo.email);
-              localStorage.setItem(
-                "user_name",
-                userInfo.name || userInfo.email,
-              );
-              // Store expiry time (50 minutes from now - refresh before 60min expiry)
-              localStorage.setItem(
-                "token_expiry",
-                String(Date.now() + 50 * 60 * 1000),
-              );
-
-              setStatus("Redirecting to dashboard...");
-              router.push("/dashboard");
-            } else {
-              throw new Error("Failed to get user info");
-            }
+            console.log(`✅ Logged in. Token expires in ${data.expires_in}s`);
+            setStatus("Redirecting to dashboard...");
+            router.push("/dashboard");
           } catch (err) {
-            console.error("User info error:", err);
+            console.error("Token exchange error:", err);
             setStatus("Sign-in failed. Please try again.");
             setIsLoading(false);
           }
@@ -188,7 +243,7 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
       },
     });
 
-    client.requestAccessToken();
+    client.requestCode();
   }, [router]);
 
   return (

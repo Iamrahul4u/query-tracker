@@ -26,7 +26,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
   // Determine Role
   const role = (currentUser?.Role || "").toLowerCase();
-  const isAdminOrSenior = ["admin", "senior"].includes(role);
+  const isAdminOrSenior = ["admin", "pseudo admin", "senior"].includes(role.toLowerCase());
   const isAssignedToMe =
     (query["Assigned To"] || "").toLowerCase() ===
     (currentUser?.Email || "").toLowerCase();
@@ -70,8 +70,21 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   };
 
   const handleDelete = () => {
-    if (confirm("Are you sure you want to delete this query?")) {
-      deleteQueryOptimistic(query["Query ID"]);
+    const isAdmin = ["admin", "pseudo admin"].includes(role.toLowerCase());
+
+    if (isAdmin) {
+      // Admin can delete directly - permanent deletion
+      if (
+        confirm(
+          "Are you sure you want to permanently delete this query? This action cannot be undone."
+        )
+      ) {
+        deleteQueryOptimistic(query["Query ID"], currentUser?.Email || "", true);
+        onClose();
+      }
+    } else {
+      // Non-admin: Request deletion (pending admin approval) - no extra confirm needed
+      deleteQueryOptimistic(query["Query ID"], currentUser?.Email || "", false);
       onClose();
     }
   };
@@ -101,7 +114,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     const s = status; // Use current selected status to show relevant fields for NEXT step
 
     // Common
-    if (field === "Query Description") return ["A", "B", "C", "D"].includes(s);
+    // Query Description should always be editable
+    if (field === "Query Description") return true;
     if (field === "Query Type") return ["A", "B"].includes(s);
     if (field === "Remarks") return ["B"].includes(s); // Or always show but optional? Plan says B.
     if (field === "Whats Pending") return ["D", "E", "F"].includes(s);

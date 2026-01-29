@@ -4,7 +4,8 @@ import { BUCKET_ORDER } from "../config/sheet-constants";
 /**
  * Filter queries based on user role
  * - Admin/Senior: See all queries
- * - Junior: See Bucket A + Own assigned queries
+ * - Junior: See ALL Bucket A + Own assigned queries in B-G
+ *   (Action restrictions handled in component button visibility)
  */
 export function getVisibleQueries(
   queries: Query[],
@@ -13,17 +14,27 @@ export function getVisibleQueries(
   if (!currentUser) return [];
 
   const role = (currentUser.Role || "").toLowerCase();
-  if (["admin", "senior"].includes(role)) {
+  if (["admin", "pseudo admin", "senior"].includes(role)) {
     return queries;
   }
 
-  // Junior sees: Bucket A OR Own Assigned
-  return queries.filter(
-    (q) =>
-      q.Status === "A" ||
-      (q["Assigned To"] &&
-        q["Assigned To"].toLowerCase() === currentUser.Email.toLowerCase()),
-  );
+  const userEmail = currentUser.Email.toLowerCase();
+
+  // Junior sees:
+  // 1. Bucket A - ALL queries (action restrictions in UI components)
+  // 2. Bucket B-G - ONLY their own assigned queries
+  return queries.filter((q) => {
+    // Show all Bucket A queries to Junior
+    if (q.Status === "A") {
+      return true;
+    }
+    
+    // For all other buckets (B-G), only show if assigned to this user
+    return (
+      q["Assigned To"] &&
+      q["Assigned To"].toLowerCase() === userEmail
+    );
+  });
 }
 
 /**
@@ -49,10 +60,8 @@ export function groupQueriesByBucket(
             : q["Discarded Date Time"];
         if (!dateStr) return false;
 
-        // Parse date: "DD/MM/YYYY, HH:MM:SS"
-        const parts = dateStr.split(",")[0].split("/");
-        if (parts.length === 3) {
-          const d = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
+        const d = parseDateRobust(dateStr);
+        if (d) {
           const now = new Date();
           const diffTime = Math.abs(now.getTime() - d.getTime());
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -82,13 +91,155 @@ export function groupQueriesByUser(queries: Query[]): Record<string, Query[]> {
 }
 
 /**
- * Calculate dashboard statistics
+ * Filter queries by history days for F and G buckets
+ * Returns queries with F/G status older than historyDays removed
  */
-export function calculateStats(queries: Query[]) {
-  return {
-    pending: queries.filter((q) => q["Status"] === "A").length,
-    inProgress: queries.filter((q) => q["Status"] === "B").length,
-    sent: queries.filter((q) => ["C", "D", "E", "F"].includes(q["Status"]))
-      .length,
+export function filterByHistoryDays(queries: Query[], historyDays: number): Query[] {
+  return queries.filter((q) => {
+    const status = q["Status"];
+    
+    // Only filter F and G buckets by history
+    if (!["F", "G"].includes(status)) return true;
+    
+    // Get the relevant date for the bucket
+    const dateStr = status === "F" 
+      ? q["Entered In SF Date Time"] 
+      : q["Discarded Date Time"];
+    
+    if (!dateStr) return false;
+    
+    // Parse date: "DD/MM/YYYY, HH:MM:SS"
+    const d = parseDateRobust(dateStr);
+    if (d) {
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - d.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= historyDays;
+    }
+    return true; // Keep if date invalid (safe fallback)
+  });
+}
+
+/**
+ * Robust date parsing (DD/MM/YYYY or MM/DD/YYYY)
+ */
+function parseDateRobust(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  
+  // Try DD/MM/YYYY (Standard)
+  const parts = dateStr.split(",")[0].split("/");
+  if (parts.length === 3) {
+      // Check if DD/MM/YYYY
+      const d1 = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
+      if (!isNaN(d1.getTime())) return d1;
+      
+      // Try MM/DD/YYYY (US)
+      const d2 = new Date(`${parts[0]}/${parts[1]}/${parts[2]}`);
+      if (!isNaN(d2.getTime())) return d2;
+  }
+  
+  // Fallback to standard parse
+  const d3 = new Date(dateStr);
+  return !isNaN(d3.getTime()) ? d3 : null;
+}
+
+/**
+ * Calculate dashboard statistics for all 7 buckets
+ */
+export function calculateStats(queries: Query[]): Record<string, number> {
+  const stats: Record<string, number> = {
+    A: 0,
+    B: 0,
+    C: 0,
+    D: 0,
+    E: 0,
+    F: 0,
+    G: 0,
   };
+
+  queries.forEach((q) => {
+    const status = q["Status"];
+    if (status && stats.hasOwnProperty(status)) {
+      stats[status]++;
+    }
+  });
+
+  return stats;
+}
+
+/**
+ * Filter queries by search term (Query ID or Description)
+ * Case-insensitive search
+ */
+export function filterBySearch(queries: Query[], searchTerm: string): Query[] {
+  if (!searchTerm || searchTerm.trim() === "") {
+    return queries;
+  }
+
+  const term = searchTerm.toLowerCase().trim();
+
+  return queries.filter((q) => {
+    const queryId = (q["Query ID"] || "").toLowerCase();
+    const description = (q["Query Description"] || "").toLowerCase();
+
+    return queryId.includes(term) || description.includes(term);
+  });
+}
+
+/**
+ * Date field options for sorting and display
+ */
+export const DATE_FIELDS = [
+  { value: "Added Date Time", label: "Added" },
+  { value: "Assignment Date Time", label: "Assigned" },
+  { value: "Proposal Sent Date Time", label: "Proposal Sent" },
+  { value: "Entered In SF Date Time", label: "In SF" },
+] as const;
+
+export type DateFieldKey = (typeof DATE_FIELDS)[number]["value"];
+
+/**
+ * Parse date string in DD/MM/YYYY, HH:MM:SS format
+ */
+function parseDate(dateStr: string | undefined): Date | null {
+  if (!dateStr) return null;
+
+  try {
+    // Format: "DD/MM/YYYY, HH:MM:SS"
+    const parts = dateStr.split(",")[0].split("/");
+    if (parts.length === 3) {
+      const [day, month, year] = parts.map((p) => parseInt(p, 10));
+      const timePart = dateStr.split(",")[1]?.trim() || "00:00:00";
+      const [hours, minutes] = timePart.split(":").map((t) => parseInt(t, 10));
+      return new Date(year, month - 1, day, hours || 0, minutes || 0);
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+/**
+ * Sort queries by a date field
+ * @param queries - Array of queries to sort
+ * @param dateField - Which date field to sort by
+ * @param ascending - true = oldest first, false = newest first
+ */
+export function sortQueriesByDate(
+  queries: Query[],
+  dateField: DateFieldKey,
+  ascending: boolean = true
+): Query[] {
+  return [...queries].sort((a, b) => {
+    const dateA = parseDate(a[dateField]);
+    const dateB = parseDate(b[dateField]);
+
+    // Handle missing dates - push to end
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+
+    const diff = dateA.getTime() - dateB.getTime();
+    return ascending ? diff : -diff;
+  });
 }
