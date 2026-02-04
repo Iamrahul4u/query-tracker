@@ -13,6 +13,8 @@ export function BucketColumn({
   onSelectQuery,
   onAssignQuery,
   onEditQuery,
+  onApproveDelete,
+  onRejectDelete,
   disableScroll = false,
   maxHeight,
   showDateOnCards = false,
@@ -27,6 +29,8 @@ export function BucketColumn({
   onSelectQuery: (q: Query) => void;
   onAssignQuery?: (query: Query, assignee: string) => void;
   onEditQuery?: (query: Query) => void;
+  onApproveDelete?: (query: Query) => void;
+  onRejectDelete?: (query: Query) => void;
   disableScroll?: boolean;
   maxHeight?: string;
   showDateOnCards?: boolean;
@@ -174,6 +178,8 @@ export function BucketColumn({
                           onClick={() => onSelectQuery(query)}
                           onAssign={onAssignQuery}
                           onEdit={onEditQuery}
+                          onApproveDelete={onApproveDelete}
+                          onRejectDelete={onRejectDelete}
                           showDate={showDateOnCards}
                           dateField={dateField}
                           currentUserRole={currentUserRole}
@@ -244,6 +250,8 @@ export function BucketColumn({
                           onClick={() => onSelectQuery(query)}
                           onAssign={onAssignQuery}
                           onEdit={onEditQuery}
+                          onApproveDelete={onApproveDelete}
+                          onRejectDelete={onRejectDelete}
                           showDate={showDateOnCards}
                           dateField={dateField}
                           currentUserRole={currentUserRole}

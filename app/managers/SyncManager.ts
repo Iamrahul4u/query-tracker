@@ -231,8 +231,8 @@ export class SyncManager {
       "Proposal Sent Date Time": "",
       "Whats Pending": "",
       "Entered In SF Date Time": "",
-      "Event ID": "",
-      "Event Title": "",
+      "Event ID in SF": "",
+      "Event Title in SF": "",
       "Discarded Date Time": "",
       GmIndicator: queryData.GmIndicator || "", // Include GM Indicator from input
       "Delete Requested Date Time": "",
@@ -240,6 +240,11 @@ export class SyncManager {
       "Last Edited Date Time": now,
       "Last Edited By": currentUserEmail,
       "Last Activity Date Time": now,
+      // Deletion workflow fields (Bucket H)
+      "Previous Status": "",
+      "Delete Approved By": "",
+      "Delete Approved Date Time": "",
+      "Delete Rejected": "",
       _isPending: true,
       _tempId: tempId,
     };
@@ -442,46 +447,104 @@ export class SyncManager {
     requestedBy: string,
     isAdmin: boolean = false,
   ): Promise<SyncResult> {
-    // Optimistic delete (remove from UI)
-    const optimisticQueries = currentQueries.filter(
-      (q) => q["Query ID"] !== queryId,
-    );
+    const now = new Date().toLocaleString("en-GB");
+    
+    if (isAdmin) {
+      // Admin: Remove from UI immediately (permanent delete)
+      const optimisticQueries = currentQueries.filter(
+        (q) => q["Query ID"] !== queryId,
+      );
+      updateStore(optimisticQueries);
 
-    updateStore(optimisticQueries);
+      try {
+        const response = await fetch("/api/queries", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.token}`,
+          },
+          body: JSON.stringify({
+            action: "delete",
+            queryId,
+            data: { requestedBy, isAdmin },
+          }),
+        });
 
-    try {
-      const response = await fetch("/api/queries", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.token}`,
-        },
-        body: JSON.stringify({
-          action: "delete",
-          queryId,
-          data: { requestedBy, isAdmin },
-        }),
-      });
+        if (!response.ok) {
+          throw new Error("Delete failed");
+        }
 
-      if (!response.ok) {
-        throw new Error("Delete failed");
+        LocalStorageCache.saveQueries(optimisticQueries);
+
+        return {
+          success: true,
+          data: { message: "Query permanently deleted" },
+        };
+      } catch (error: any) {
+        updateStore(currentQueries);
+        return {
+          success: false,
+          error: error.message || "Failed to delete query",
+        };
+      }
+    } else {
+      // Non-admin: Move to Bucket H (Pending Approval)
+      const queryToMove = currentQueries.find((q) => q["Query ID"] === queryId);
+      if (!queryToMove) {
+        return { success: false, error: "Query not found" };
       }
 
-      LocalStorageCache.saveQueries(optimisticQueries);
-
-      return {
-        success: true,
-        data: { message: isAdmin ? "Query permanently deleted" : "Delete request submitted for approval" },
+      // Store previous status and move to H
+      const previousStatus = queryToMove.Status;
+      const updatedQuery: Query = {
+        ...queryToMove,
+        Status: "H",
+        "Previous Status": previousStatus,
+        "Delete Requested Date Time": now,
+        "Delete Requested By": requestedBy,
+        "Delete Rejected": "", // Clear any previous rejection
+        "Last Activity Date Time": now,
       };
-    } catch (error: any) {
-      updateStore(currentQueries);
 
-      return {
-        success: false,
-        error: error.message || "Failed to delete query",
-      };
+      const optimisticQueries = currentQueries.map((q) =>
+        q["Query ID"] === queryId ? updatedQuery : q
+      );
+      updateStore(optimisticQueries);
+
+      try {
+        const response = await fetch("/api/queries", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.token}`,
+          },
+          body: JSON.stringify({
+            action: "delete",
+            queryId,
+            data: { requestedBy, isAdmin },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Delete request failed");
+        }
+
+        LocalStorageCache.saveQueries(optimisticQueries);
+
+        return {
+          success: true,
+          data: { message: "Delete request submitted for approval", status: "H" },
+        };
+      } catch (error: any) {
+        updateStore(currentQueries);
+        return {
+          success: false,
+          error: error.message || "Failed to submit delete request",
+        };
+      }
     }
   }
+
 
   /**
    * Approve a pending deletion (Admin only)
@@ -490,6 +553,7 @@ export class SyncManager {
     queryId: string,
     currentQueries: Query[],
     updateStore: (queries: Query[]) => void,
+    approvedBy?: string,
   ): Promise<SyncResult> {
     const optimisticQueries = currentQueries.filter(
       (q) => q["Query ID"] !== queryId,
@@ -507,6 +571,7 @@ export class SyncManager {
         body: JSON.stringify({
           action: "approveDelete",
           queryId,
+          data: { approvedBy },
         }),
       });
 
@@ -530,18 +595,38 @@ export class SyncManager {
     }
   }
 
+
   /**
-   * Reject a pending deletion (Admin only) - restores query visibility
+   * Reject a pending deletion (Admin only) - restores query to previous status
    */
   async rejectDeleteOptimistic(
     queryId: string,
     currentQueries: Query[],
     updateStore: (queries: Query[]) => void,
+    rejectedBy?: string,
   ): Promise<SyncResult> {
-    // Update query to remove delete flags
+    const now = new Date().toLocaleString("en-GB");
+    
+    // Find the query and get its previous status
+    const queryToRestore = currentQueries.find((q) => q["Query ID"] === queryId);
+    if (!queryToRestore) {
+      return { success: false, error: "Query not found" };
+    }
+
+    const previousStatus = queryToRestore["Previous Status"] || "A";
+
+    // Restore to previous status with Del-Rej flag
     const optimisticQueries = currentQueries.map((q) =>
       q["Query ID"] === queryId
-        ? { ...q, "Delete Requested By": "", "Delete Requested Date Time": "" }
+        ? {
+            ...q,
+            Status: previousStatus,
+            "Previous Status": "",
+            "Delete Requested By": "",
+            "Delete Requested Date Time": "",
+            "Delete Rejected": "true", // Shows "Del-Rej" indicator
+            "Last Activity Date Time": now,
+          }
         : q
     );
 
@@ -557,6 +642,7 @@ export class SyncManager {
         body: JSON.stringify({
           action: "rejectDelete",
           queryId,
+          data: { rejectedBy },
         }),
       });
 
@@ -568,7 +654,7 @@ export class SyncManager {
 
       return {
         success: true,
-        data: { message: "Deletion rejected, query restored" },
+        data: { message: "Deletion rejected, query restored", restoredStatus: previousStatus },
       };
     } catch (error: any) {
       updateStore(currentQueries);
@@ -579,6 +665,7 @@ export class SyncManager {
       };
     }
   }
+
 
   /**
    * Optimistic status update
@@ -640,6 +727,50 @@ export class SyncManager {
         }
         if (newStatus === "G") {
           updated["Discarded Date Time"] = now;
+        }
+
+        // Clear fields when moving BACKWARDS to earlier buckets
+        // Define bucket order: A < B < C < D < E < F < G < H
+        const bucketOrder = ["A", "B", "C", "D", "E", "F", "G", "H"];
+        const oldIndex = bucketOrder.indexOf(q.Status);
+        const newIndex = bucketOrder.indexOf(newStatus);
+
+        if (newIndex >= 0 && oldIndex >= 0 && newIndex < oldIndex) {
+          // Moving backwards - clear fields that don't belong in the target bucket
+          
+          // Moving to A: Clear assignment fields
+          if (newStatus === "A") {
+            updated["Assigned To"] = "";
+            updated["Assigned By"] = "";
+            updated["Assignment Date Time"] = "";
+            updated["Remarks"] = "";
+            updated["Proposal Sent Date Time"] = "";
+            updated["Whats Pending"] = "";
+            updated["Entered In SF Date Time"] = "";
+            updated["Event ID in SF"] = "";
+            updated["Event Title in SF"] = "";
+            updated["Discarded Date Time"] = "";
+          }
+          // Moving to B: Clear proposal and SF fields
+          else if (newStatus === "B") {
+            updated["Proposal Sent Date Time"] = "";
+            updated["Whats Pending"] = "";
+            updated["Entered In SF Date Time"] = "";
+            updated["Event ID in SF"] = "";
+            updated["Event Title in SF"] = "";
+            updated["Discarded Date Time"] = "";
+          }
+          // Moving to C or D: Clear SF fields
+          else if (["C", "D"].includes(newStatus)) {
+            updated["Entered In SF Date Time"] = "";
+            updated["Event ID in SF"] = "";
+            updated["Event Title in SF"] = "";
+            updated["Discarded Date Time"] = "";
+          }
+          // Moving to E or F: Clear discard fields
+          else if (["E", "F"].includes(newStatus)) {
+            updated["Discarded Date Time"] = "";
+          }
         }
 
         console.log("  Optimistic update applied:", {

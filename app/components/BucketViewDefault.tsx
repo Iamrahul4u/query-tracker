@@ -10,6 +10,8 @@ interface BucketViewDefaultProps {
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
+  onApproveDelete?: (query: Query) => void;
+  onRejectDelete?: (query: Query) => void;
   isFilterExpanded?: boolean;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
@@ -30,6 +32,8 @@ export function BucketViewDefault({
   onSelectQuery,
   onAssignQuery,
   onEditQuery,
+  onApproveDelete,
+  onRejectDelete,
   isFilterExpanded = true,
   showDateOnCards = false,
   dateField = "Added Date Time",
@@ -63,6 +67,8 @@ export function BucketViewDefault({
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
           onEditQuery={onEditQuery}
+          onApproveDelete={onApproveDelete}
+          onRejectDelete={onRejectDelete}
           disableScroll={false}
           maxHeight={maxHeight}
           showDateOnCards={showDateOnCards}
@@ -74,3 +80,4 @@ export function BucketViewDefault({
     </div>
   );
 }
+

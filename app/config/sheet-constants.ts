@@ -3,16 +3,19 @@ export const SPREADSHEET_ID = "1Itpin1gPmJIy0KK6kBDklfhgOnNapvqywgypZ0h2bqA";
 // In previous view of route.ts, SPREADSHEET_ID was hardcoded or imported. Let's check route.ts first to be safe, but for now I will define the ranges.
 
 export const SHEET_RANGES = {
-  QUERIES: "Queries!A:V",
-  USERS: "Users!A:E",
+  QUERIES: "Queries!A:Z",
+  USERS: "Users!A:F",
   PREFERENCES: "Preferences!A:F",
 };
+
+
 
 export interface BucketConfig {
   name: string;
   description: string;
   color: string;
   visibleFields: string[];
+  defaultSortField: string;      // Primary sort field for this bucket
   evaporateAfterDays?: number;
 }
 
@@ -21,6 +24,7 @@ export const BUCKETS: Record<string, BucketConfig> = {
     name: "A) Pending (Unassigned)",
     description: "New queries in common pool",
     color: "#ea4335",
+    defaultSortField: "Added Date Time",
     visibleFields: [
       "Query Description",
       "Query Type",
@@ -32,6 +36,7 @@ export const BUCKETS: Record<string, BucketConfig> = {
     name: "B) Pending Proposal",
     description: "Assigned, awaiting proposal",
     color: "#fbbc04",
+    defaultSortField: "Assignment Date Time",
     visibleFields: [
       "Query Description",
       "Query Type",
@@ -45,6 +50,7 @@ export const BUCKETS: Record<string, BucketConfig> = {
     name: "C) Proposal Sent",
     description: "Full proposal sent, pending SF entry",
     color: "#34a853",
+    defaultSortField: "Proposal Sent Date Time",
     visibleFields: [
       "Query Description",
       "Query Type",
@@ -57,6 +63,7 @@ export const BUCKETS: Record<string, BucketConfig> = {
     name: "D) Proposal Sent Partially",
     description: "Partial proposal sent, pending SF entry",
     color: "#ff9800",
+    defaultSortField: "Proposal Sent Date Time",
     visibleFields: [
       "Query Description",
       "Query Type",
@@ -70,28 +77,30 @@ export const BUCKETS: Record<string, BucketConfig> = {
     name: "E) Partial Proposal + In SF",
     description: "Partial proposal sent AND entered in Salesforce",
     color: "#673ab7",
+    defaultSortField: "Entered In SF Date Time",
     visibleFields: [
       "Query Description",
       "Query Type",
       "Entered In SF Date Time",
       "Proposal Sent Date Time",
       "Whats Pending",
-      "Event ID",
-      "Event Title",
+      "Event ID in SF",
+      "Event Title in SF",
     ],
   },
   F: {
     name: "F) Full Proposal + In SF",
     description: "FINAL - Full proposal sent AND entered in Salesforce",
     color: "#1a73e8",
+    defaultSortField: "Entered In SF Date Time",
     visibleFields: [
       "Query Description",
       "Query Type",
       "Entered In SF Date Time",
       "Proposal Sent Date Time",
-      "Event ID",
-      "Event Title",
-      "Gm Indicator",
+      "Event ID in SF",
+      "Event Title in SF",
+      "GmIndicator",
     ],
     evaporateAfterDays: 3,
   },
@@ -99,6 +108,7 @@ export const BUCKETS: Record<string, BucketConfig> = {
     name: "G) Discarded",
     description: "Query rejected or canceled",
     color: "#9e9e9e",
+    defaultSortField: "Discarded Date Time",
     visibleFields: [
       "Query Description",
       "Query Type",
@@ -108,8 +118,23 @@ export const BUCKETS: Record<string, BucketConfig> = {
     ],
     evaporateAfterDays: 3,
   },
+  H: {
+    name: "H) Deleted (Pending Approval)",
+    description: "Delete requested, awaiting Admin approval",
+    color: "#795548",
+    defaultSortField: "Delete Requested Date Time",
+    visibleFields: [
+      "Query Description",
+      "Query Type",
+      "Delete Requested Date Time",
+      "Delete Requested By",
+      "Previous Status",
+    ],
+    evaporateAfterDays: 7, // Evaporates 7 days after approval
+  },
 };
 
 export const BUCKET_ORDER = Object.keys(BUCKETS);
 
 export const QUERY_TYPE_ORDER = ["SEO Query", "New", "Ongoing"];
+

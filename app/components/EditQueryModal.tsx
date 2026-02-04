@@ -43,8 +43,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     // Plan 5.6: D requires Whats Pending. E/F requires Event stuff?
     // Let's add basic validation.
     if (["E", "F"].includes(status)) {
-      if (!formData["Event ID"] || !formData["Event Title"]) {
-        setError("Event ID and Title are required for this status.");
+      if (!formData["Event ID in SF"] || !formData["Event Title in SF"]) {
+        setError("Event ID in SF and Title are required for this status.");
         return;
       }
     }
@@ -103,13 +103,13 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     // A: Desc, Type, Added By (Added By is usually read only? Plan says editable in A? "Bucket A: Query Description, Query Type, Added By")
     // B: Desc, Type, Remarks
     // C/D: Desc, Whats Pending (D only for Pending? Plan says "Bucket C/D: Query Description, Whats Pending (D only)")
-    // E/F: Whats Pending, Event ID, Event Title
+    // E/F: Whats Pending, Event ID in SF, Event Title in SF
 
     // I'll make Desc editable in A, B, C, D.
     // Type editable in A, B.
     // Remarks editable in B.
     // Whats Pending editable in D, E, F.
-    // Event ID/Title editable in E, F.
+    // Event ID in SF/Title editable in E, F.
 
     const s = status; // Use current selected status to show relevant fields for NEXT step
 
@@ -119,8 +119,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     if (field === "Query Type") return ["A", "B"].includes(s);
     if (field === "Remarks") return ["B"].includes(s); // Or always show but optional? Plan says B.
     if (field === "Whats Pending") return ["D", "E", "F"].includes(s);
-    if (field === "Event ID") return ["E", "F"].includes(s);
-    if (field === "Event Title") return ["E", "F"].includes(s);
+    if (field === "Event ID in SF") return ["E", "F"].includes(s);
+    if (field === "Event Title in SF") return ["E", "F"].includes(s);
 
     return false;
   };
@@ -299,29 +299,29 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
             </div>
           )}
 
-          {/* Event ID/Title (E, F) */}
-          {(showField("Event ID") || showField("Event Title")) && (
+          {/* Event ID in SF/Title (E, F) */}
+          {(showField("Event ID in SF") || showField("Event Title in SF")) && (
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Event ID
+                  Event ID in SF
                 </label>
                 <input
                   type="text"
-                  value={formData["Event ID"]}
-                  onChange={(e) => updateField("Event ID", e.target.value)}
+                  value={formData["Event ID in SF"]}
+                  onChange={(e) => updateField("Event ID in SF", e.target.value)}
                   disabled={!canEdit}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Event Title
+                  Event Title in SF
                 </label>
                 <input
                   type="text"
-                  value={formData["Event Title"]}
-                  onChange={(e) => updateField("Event Title", e.target.value)}
+                  value={formData["Event Title in SF"]}
+                  onChange={(e) => updateField("Event Title in SF", e.target.value)}
                   disabled={!canEdit}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm"
                 />

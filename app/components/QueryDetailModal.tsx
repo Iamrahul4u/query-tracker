@@ -183,16 +183,16 @@ export function QueryDetailModal({ query, users, currentUser, onClose, onEdit }:
           )}
 
           {/* Event Info (for E/F) */}
-          {(query["Event ID"] || query["Event Title"]) && (
+          {(query["Event ID in SF"] || query["Event Title in SF"]) && (
             <div className="mb-6 p-3 bg-purple-50 rounded-lg">
               <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
                 Salesforce Event
               </p>
               <p className="font-medium text-gray-800">
-                {query["Event Title"] || "—"}
+                {query["Event Title in SF"] || "—"}
               </p>
               <p className="text-xs text-gray-500">
-                ID: {query["Event ID"] || "—"}
+                ID: {query["Event ID in SF"] || "—"}
               </p>
             </div>
           )}

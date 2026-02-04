@@ -12,8 +12,8 @@ export interface Query {
   "Proposal Sent Date Time": string;
   "Whats Pending": string;
   "Entered In SF Date Time": string;
-  "Event ID": string;
-  "Event Title": string;
+  "Event ID in SF": string;
+  "Event Title in SF": string;
   "Discarded Date Time": string;
   GmIndicator: string;
   "Delete Requested Date Time": string;
@@ -21,7 +21,12 @@ export interface Query {
   "Last Edited Date Time": string;
   "Last Edited By": string;
   "Last Activity Date Time": string;
-  [key: string]: string;
+  // Deletion workflow fields (Bucket H)
+  "Previous Status"?: string;           // Status before moving to H
+  "Delete Approved By"?: string;        // Admin who approved deletion
+  "Delete Approved Date Time"?: string; // When deletion was approved
+  "Delete Rejected"?: string;           // "true" if deletion was rejected
+  [key: string]: string | undefined;
 }
 
 export interface User {
@@ -30,6 +35,7 @@ export interface User {
   Role: "Junior" | "Senior" | "Admin" | string;
   "Display Order": string;
   "Is Active": string;
+  "Display Name"?: string; // 5-6 char short name for compact view
 }
 
 export interface Preferences {

@@ -108,6 +108,45 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
     const refreshToken = localStorage.getItem("refresh_token");
     const tokenExpiry = localStorage.getItem("token_expiry");
 
+    // Helper function to attempt token refresh
+    const attemptRefresh = async () => {
+      if (!refreshToken) {
+        setStatus("Sign in to access Query Tracker");
+        setIsLoading(false);
+        return;
+      }
+
+      setStatus("Refreshing session...");
+      try {
+        const res = await fetch("/api/auth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+        const data = await res.json();
+        
+        if (data.access_token) {
+          localStorage.setItem("auth_token", data.access_token);
+          localStorage.setItem(
+            "token_expiry",
+            String(Date.now() + data.expires_in * 1000),
+          );
+          console.log(`✅ Token refreshed. Expires in ${data.expires_in}s`);
+          setStatus("Redirecting to dashboard...");
+          router.push("/dashboard");
+        } else {
+          // Refresh failed, need re-login
+          localStorage.clear();
+          setStatus("Session expired. Please sign in again.");
+          setIsLoading(false);
+        }
+      } catch {
+        localStorage.clear();
+        setStatus("Session expired. Please sign in again.");
+        setIsLoading(false);
+      }
+    };
+
     if (token) {
       // Check if token is still valid
       const now = Date.now();
@@ -119,57 +158,11 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
       }
 
       // Token expired, try to refresh
-      if (refreshToken) {
-        setStatus("Refreshing session...");
-        fetch("/api/auth/refresh", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.access_token) {
-              localStorage.setItem("auth_token", data.access_token);
-              localStorage.setItem(
-                "token_expiry",
-                String(Date.now() + data.expires_in * 1000),
-              );
-              setStatus("Redirecting to dashboard...");
-              router.push("/dashboard");
-            } else {
-              // Refresh failed, need re-login
-              localStorage.clear();
-              setStatus("Session expired. Please sign in again.");
-              setIsLoading(false);
-            }
-          })
-          .catch(() => {
-            localStorage.clear();
-            setStatus("Session expired. Please sign in again.");
-            setIsLoading(false);
-          });
-        return;
-      }
-
-      // No refresh token, validate current token
-      fetch(
-        `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${token}`,
-      )
-        .then((res) => {
-          if (res.ok) {
-            setStatus("Redirecting to dashboard...");
-            router.push("/dashboard");
-          } else {
-            localStorage.clear();
-            setStatus("Sign in to access Query Tracker");
-            setIsLoading(false);
-          }
-        })
-        .catch(() => {
-          localStorage.clear();
-          setStatus("Sign in to access Query Tracker");
-          setIsLoading(false);
-        });
+      attemptRefresh();
+    } else if (refreshToken) {
+      // No auth_token but have refresh_token - try to refresh
+      console.log("⚠️ auth_token missing but refresh_token exists, attempting refresh...");
+      attemptRefresh();
     } else {
       setStatus("Sign in to access Query Tracker");
       setIsLoading(false);

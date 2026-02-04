@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { UserPlus, UserCheck, Pencil, Mail, Calendar } from "lucide-react";
+import { UserPlus, UserCheck, Pencil, Mail, Calendar, Check, X } from "lucide-react";
 import { Query, User } from "../utils/sheets";
 import { AuditTooltip } from "./AuditTooltip";
 import { useTooltipStore } from "../hooks/useTooltip";
@@ -12,6 +12,8 @@ export function QueryCardCompact({
   onClick,
   onAssign,
   onEdit,
+  onApproveDelete,
+  onRejectDelete,
   showDate = false,
   dateField = "Added Date Time",
   currentUserRole = "",
@@ -23,6 +25,8 @@ export function QueryCardCompact({
   onClick: () => void;
   onAssign?: (query: Query, assignee: string) => void;
   onEdit?: (query: Query) => void;
+  onApproveDelete?: (query: Query) => void;
+  onRejectDelete?: (query: Query) => void;
   showDate?: boolean;
   dateField?: DateFieldKey;
   currentUserRole?: string;
@@ -188,11 +192,16 @@ export function QueryCardCompact({
     }
   };
 
-  // Check pending/deleted state (optimisitc UI flags)
+  // Check pending/deleted state (optimistic UI flags)
   const isPending = (query as any)._isPending;
   const isDeleted = (query as any)._isDeleted;
-  // Check if delete is pending approval (non-admin requested deletion)
-  const isDeletePending = !!query["Delete Requested By"];
+  // Bucket H: Pending Approval status
+  const isInBucketH = query.Status === "H";
+  const isDeletePending = isInBucketH || !!query["Delete Requested By"];
+  // Del-Rej: Query was previously rejected from deletion
+  const wasDeleteRejected = query["Delete Rejected"] === "true";
+  // Can this user approve/reject? Only Admin/Senior in Bucket H
+  const canApproveDelete = isInBucketH && (roleLC === "admin" || roleLC === "senior");
 
   // Get date value for display
   const getDateDisplay = () => {
@@ -303,12 +312,22 @@ export function QueryCardCompact({
                   title="Syncing..."
                 ></span>
               )}
-              {isDeletePending && (
+              {/* P.A. indicator for Bucket H */}
+              {isInBucketH && (
                 <span
-                  className="px-1.5 py-0.5 text-[8px] font-semibold bg-red-100 text-red-700 rounded flex-shrink-0"
-                  title={`Delete requested by ${query["Delete Requested By"]}`}
+                  className="px-1.5 py-0.5 text-[8px] font-semibold bg-amber-100 text-amber-700 rounded flex-shrink-0"
+                  title={`Pending Approval - Delete requested by ${query["Delete Requested By"]}`}
                 >
-                  DEL?
+                  P.A.
+                </span>
+              )}
+              {/* Del-Rej indicator for previously rejected deletions */}
+              {wasDeleteRejected && !isInBucketH && (
+                <span
+                  className="px-1.5 py-0.5 text-[8px] font-semibold bg-orange-100 text-orange-700 rounded flex-shrink-0"
+                  title="Delete request was rejected"
+                >
+                  Del-Rej
                 </span>
               )}
             </div>
@@ -385,8 +404,34 @@ export function QueryCardCompact({
               </div>
             )}
 
+            {/* Approve/Reject buttons for Bucket H (Admin/Senior only) */}
+            {canApproveDelete && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onApproveDelete) onApproveDelete(query);
+                  }}
+                  className="w-7 h-7 rounded-full bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-700 transition-colors"
+                  title="Approve Deletion"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onRejectDelete) onRejectDelete(query);
+                  }}
+                  className="w-7 h-7 rounded-full bg-red-100 hover:bg-red-200 flex items-center justify-center text-red-700 transition-colors"
+                  title="Reject Deletion (Return to Previous Status)"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+
             {/* Edit Button (Icon) - Hidden for Junior on unassigned queries */}
-            {showEditButton && (
+            {showEditButton && !isInBucketH && (
               <button
                 onClick={handleEditClick}
                 className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors"

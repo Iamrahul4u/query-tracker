@@ -45,8 +45,15 @@ function DashboardContent() {
   } = useDashboardPreferences();
 
   // Store
-  const { queries, users, currentUser, isLoading, assignQueryOptimistic } =
-    useQueryStore();
+  const { 
+    queries, 
+    users, 
+    currentUser, 
+    isLoading, 
+    assignQueryOptimistic,
+    approveDeleteOptimistic,
+    rejectDeleteOptimistic,
+  } = useQueryStore();
 
   // Toast notifications
   const { toasts, hideToast } = useToast();
@@ -96,6 +103,14 @@ function DashboardContent() {
   // Handlers
   const handleAssignQuery = (query: Query, assignee: string) => {
     assignQueryOptimistic(query["Query ID"], assignee);
+  };
+
+  const handleApproveDelete = (query: Query) => {
+    approveDeleteOptimistic(query["Query ID"]);
+  };
+
+  const handleRejectDelete = (query: Query) => {
+    rejectDeleteOptimistic(query["Query ID"]);
   };
 
   // Loading state - removed authChecked check since AuthProvider handles it
@@ -155,6 +170,8 @@ function DashboardContent() {
             onSelectQuery={setSelectedQuery}
             onAssignQuery={handleAssignQuery}
             onEditQuery={setQueryToEdit}
+            onApproveDelete={handleApproveDelete}
+            onRejectDelete={handleRejectDelete}
             isFilterExpanded={isFilterExpanded}
             showDateOnCards={showDateOnCards}
             dateField={sortField}

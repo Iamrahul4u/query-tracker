@@ -113,9 +113,9 @@ export async function POST(request: NextRequest) {
       case "delete":
         return await handleDelete(sheets, queryId, data);
       case "approveDelete":
-        return await handleApproveDelete(sheets, queryId);
+        return await handleApproveDelete(sheets, queryId, data?.approvedBy);
       case "rejectDelete":
-        return await handleRejectDelete(sheets, queryId);
+        return await handleRejectDelete(sheets, queryId, data?.rejectedBy);
       default:
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
@@ -175,8 +175,8 @@ const COL_MAP: Record<string, string> = {
   "Proposal Sent Date Time": "K",
   "Whats Pending": "L",
   "Entered In SF Date Time": "M",
-  "Event ID": "N",
-  "Event Title": "O",
+  "Event ID in SF": "N",
+  "Event Title in SF": "O",
   "Discarded Date Time": "P",
   GmIndicator: "Q",
   "Delete Requested Date Time": "R",
@@ -184,7 +184,14 @@ const COL_MAP: Record<string, string> = {
   "Last Edited Date Time": "T",
   "Last Edited By": "U",
   "Last Activity Date Time": "V",
+  // Deletion workflow columns (Bucket H)
+  "Previous Status": "W",
+  "Delete Approved By": "X",
+  "Delete Approved Date Time": "Y",
+  "Delete Rejected": "Z",
 };
+
+
 
 /**
  * Finds the row number (1-based) for a given Query ID.
@@ -329,12 +336,62 @@ async function handleUpdateStatus(
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
   }
 
+  // Get current status to detect backward transitions
+  const statusRes = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `Queries!D${rowIndex}`,
+  });
+  const currentStatus = statusRes.data.values?.[0]?.[0] || "";
+
   const now = new Date().toLocaleString("en-GB");
   const updates: any = {
     Status: data.newStatus,
     "Last Activity Date Time": now,
     ...data.fields,
   };
+
+  // Check for backward transition and clear fields
+  const bucketOrder = ["A", "B", "C", "D", "E", "F", "G", "H"];
+  const oldIndex = bucketOrder.indexOf(currentStatus);
+  const newIndex = bucketOrder.indexOf(data.newStatus);
+
+  if (newIndex >= 0 && oldIndex >= 0 && newIndex < oldIndex) {
+    console.log(`  ⬅️ Backward transition detected: ${currentStatus} → ${data.newStatus}`);
+    
+    // Moving to A: Clear assignment fields
+    if (data.newStatus === "A") {
+      updates["Assigned To"] = "";
+      updates["Assigned By"] = "";
+      updates["Assignment Date Time"] = "";
+      updates["Remarks"] = "";
+      updates["Proposal Sent Date Time"] = "";
+      updates["Whats Pending"] = "";
+      updates["Entered In SF Date Time"] = "";
+      updates["Event ID in SF"] = "";
+      updates["Event Title in SF"] = "";
+      updates["Discarded Date Time"] = "";
+    }
+    // Moving to B: Clear proposal and SF fields
+    else if (data.newStatus === "B") {
+      updates["Proposal Sent Date Time"] = "";
+      updates["Whats Pending"] = "";
+      updates["Entered In SF Date Time"] = "";
+      updates["Event ID in SF"] = "";
+      updates["Event Title in SF"] = "";
+      updates["Discarded Date Time"] = "";
+    }
+    // Moving to C or D: Clear SF fields
+    else if (["C", "D"].includes(data.newStatus)) {
+      updates["Entered In SF Date Time"] = "";
+      updates["Event ID in SF"] = "";
+      updates["Event Title in SF"] = "";
+      updates["Discarded Date Time"] = "";
+    }
+    // Moving to E or F: Clear discard fields
+    else if (["E", "F"].includes(data.newStatus)) {
+      updates["Discarded Date Time"] = "";
+    }
+  }
 
   console.log("  Updates to apply:", JSON.stringify(updates, null, 2));
 
@@ -372,12 +429,12 @@ async function handleAdd(sheets: any, data: Query) {
   const realId = `Q-${Date.now()}`; // Simple ID generation
   const now = new Date().toLocaleString("en-GB");
 
-  // Construct row in correct order (Columns A-V)
+  // Construct row in correct order (Columns A-Z)
   // Mapping
   const newRow: string[] = [];
   const fields = Object.values(COL_MAP); // This gives A, B, C... NOT ordered keys.
 
-  // We need keys in column order A->V
+  // We need keys in column order A->Z
   const keysInOrder = Object.entries(COL_MAP)
     .sort(([, a], [, b]) => a.localeCompare(b))
     .map(([key]) => key);
@@ -389,7 +446,7 @@ async function handleAdd(sheets: any, data: Query) {
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
-    range: "Queries!A:V",
+    range: "Queries!A:Z",
     valueInputOption: "USER_ENTERED",
     resource: {
       values: [newRow],
@@ -457,24 +514,47 @@ async function handleDelete(
       );
     }
   } else {
-    // Non-admin: Soft Delete - mark for approval
+    // Non-admin: Move to Bucket H (Pending Approval)
+    // First, get current status to store as previousStatus
+    const statusRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Queries!D${rowIndex}`,
+    });
+    const currentStatus = statusRes.data.values?.[0]?.[0] || "";
+
     const updates = {
+      Status: "H",
+      "Previous Status": currentStatus,
       "Delete Requested Date Time": now,
       "Delete Requested By": data.requestedBy,
+      "Delete Rejected": "", // Clear any previous rejection
+      "Last Activity Date Time": now,
     };
 
     await updateRowCells(sheets, rowIndex, updates);
-    return NextResponse.json({ success: true, pending: true });
+    return NextResponse.json({ success: true, pending: true, status: "H" });
   }
 }
 
+
 /**
- * Approve a pending deletion (Admin only) - permanently removes the row
+ * Approve a pending deletion (Admin only) - sets approval then removes the row
  */
-async function handleApproveDelete(sheets: any, queryId: string) {
+async function handleApproveDelete(sheets: any, queryId: string, approvedBy?: string) {
   const rowIndex = await findRowIndex(sheets, queryId);
   if (!rowIndex)
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
+
+  const now = new Date().toLocaleString("en-GB");
+
+  // First, record who approved (for audit trail before deletion)
+  // Note: In future, could keep approved records for evaporation period
+  if (approvedBy) {
+    await updateRowCells(sheets, rowIndex, {
+      "Delete Approved By": approvedBy,
+      "Delete Approved Date Time": now,
+    });
+  }
 
   try {
     const spreadsheet = await sheets.spreadsheets.get({
@@ -504,7 +584,7 @@ async function handleApproveDelete(sheets: any, queryId: string) {
     });
 
     rowIndexCache.clear();
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, approved: true });
   } catch (error: any) {
     console.error("Failed to approve delete:", error);
     return NextResponse.json(
@@ -514,20 +594,33 @@ async function handleApproveDelete(sheets: any, queryId: string) {
   }
 }
 
+
 /**
- * Reject a pending deletion (Admin only) - clears the delete request flags
+ * Reject a pending deletion (Admin only) - returns to previous status with Del-Rej flag
  */
-async function handleRejectDelete(sheets: any, queryId: string) {
+async function handleRejectDelete(sheets: any, queryId: string, approvedBy?: string) {
   const rowIndex = await findRowIndex(sheets, queryId);
   if (!rowIndex)
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
 
+  // Get current Previous Status to restore
+  const prevStatusRes = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `Queries!W${rowIndex}`, // Previous Status column
+  });
+  const previousStatus = prevStatusRes.data.values?.[0]?.[0] || "A";
+
+  const now = new Date().toLocaleString("en-GB");
+
   const updates = {
-    "Delete Requested Date Time": "",
+    Status: previousStatus, // Return to previous status
+    "Previous Status": "", // Clear previous status
+    "Delete Requested Date Time": "", // Clear delete request
     "Delete Requested By": "",
+    "Delete Rejected": "true", // Mark as rejected (shows "Del-Rej" indicator)
+    "Last Activity Date Time": now,
   };
 
   await updateRowCells(sheets, rowIndex, updates);
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, restoredStatus: previousStatus });
 }
-
