@@ -79,16 +79,20 @@ function DashboardContent() {
   const [isFilterExpanded, setIsFilterExpanded] = useState(true);
   // Date display state (not persisted)
   const [showDateOnCards, setShowDateOnCards] = useState(false);
+  // Extended days per bucket (for Load +7 Days feature)
+  const [extendedDays, setExtendedDays] = useState<Record<string, number>>({});
 
   // Computed data
   const visibleQueries = getVisibleQueries(queries, currentUser);
   const filteredQueries = filterBySearch(visibleQueries, searchQuery);
 
   // Apply historyDays filter (for both views)
-  const historyFilteredQueries = filterByHistoryDays(
-    filteredQueries,
-    historyDays,
-  );
+  // Use extended days for F/G/H if set, otherwise use global historyDays
+  const historyFilteredQueries = filteredQueries.filter((query) => {
+    const bucket = query.Status;
+    const effectiveDays = extendedDays[bucket] || historyDays;
+    return filterByHistoryDays([query], effectiveDays).length > 0;
+  });
 
   // Helper to apply sorting (custom or default per bucket)
   const applySorting = (queries: Query[], bucket?: string): Query[] => {
@@ -139,6 +143,14 @@ function DashboardContent() {
 
   const handleRejectDelete = (query: Query) => {
     rejectDeleteOptimistic(query["Query ID"]);
+  };
+
+  const handleLoadMore = (bucketKey: string) => {
+    setExtendedDays((prev) => {
+      const current = prev[bucketKey] || historyDays;
+      // Increment by 7 days: 3 → 10 → 17 → 24...
+      return { ...prev, [bucketKey]: current + 7 };
+    });
   };
 
   // Loading state - removed authChecked check since AuthProvider handles it
@@ -207,6 +219,7 @@ function DashboardContent() {
             onEditQuery={setQueryToEdit}
             onApproveDelete={handleApproveDelete}
             onRejectDelete={handleRejectDelete}
+            onLoadMore={handleLoadMore}
             isFilterExpanded={isFilterExpanded}
             showDateOnCards={showDateOnCards}
             dateField={sortField}

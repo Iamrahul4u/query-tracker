@@ -15,6 +15,7 @@ export function BucketColumn({
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
+  onLoadMore,
   disableScroll = false,
   maxHeight,
   showDateOnCards = false,
@@ -32,6 +33,7 @@ export function BucketColumn({
   onEditQuery?: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
+  onLoadMore?: (bucketKey: string) => void;
   disableScroll?: boolean;
   maxHeight?: string;
   showDateOnCards?: boolean;
@@ -266,6 +268,18 @@ export function BucketColumn({
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Load +7 Days Button for F, G, H buckets */}
+        {config.evaporateAfterDays && onLoadMore && (
+          <div className="p-2 border-t border-gray-200">
+            <button
+              onClick={() => onLoadMore(bucketKey)}
+              className="w-full py-2 px-3 text-xs font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-md transition-colors"
+            >
+              Load +7 Days
+            </button>
           </div>
         )}
       </div>

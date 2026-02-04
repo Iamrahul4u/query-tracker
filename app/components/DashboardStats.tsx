@@ -13,9 +13,14 @@ const BUCKET_SHORT_NAMES: Record<string, string> = {
   E: "Partial+SF",
   F: "Full+SF",
   G: "Discarded",
+  H: "Deleted",
 };
 
 export function DashboardStats({ stats }: DashboardStatsProps) {
+  // Calculate total (A+B+C+D+E+F, excluding G and H)
+  const total = (stats.A || 0) + (stats.B || 0) + (stats.C || 0) + 
+                (stats.D || 0) + (stats.E || 0) + (stats.F || 0);
+
   return (
     <div className="flex items-center gap-1.5 lg:gap-3">
       {BUCKET_ORDER.map((bucket) => {
@@ -24,24 +29,41 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
         const shortName = BUCKET_SHORT_NAMES[bucket] || config.name;
 
         return (
-          <div
-            key={bucket}
-            className="text-center px-2 py-1 rounded-lg"
-            style={{ backgroundColor: `${config.color}15` }}
-          >
+          <>
             <div
-              className="text-lg lg:text-xl font-bold"
-              style={{ color: config.color }}
+              key={bucket}
+              className="text-center px-2 py-1 rounded-lg"
+              style={{ backgroundColor: `${config.color}15` }}
             >
-              {count}
+              <div
+                className="text-lg lg:text-xl font-bold"
+                style={{ color: config.color }}
+              >
+                {count}
+              </div>
+              <div
+                className="text-[10px] lg:text-xs font-medium truncate max-w-[60px] lg:max-w-[80px]"
+                style={{ color: config.color }}
+              >
+                {shortName}
+              </div>
             </div>
-            <div
-              className="text-[10px] lg:text-xs font-medium truncate max-w-[60px] lg:max-w-[80px]"
-              style={{ color: config.color }}
-            >
-              {shortName}
-            </div>
-          </div>
+
+            {/* Add Total after bucket F */}
+            {bucket === "F" && (
+              <div
+                key="total"
+                className="text-center px-2 py-1 rounded-lg bg-gray-100 border-2 border-gray-300"
+              >
+                <div className="text-lg lg:text-xl font-bold text-gray-900">
+                  {total}
+                </div>
+                <div className="text-[10px] lg:text-xs font-bold text-gray-700 uppercase max-w-[60px] lg:max-w-[80px]">
+                  Total
+                </div>
+              </div>
+            )}
+          </>
         );
       })}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQueryStore } from "../stores/queryStore";
 import { QUERY_TYPE_ORDER, BUCKETS } from "../config/sheet-constants";
 import { Query } from "../utils/sheets";
@@ -22,7 +22,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   const [formData, setFormData] = useState<Partial<Query>>({ ...query });
   const [status, setStatus] = useState(query.Status);
   const [error, setError] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Track original values to detect changes for color coding
+  const originalValues = query;
 
   // Determine Role
   const role = (currentUser?.Role || "").toLowerCase();
@@ -100,6 +102,22 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Check if a field has been modified
+  const isFieldModified = (field: keyof Query): boolean => {
+    return formData[field] !== originalValues[field];
+  };
+
+  // Get input class based on whether field is modified
+  const getInputClass = (
+    field: keyof Query,
+    baseClass: string = "",
+  ): string => {
+    const modified = isFieldModified(field);
+    return `${baseClass} w-full border rounded-md p-2 text-sm ${
+      modified ? "border-blue-500 text-blue-700 bg-blue-50" : "border-gray-300"
+    }`.trim();
+  };
+
   // Determine which fields are editable based on Bucket (Plan 5.3)
   // But also based on Role? Assuming Fields per bucket logic applies to all allowed editors.
 
@@ -166,8 +184,88 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           {/* Read-Only Info */}
           <div className="text-xs text-gray-400 mb-4 flex gap-4">
             <span>ID: {query["Query ID"]}</span>
-            <span>Added: {query["Added Date Time"]}</span>
           </div>
+
+          {/* Editable Date Fields Section - Admin only */}
+          {isAdminOrSenior && (
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <h4 className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
+                Date Fields (Editable)
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Added Date
+                  </label>
+                  <input
+                    type="text"
+                    value={formData["Added Date Time"] || ""}
+                    onChange={(e) =>
+                      updateField("Added Date Time", e.target.value)
+                    }
+                    className={getInputClass("Added Date Time", "text-xs")}
+                    placeholder="DD/MM/YYYY HH:MM"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Assigned Date
+                  </label>
+                  <input
+                    type="text"
+                    value={formData["Assignment Date Time"] || ""}
+                    onChange={(e) =>
+                      updateField("Assignment Date Time", e.target.value)
+                    }
+                    className={getInputClass("Assignment Date Time", "text-xs")}
+                    placeholder="DD/MM/YYYY HH:MM"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Proposal Sent Date
+                  </label>
+                  <input
+                    type="text"
+                    value={formData["Proposal Sent Date Time"] || ""}
+                    onChange={(e) =>
+                      updateField("Proposal Sent Date Time", e.target.value)
+                    }
+                    className={getInputClass(
+                      "Proposal Sent Date Time",
+                      "text-xs",
+                    )}
+                    placeholder="DD/MM/YYYY HH:MM"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    SF Entry Date
+                  </label>
+                  <input
+                    type="text"
+                    value={formData["Entered In SF Date Time"] || ""}
+                    onChange={(e) =>
+                      updateField("Entered In SF Date Time", e.target.value)
+                    }
+                    className={getInputClass(
+                      "Entered In SF Date Time",
+                      "text-xs",
+                    )}
+                    placeholder="DD/MM/YYYY HH:MM"
+                  />
+                </div>
+              </div>
+              {(isFieldModified("Added Date Time") ||
+                isFieldModified("Assignment Date Time") ||
+                isFieldModified("Proposal Sent Date Time") ||
+                isFieldModified("Entered In SF Date Time")) && (
+                <p className="text-xs text-blue-600 mt-2">
+                  * Modified fields shown in blue
+                </p>
+              )}
+            </div>
+          )}
 
           {!canEdit && (
             <div className="bg-yellow-50 text-yellow-800 p-3 rounded text-sm mb-4">
@@ -210,6 +308,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Query Description
+                {isFieldModified("Query Description") && (
+                  <span className="text-xs text-blue-600 ml-2">* Modified</span>
+                )}
               </label>
               <textarea
                 value={formData["Query Description"]}
@@ -218,7 +319,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 }
                 disabled={!canEdit}
                 rows={3}
-                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                className={getInputClass("Query Description")}
               />
             </div>
           )}
@@ -280,13 +381,16 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Remarks
+                {isFieldModified("Remarks") && (
+                  <span className="text-xs text-blue-600 ml-2">* Modified</span>
+                )}
               </label>
               <input
                 type="text"
                 value={formData["Remarks"]}
                 onChange={(e) => updateField("Remarks", e.target.value)}
                 disabled={!canEdit}
-                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                className={getInputClass("Remarks")}
               />
             </div>
           )}
@@ -296,13 +400,16 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 What's Pending?
+                {isFieldModified("Whats Pending") && (
+                  <span className="text-xs text-blue-600 ml-2">* Modified</span>
+                )}
               </label>
               <input
                 type="text"
                 value={formData["Whats Pending"]}
                 onChange={(e) => updateField("Whats Pending", e.target.value)}
                 disabled={!canEdit}
-                className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                className={getInputClass("Whats Pending")}
               />
             </div>
           )}
@@ -313,6 +420,11 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Event ID in SF
+                  {isFieldModified("Event ID in SF") && (
+                    <span className="text-xs text-blue-600 ml-2">
+                      * Modified
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -321,12 +433,17 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     updateField("Event ID in SF", e.target.value)
                   }
                   disabled={!canEdit}
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                  className={getInputClass("Event ID in SF")}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Event Title in SF
+                  {isFieldModified("Event Title in SF") && (
+                    <span className="text-xs text-blue-600 ml-2">
+                      * Modified
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -335,7 +452,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     updateField("Event Title in SF", e.target.value)
                   }
                   disabled={!canEdit}
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                  className={getInputClass("Event Title in SF")}
                 />
               </div>
             </div>

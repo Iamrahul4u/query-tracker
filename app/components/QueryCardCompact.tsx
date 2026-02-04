@@ -398,7 +398,7 @@ export function QueryCardCompact({
         {/* Row 1: Description + Display Name + Date (compact) OR Description + Display Name (detail) */}
         <div className="flex items-center justify-between gap-2 w-full min-w-0">
           {/* Left: Description + Badges + Display Name + Date (all inline in compact mode) */}
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="flex items-center gap-1 min-w-0 flex-1">
             {/* GM Indicator Icon */}
             {query.GmIndicator === "TRUE" && (
               <Mail className="w-3 h-3 flex-shrink-0 text-[#ea4335]" />
@@ -444,7 +444,7 @@ export function QueryCardCompact({
             {!detailView && (
               <>
                 {assignedUser && (
-                  <span className="text-[10px] text-gray-500 flex items-center gap-1 flex-shrink-0">
+                  <span className="text-[10px] text-gray-500 flex items-center gap-0.5 flex-shrink-0">
                     <UserCheck className="w-3 h-3" />
                     <span>
                       {assignedUser["Display Name"] ||
@@ -454,9 +454,8 @@ export function QueryCardCompact({
                   </span>
                 )}
                 {showDate && getDateDisplay() && (
-                  <span className="text-[10px] text-blue-600 flex items-center gap-1 flex-shrink-0">
-                    <Calendar className="w-3 h-3" />
-                    <span>{getDateDisplay()}</span>
+                  <span className="text-[10px] text-blue-600 flex-shrink-0">
+                    {getDateDisplay()}
                   </span>
                 )}
               </>
