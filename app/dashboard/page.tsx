@@ -71,6 +71,7 @@ function DashboardContent() {
   const [sortField, setSortField] = useState<DateFieldKey>("Added Date Time");
   const [sortAscending, setSortAscending] = useState(true);
   const [showDateOnCards, setShowDateOnCards] = useState(false);
+  const [detailView, setDetailView] = useState(false);
 
   // Computed data
   const visibleQueries = getVisibleQueries(queries, currentUser);
@@ -147,6 +148,8 @@ function DashboardContent() {
         onSortAscendingChange={setSortAscending}
         showDateOnCards={showDateOnCards}
         onShowDateOnCardsChange={setShowDateOnCards}
+        detailView={detailView}
+        onDetailViewChange={setDetailView}
       />
 
       {/* Pending Deletions (Admin only) */}
@@ -177,6 +180,7 @@ function DashboardContent() {
             dateField={sortField}
             currentUserRole={currentUser?.Role || ""}
             currentUserEmail={currentUser?.Email || ""}
+            detailView={detailView}
           />
         )}
 
@@ -194,6 +198,7 @@ function DashboardContent() {
             isFilterExpanded={isFilterExpanded}
             showDateOnCards={showDateOnCards}
             dateField={sortField}
+            detailView={detailView}
           />
         )}
       </main>

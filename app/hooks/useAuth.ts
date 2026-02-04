@@ -79,12 +79,24 @@ export function useAuth() {
   }, [searchParams, router, initialize, showToast]);
 
   // Token refresh timer - check every 5 minutes for 1-hour tokens
+  // Also detects system wake via timer drift
   useEffect(() => {
     if (!authChecked) return;
 
     console.log("🔄 Starting token refresh timer (5 minute interval)");
 
+    let lastCheck = Date.now();
+
     const checkAndRefresh = async () => {
+      const now = Date.now();
+      const elapsed = now - lastCheck;
+      lastCheck = now;
+
+      // Detect system wake: if more than 6 minutes passed (timer is 5 min), system likely slept
+      if (elapsed > 6 * 60 * 1000) {
+        console.log("💤 System wake detected (timer drift), checking token immediately...");
+      }
+
       const tokenExpiry = localStorage.getItem("token_expiry");
 
       if (!tokenExpiry) {
@@ -124,6 +136,38 @@ export function useAuth() {
     return () => {
       console.log("🛑 Stopping token refresh timer");
       clearInterval(interval);
+    };
+  }, [authChecked, showToast]);
+
+  // Visibility change handler - refresh token when tab becomes active
+  useEffect(() => {
+    if (!authChecked) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        console.log("👀 Tab became visible, checking token...");
+
+        const tokenExpiry = localStorage.getItem("token_expiry");
+        if (!tokenExpiry) return;
+
+        const timeUntilExpiry = Number(tokenExpiry) - Date.now();
+
+        // If expired or expiring within 5 minutes, refresh immediately
+        if (timeUntilExpiry < 5 * 60 * 1000) {
+          console.log("⏰ Token expiring soon or expired, refreshing...");
+          const refreshed = await refreshAccessToken();
+          if (!refreshed) {
+            showToast("Session expired. Please login again.", "error");
+            logout();
+          }
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [authChecked, showToast]);
 

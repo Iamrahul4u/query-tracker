@@ -18,6 +18,7 @@ export function QueryCardCompact({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: {
   query: Query;
   users: User[];
@@ -31,6 +32,7 @@ export function QueryCardCompact({
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }) {
   const [showAssignDropdown, setShowAssignDropdown] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -200,8 +202,8 @@ export function QueryCardCompact({
   const isDeletePending = isInBucketH || !!query["Delete Requested By"];
   // Del-Rej: Query was previously rejected from deletion
   const wasDeleteRejected = query["Delete Rejected"] === "true";
-  // Can this user approve/reject? Only Admin/Senior in Bucket H
-  const canApproveDelete = isInBucketH && (roleLC === "admin" || roleLC === "senior");
+  // Can this user approve/reject? Only Admin/Pseudo Admin/Senior in Bucket H
+  const canApproveDelete = isInBucketH && ["admin", "pseudo admin", "senior"].includes(roleLC);
 
   // Get date value for display
   const getDateDisplay = () => {
@@ -288,68 +290,78 @@ export function QueryCardCompact({
         onMouseLeave={handleMouseLeave}
       >
         {/* Container for single line layout */}
-        <div className="flex items-center justify-between h-full gap-2">
-          {/* Left: Description + Assigned User */}
-          <div className="flex flex-col min-w-0 flex-1 justify-center">
-            <div className="flex items-center gap-2 min-w-0">
-              {/* GM Indicator Icon - Show in all buckets if checked */}
-              {query.GmIndicator === "TRUE" && (
-                <Mail
-                  className="w-3 h-3 flex-shrink-0 text-[#ea4335]"
-                  title="GM Indicator"
-                />
-              )}
+        <div className={`flex ${detailView ? 'flex-col' : 'items-center justify-between h-full'} gap-2`}>
+          {/* Row 1: Description + Assigned User + Actions */}
+          <div className="flex items-center justify-between gap-2 w-full">
+            {/* Left: Description + Badges */}
+            <div className="flex flex-col min-w-0 flex-1 justify-center">
+              <div className="flex items-center gap-2 min-w-0">
+                {/* GM Indicator Icon - Show in all buckets if checked */}
+                {query.GmIndicator === "TRUE" && (
+                  <Mail
+                    className="w-3 h-3 flex-shrink-0 text-[#ea4335]"
+                    title="GM Indicator"
+                  />
+                )}
 
-              <p
-                className="text-sm font-normal text-gray-800 truncate"
-                title={query["Query Description"]}
-              >
-                {query["Query Description"] || "No description"}
-              </p>
-              {isPending && (
-                <span
-                  className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse flex-shrink-0"
-                  title="Syncing..."
-                ></span>
-              )}
-              {/* P.A. indicator for Bucket H */}
-              {isInBucketH && (
-                <span
-                  className="px-1.5 py-0.5 text-[8px] font-semibold bg-amber-100 text-amber-700 rounded flex-shrink-0"
-                  title={`Pending Approval - Delete requested by ${query["Delete Requested By"]}`}
+                <p
+                  className="text-sm font-normal text-gray-800 truncate"
+                  title={query["Query Description"]}
                 >
-                  P.A.
-                </span>
+                  {query["Query Description"] || "No description"}
+                </p>
+                {isPending && (
+                  <span
+                    className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse flex-shrink-0"
+                    title="Syncing..."
+                  ></span>
+                )}
+                {/* P.A. indicator for Bucket H */}
+                {isInBucketH && (
+                  <span
+                    className="px-1.5 py-0.5 text-[8px] font-semibold bg-amber-100 text-amber-700 rounded flex-shrink-0"
+                    title={`Pending Approval - Delete requested by ${query["Delete Requested By"]}`}
+                  >
+                    P.A.
+                  </span>
+                )}
+                {/* Del-Rej indicator for previously rejected deletions */}
+                {wasDeleteRejected && !isInBucketH && (
+                  <span
+                    className="px-1.5 py-0.5 text-[8px] font-semibold bg-orange-100 text-orange-700 rounded flex-shrink-0"
+                    title="Delete request was rejected"
+                  >
+                    Del-Rej
+                  </span>
+                )}
+              </div>
+
+              {/* Assigned User - Compact mode: inline with date; Detail mode: may be separate */}
+              {!detailView && (assignedUser || (showDate && getDateDisplay())) && (
+                <p className="text-[10px] text-gray-500 truncate mt-0.5 flex items-center gap-2">
+                  {assignedUser && (
+                    <span className="flex items-center gap-1">
+                      <UserCheck className="w-3 h-3 flex-shrink-0" />
+                      <span>{assignedUser["Display Name"] || assignedUser.Name?.substring(0, 6) || assignedUser.Email.split("@")[0]}</span>
+                    </span>
+                  )}
+                  {showDate && getDateDisplay() && (
+                    <span className="flex items-center gap-1 text-blue-600">
+                      <Calendar className="w-3 h-3 flex-shrink-0" />
+                      <span>{getDateDisplay()}</span>
+                    </span>
+                  )}
+                </p>
               )}
-              {/* Del-Rej indicator for previously rejected deletions */}
-              {wasDeleteRejected && !isInBucketH && (
-                <span
-                  className="px-1.5 py-0.5 text-[8px] font-semibold bg-orange-100 text-orange-700 rounded flex-shrink-0"
-                  title="Delete request was rejected"
-                >
-                  Del-Rej
-                </span>
+              
+              {/* Detail mode: Show assigned user in Row 1 */}
+              {detailView && assignedUser && (
+                <p className="text-[10px] text-gray-500 truncate mt-0.5 flex items-center gap-1">
+                  <UserCheck className="w-3 h-3 flex-shrink-0" />
+                  <span>{assignedUser["Display Name"] || assignedUser.Name?.substring(0, 6) || assignedUser.Email.split("@")[0]}</span>
+                </p>
               )}
             </div>
-
-            {/* Assigned User + Date - Show side by side */}
-            {(assignedUser || (showDate && getDateDisplay())) && (
-              <p className="text-[10px] text-gray-500 truncate mt-0.5 flex items-center gap-2">
-                {assignedUser && (
-                  <span className="flex items-center gap-1">
-                    <UserCheck className="w-3 h-3 flex-shrink-0" />
-                    <span>{assignedUser.Name || assignedUser.Email.split("@")[0]}</span>
-                  </span>
-                )}
-                {showDate && getDateDisplay() && (
-                  <span className="flex items-center gap-1 text-blue-600">
-                    <Calendar className="w-3 h-3 flex-shrink-0" />
-                    <span>{getDateDisplay()}</span>
-                  </span>
-                )}
-              </p>
-            )}
-          </div>
 
           {/* Right: Actions (Assign/Edit Icons) + ID */}
           <div className="flex items-center gap-1.5 flex-shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -372,35 +384,72 @@ export function QueryCardCompact({
                   )}
                 </button>
 
-                {showAssignDropdown && (
-                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999] min-w-[180px]">
+                {showAssignDropdown && (() => {
+                  // Use fixed positioning to escape stacking context
+                  const buttonRect = cardRef.current?.querySelector('[title*="ssign"]')?.getBoundingClientRect();
+                  const dropdownStyle = buttonRect ? {
+                    position: 'fixed' as const,
+                    top: buttonRect.bottom + 4,
+                    right: window.innerWidth - buttonRect.right,
+                  } : {};
+                  
+                  return (
+                  <div 
+                    className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-[180px]"
+                    style={{ ...dropdownStyle, zIndex: 99999 }}
+                  >
                     <div className="p-1 max-h-48 overflow-y-auto">
-                      {users.map((user) => {
-                        const isCurrentlyAssigned =
-                          query["Assigned To"] === user.Email;
-                        return (
-                          <button
-                            key={user.Email}
-                            onClick={(e) => handleAssign(e, user.Email)}
-                            className={`
-                              flex items-center justify-between w-full text-left px-3 py-2 text-xs hover:bg-gray-100 rounded
-                              ${isCurrentlyAssigned ? "bg-blue-50" : ""}
-                            `}
-                          >
-                            <span className="truncate">
-                              {user.Name || user.Email.split("@")[0]}
-                            </span>
-                            {isCurrentlyAssigned && (
-                              <span className="text-blue-600 ml-2 flex-shrink-0">
-                                ✓
+                      {/* Self-assign option at top for quick access */}
+                      {currentUserEmail && (() => {
+                        const currentUser = users.find(u => u.Email.toLowerCase() === currentUserEmail.toLowerCase());
+                        const isCurrentlyAssigned = query["Assigned To"]?.toLowerCase() === currentUserEmail.toLowerCase();
+                        return currentUser ? (
+                          <>
+                            <button
+                              onClick={(e) => handleAssign(e, currentUserEmail)}
+                              className={`
+                                flex items-center justify-between w-full text-left px-3 py-2 text-xs hover:bg-blue-100 rounded font-medium
+                                ${isCurrentlyAssigned ? "bg-blue-50 text-blue-700" : "text-blue-600"}
+                              `}
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <UserCheck className="w-3 h-3" />
+                                Assign to Me
                               </span>
-                            )}
-                          </button>
-                        );
-                      })}
+                              {isCurrentlyAssigned && (
+                                <span className="text-blue-600 ml-2 flex-shrink-0">✓</span>
+                              )}
+                            </button>
+                            <div className="border-t border-gray-200 my-1" />
+                          </>
+                        ) : null;
+                      })()}
+                      {/* Other users */}
+                      {users
+                        .filter(user => user.Email.toLowerCase() !== currentUserEmail?.toLowerCase())
+                        .map((user) => {
+                          const isCurrentlyAssigned = query["Assigned To"] === user.Email;
+                          return (
+                            <button
+                              key={user.Email}
+                              onClick={(e) => handleAssign(e, user.Email)}
+                              className={`
+                                flex items-center justify-between w-full text-left px-3 py-2 text-xs hover:bg-gray-100 rounded
+                                ${isCurrentlyAssigned ? "bg-blue-50" : ""}
+                              `}
+                            >
+                              <span className="truncate">
+                                {user["Display Name"] || user.Name || user.Email.split("@")[0]}
+                              </span>
+                              {isCurrentlyAssigned && (
+                                <span className="text-blue-600 ml-2 flex-shrink-0">✓</span>
+                              )}
+                            </button>
+                          );
+                        })}
                     </div>
                   </div>
-                )}
+                );})()}
               </div>
             )}
 

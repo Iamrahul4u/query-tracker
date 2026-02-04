@@ -183,6 +183,11 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
       client_id: GOOGLE_CLIENT_ID,
       scope: SCOPES,
       ux_mode: "popup",
+      // Request offline access to get refresh token for persistent sessions
+      // @ts-expect-error - access_type is valid but not in GIS types
+      access_type: "offline",
+      // Always show consent to ensure refresh token is returned
+      prompt: "consent",
       callback: async (response) => {
         if (response.error) {
           console.error("OAuth error:", response.error);

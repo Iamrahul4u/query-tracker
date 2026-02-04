@@ -17,6 +17,7 @@ interface BucketViewDefaultProps {
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }
 
 /**
@@ -39,6 +40,7 @@ export function BucketViewDefault({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: BucketViewDefaultProps) {
   // Dynamic grid classes - simplified for better responsiveness
   let gridClass = "";
@@ -75,6 +77,7 @@ export function BucketViewDefault({
           dateField={dateField}
           currentUserRole={currentUserRole}
           currentUserEmail={currentUserEmail}
+          detailView={detailView}
         />
       ))}
     </div>

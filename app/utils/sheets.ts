@@ -32,7 +32,7 @@ export interface Query {
 export interface User {
   Email: string;
   Name: string;
-  Role: "Junior" | "Senior" | "Admin" | string;
+  Role: "Junior" | "Senior" | "Admin" | "Pseudo Admin" | string;
   "Display Order": string;
   "Is Active": string;
   "Display Name"?: string; // 5-6 char short name for compact view

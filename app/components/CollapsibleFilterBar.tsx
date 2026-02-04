@@ -29,6 +29,9 @@ interface CollapsibleFilterBarProps {
   onSortAscendingChange?: (ascending: boolean) => void;
   showDateOnCards?: boolean;
   onShowDateOnCardsChange?: (show: boolean) => void;
+  // Detail View toggle (1-row vs 2-row per query card)
+  detailView?: boolean;
+  onDetailViewChange?: (detail: boolean) => void;
 }
 
 export function CollapsibleFilterBar({
@@ -49,6 +52,8 @@ export function CollapsibleFilterBar({
   onSortAscendingChange,
   showDateOnCards = false,
   onShowDateOnCardsChange,
+  detailView = false,
+  onDetailViewChange,
 }: CollapsibleFilterBarProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -100,6 +105,30 @@ export function CollapsibleFilterBar({
           title="Synchronized row scrolling"
         >
           Linear
+        </button>
+      </div>
+    </div>
+  );
+
+  const CardViewFilter = () => (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+        Card:
+      </span>
+      <div className="flex bg-gray-100 rounded-lg p-0.5">
+        <button
+          onClick={() => onDetailViewChange?.(false)}
+          className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${!detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          title="Single row per card (compact)"
+        >
+          Compact
+        </button>
+        <button
+          onClick={() => onDetailViewChange?.(true)}
+          className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          title="Two rows per card with all dates"
+        >
+          Detail
         </button>
       </div>
     </div>
@@ -230,6 +259,11 @@ export function CollapsibleFilterBar({
                 <div className="hidden lg:flex">
                   <LayoutFilter />
                 </div>
+                {onDetailViewChange && (
+                  <div className="hidden lg:flex">
+                    <CardViewFilter />
+                  </div>
+                )}
               </>
             )}
 

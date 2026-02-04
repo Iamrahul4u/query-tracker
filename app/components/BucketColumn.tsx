@@ -21,6 +21,7 @@ export function BucketColumn({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: {
   bucketKey: string;
   config: BucketConfig;
@@ -37,6 +38,7 @@ export function BucketColumn({
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [collapsedTypes, setCollapsedTypes] = useState<Set<string>>(new Set());
@@ -184,6 +186,7 @@ export function BucketColumn({
                           dateField={dateField}
                           currentUserRole={currentUserRole}
                           currentUserEmail={currentUserEmail}
+                          detailView={detailView}
                         />
                       ))}
                     </div>
@@ -256,6 +259,7 @@ export function BucketColumn({
                           dateField={dateField}
                           currentUserRole={currentUserRole}
                           currentUserEmail={currentUserEmail}
+                          detailView={detailView}
                         />
                       ))}
                   </div>

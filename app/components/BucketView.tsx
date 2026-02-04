@@ -21,6 +21,7 @@ interface BucketViewProps {
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }
 
 export function BucketView({
@@ -38,6 +39,7 @@ export function BucketView({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: BucketViewProps) {
   const [activeTab, setActiveTab] = useState<string>("A");
 
@@ -79,6 +81,7 @@ export function BucketView({
             dateField={dateField}
             currentUserRole={currentUserRole}
             currentUserEmail={currentUserEmail}
+            detailView={detailView}
           />
         ) : (
           <BucketViewLinear
@@ -94,6 +97,7 @@ export function BucketView({
             dateField={dateField}
             currentUserRole={currentUserRole}
             currentUserEmail={currentUserEmail}
+            detailView={detailView}
           />
         )}
       </div>
@@ -117,6 +121,7 @@ export function BucketView({
             dateField={dateField}
             currentUserRole={currentUserRole}
             currentUserEmail={currentUserEmail}
+            detailView={detailView}
           />
         )}
       </div>
