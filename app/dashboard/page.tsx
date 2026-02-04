@@ -26,6 +26,7 @@ import {
   filterBySearch,
   filterByHistoryDays,
   sortQueriesByDate,
+  sortQueriesForBucket,
   DateFieldKey,
 } from "../utils/queryFilters";
 import { Query } from "../utils/sheets";
@@ -38,18 +39,27 @@ function DashboardContent() {
     bucketViewMode,
     columnCount,
     historyDays,
+    detailView,
+    sortField,
+    sortAscending,
+    sortBuckets,
     updateViewMode,
     updateBucketViewMode,
     updateColumnCount,
     updateHistoryDays,
+    updateDetailView,
+    updateSortField,
+    updateSortAscending,
+    updateSortBuckets,
+    clearSort,
   } = useDashboardPreferences();
 
   // Store
-  const { 
-    queries, 
-    users, 
-    currentUser, 
-    isLoading, 
+  const {
+    queries,
+    users,
+    currentUser,
+    isLoading,
     assignQueryOptimistic,
     approveDeleteOptimistic,
     rejectDeleteOptimistic,
@@ -67,37 +77,54 @@ function DashboardContent() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterExpanded, setIsFilterExpanded] = useState(true);
-  // Sorting and date display state
-  const [sortField, setSortField] = useState<DateFieldKey>("Added Date Time");
-  const [sortAscending, setSortAscending] = useState(true);
+  // Date display state (not persisted)
   const [showDateOnCards, setShowDateOnCards] = useState(false);
-  const [detailView, setDetailView] = useState(false);
 
   // Computed data
   const visibleQueries = getVisibleQueries(queries, currentUser);
   const filteredQueries = filterBySearch(visibleQueries, searchQuery);
-  
+
   // Apply historyDays filter (for both views)
-  const historyFilteredQueries = filterByHistoryDays(filteredQueries, historyDays);
-  
+  const historyFilteredQueries = filterByHistoryDays(
+    filteredQueries,
+    historyDays,
+  );
+
+  // Helper to apply sorting (custom or default per bucket)
+  const applySorting = (queries: Query[], bucket?: string): Query[] => {
+    if (bucket) {
+      // Bucket-specific sorting with custom field if set
+      return sortQueriesForBucket(
+        queries,
+        bucket,
+        sortField,
+        sortAscending,
+        sortBuckets,
+      );
+    }
+    // For user view or general sorting, use custom field or Added Date Time
+    const field = sortField || "Added Date Time";
+    return sortQueriesByDate(queries, field, sortAscending);
+  };
+
   // Group by bucket (already applies history filter internally, but using pre-filtered for consistency)
   const groupedByBucketRaw = groupQueriesByBucket(filteredQueries, historyDays);
   const groupedByBucket = Object.fromEntries(
     Object.entries(groupedByBucketRaw).map(([bucket, queries]) => [
       bucket,
-      sortQueriesByDate(queries, sortField, sortAscending),
-    ])
+      applySorting(queries, bucket),
+    ]),
   );
-  
+
   // Group by user (now with historyDays filter and sorting applied)
   const groupedByUserRaw = groupQueriesByUser(historyFilteredQueries);
   const groupedByUser = Object.fromEntries(
     Object.entries(groupedByUserRaw).map(([user, queries]) => [
       user,
-      sortQueriesByDate(queries, sortField, sortAscending),
-    ])
+      applySorting(queries),
+    ]),
   );
-  
+
   // Stats calculated from visible queries (before search filter) to show total counts
   const stats = calculateStats(visibleQueries);
 
@@ -143,13 +170,16 @@ function DashboardContent() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         sortField={sortField}
-        onSortFieldChange={setSortField}
+        onSortFieldChange={updateSortField}
         sortAscending={sortAscending}
-        onSortAscendingChange={setSortAscending}
+        onSortAscendingChange={updateSortAscending}
+        sortBuckets={sortBuckets}
+        onSortBucketsChange={updateSortBuckets}
+        onClearSort={clearSort}
         showDateOnCards={showDateOnCards}
         onShowDateOnCardsChange={setShowDateOnCards}
         detailView={detailView}
-        onDetailViewChange={setDetailView}
+        onDetailViewChange={updateDetailView}
       />
 
       {/* Pending Deletions (Admin only) */}
@@ -164,7 +194,9 @@ function DashboardContent() {
       {/* Main Content */}
       <main className="w-full px-4 py-6">
         {/* Bucket View - Also shown for Junior when viewMode is "user" (they can't access User View) */}
-        {(viewMode === "bucket" || (viewMode === "user" && (currentUser?.Role || "").toLowerCase() === "junior")) && (
+        {(viewMode === "bucket" ||
+          (viewMode === "user" &&
+            (currentUser?.Role || "").toLowerCase() === "junior")) && (
           <BucketView
             groupedQueries={groupedByBucket}
             users={users}
@@ -185,22 +217,23 @@ function DashboardContent() {
         )}
 
         {/* User View - Hidden for Junior users (Senior/Admin only) */}
-        {viewMode === "user" && !((currentUser?.Role || "").toLowerCase() === "junior") && (
-          <UserView
-            groupedQueries={groupedByUser}
-            users={users}
-            currentUser={currentUser}
-            columnCount={columnCount}
-            viewMode={bucketViewMode}
-            onSelectQuery={setSelectedQuery}
-            onAssignQuery={handleAssignQuery}
-            onEditQuery={setQueryToEdit}
-            isFilterExpanded={isFilterExpanded}
-            showDateOnCards={showDateOnCards}
-            dateField={sortField}
-            detailView={detailView}
-          />
-        )}
+        {viewMode === "user" &&
+          !((currentUser?.Role || "").toLowerCase() === "junior") && (
+            <UserView
+              groupedQueries={groupedByUser}
+              users={users}
+              currentUser={currentUser}
+              columnCount={columnCount}
+              viewMode={bucketViewMode}
+              onSelectQuery={setSelectedQuery}
+              onAssignQuery={handleAssignQuery}
+              onEditQuery={setQueryToEdit}
+              isFilterExpanded={isFilterExpanded}
+              showDateOnCards={showDateOnCards}
+              dateField={sortField}
+              detailView={detailView}
+            />
+          )}
       </main>
 
       {/* Modals */}

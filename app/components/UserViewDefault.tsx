@@ -16,6 +16,7 @@ interface UserViewDefaultProps {
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }
 
 /**
@@ -36,6 +37,7 @@ export function UserViewDefault({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: UserViewDefaultProps) {
   // Dynamic grid classes
   let gridClass = "";
@@ -68,6 +70,7 @@ export function UserViewDefault({
           dateField={dateField}
           currentUserRole={currentUserRole}
           currentUserEmail={currentUserEmail}
+          detailView={detailView}
         />
       ))}
     </div>
@@ -89,6 +92,7 @@ function UserColumn({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: {
   displayUser: { email: string; name: string; isKnown: boolean };
   queries: Query[];
@@ -101,9 +105,13 @@ function UserColumn({
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }) {
   // Color coding for query types - matches BucketColumn
-  const typeColors: Record<string, { bg: string; text: string; border: string }> = {
+  const typeColors: Record<
+    string,
+    { bg: string; text: string; border: string }
+  > = {
     "SEO Query": {
       bg: "bg-purple-50",
       text: "text-purple-700",
@@ -205,6 +213,7 @@ function UserColumn({
                         dateField={dateField}
                         currentUserRole={currentUserRole}
                         currentUserEmail={currentUserEmail}
+                        detailView={detailView}
                       />
                     ))}
                   </div>
@@ -261,6 +270,7 @@ function UserColumn({
                         dateField={dateField}
                         currentUserRole={currentUserRole}
                         currentUserEmail={currentUserEmail}
+                        detailView={detailView}
                       />
                     ))}
                 </div>

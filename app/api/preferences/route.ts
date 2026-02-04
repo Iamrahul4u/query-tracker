@@ -30,72 +30,92 @@ export async function POST(request: NextRequest) {
     // 1. Find User Row in Preferences Sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: SHEET_RANGES.PREFERENCES, // should be A:F now
+      range: SHEET_RANGES.PREFERENCES, // A:H (updated to include sort fields and buckets)
     });
 
     const rows = response.data.values || [];
     let rowIndex = rows.findIndex((row: string[]) => row[0] === userEmail);
 
     // Data to save
-    // Format: Email [0], ViewType [1], ColumnCount [2], BucketOrder [3], UserOrder [4], HistoryDays [5]
-    // If updating, we update the whole row to keep it consistent? Or specific cells?
-    // Whole row is easier if we have all data.
-    // Dashboard should send partial updates, so we might need to merge with existing?
-    // Let's assume passed body has only changed fields.
-    // We fetch existing row, merge, then save.
+    // Structure: A=Email, B=View, C=BucketOrder, D=UserOrder, E=DetailView, F=SortField, G=SortAscending, H=SortBuckets
+    // ColumnCount and HistoryDays are NOT stored in sheet (always use defaults)
 
     let currentPrefs: any = {};
     if (rowIndex !== -1) {
       const row = rows[rowIndex];
       currentPrefs = {
         ViewType: row[1] || "bucket",
-        ColumnCount: Number(row[2]) || 4,
-        BucketOrder: row[3] || "[]",
-        UserOrder: row[4] || "[]",
-        HistoryDays: Number(row[5]) || 3,
+        BucketOrder: row[2] || "[]",
+        UserOrder: row[3] || "[]",
+        DetailView: row[4] === "true" || row[4] === "TRUE" || false,
+        SortField: row[5] || "",
+        SortAscending:
+          row[6] === undefined || row[6] === ""
+            ? true
+            : row[6] === "true" || row[6] === "TRUE",
+        SortBuckets: row[7] || "ALL",
       };
     } else {
       // Defaults
       currentPrefs = {
         ViewType: "bucket",
-        ColumnCount: 4,
-        BucketOrder: JSON.stringify(["A", "B", "C", "D", "E", "F", "G"]),
+        BucketOrder: JSON.stringify(["A", "B", "C", "D", "E", "F", "G", "H"]),
         UserOrder: "[]",
-        HistoryDays: 3,
+        DetailView: false,
+        SortField: "",
+        SortAscending: true,
+        SortBuckets: "ALL",
       };
     }
 
-    // Merge updates
-    const updatedPrefs = { ...currentPrefs, ...preferences };
+    // Merge updates (only update fields that are in the sheet)
+    const updatedPrefs = { ...currentPrefs };
 
-    // Ensure arrays are stringified
-    if (Array.isArray(updatedPrefs.BucketOrder))
-      updatedPrefs.BucketOrder = JSON.stringify(updatedPrefs.BucketOrder);
-    if (Array.isArray(updatedPrefs.UserOrder))
-      updatedPrefs.UserOrder = JSON.stringify(updatedPrefs.UserOrder);
+    // Only update fields that exist in your sheet structure
+    if (preferences.ViewType !== undefined)
+      updatedPrefs.ViewType = preferences.ViewType;
+    if (preferences.BucketOrder !== undefined) {
+      updatedPrefs.BucketOrder = Array.isArray(preferences.BucketOrder)
+        ? JSON.stringify(preferences.BucketOrder)
+        : preferences.BucketOrder;
+    }
+    if (preferences.UserOrder !== undefined) {
+      updatedPrefs.UserOrder = Array.isArray(preferences.UserOrder)
+        ? JSON.stringify(preferences.UserOrder)
+        : preferences.UserOrder;
+    }
+    if (preferences.DetailView !== undefined)
+      updatedPrefs.DetailView = preferences.DetailView;
+    if (preferences.SortField !== undefined)
+      updatedPrefs.SortField = preferences.SortField;
+    if (preferences.SortAscending !== undefined)
+      updatedPrefs.SortAscending = preferences.SortAscending;
+    if (preferences.SortBuckets !== undefined) {
+      // Convert array to comma-separated string or "ALL"
+      updatedPrefs.SortBuckets = Array.isArray(preferences.SortBuckets)
+        ? preferences.SortBuckets.includes("ALL") ||
+          preferences.SortBuckets.length === 0
+          ? "ALL"
+          : preferences.SortBuckets.join(",")
+        : preferences.SortBuckets;
+    }
 
     const rowData = [
       userEmail,
       updatedPrefs.ViewType,
-      String(updatedPrefs.ColumnCount),
       updatedPrefs.BucketOrder,
       updatedPrefs.UserOrder,
-      String(updatedPrefs.HistoryDays),
+      String(updatedPrefs.DetailView), // Convert boolean to string
+      updatedPrefs.SortField || "", // Empty string if no custom sort
+      String(updatedPrefs.SortAscending), // Convert boolean to string
+      updatedPrefs.SortBuckets || "ALL", // Comma-separated buckets or "ALL"
     ];
 
     if (rowIndex !== -1) {
       // Update existing row
-      // Row index is 0-based in array, so Sheet Row is index + 1
-      // But headers might be row 1.
-      // parsePreferences checks `rows.slice(1)`.
-      // get returns ALL rows including header if range is A:F.
-      // rows[0] is headers.
-      // So rowIndex in `rows` array is correct.
-      // Sheet Row Num = rowIndex + 1. (Row 1 = index 0).
-
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `Preferences!A${rowIndex + 1}:F${rowIndex + 1}`,
+        range: `Preferences!A${rowIndex + 1}:H${rowIndex + 1}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
           values: [rowData],
@@ -105,7 +125,7 @@ export async function POST(request: NextRequest) {
       // Append new row
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range: "Preferences!A:F",
+        range: "Preferences!A:H",
         valueInputOption: "USER_ENTERED",
         requestBody: {
           values: [rowData],

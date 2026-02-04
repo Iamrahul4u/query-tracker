@@ -15,6 +15,7 @@ interface BucketViewLinearProps {
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }
 
 /**
@@ -36,6 +37,7 @@ export function BucketViewLinear({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: BucketViewLinearProps) {
   // Split buckets into rows based on column count
   const rows: string[][] = [];
@@ -59,6 +61,7 @@ export function BucketViewLinear({
           dateField={dateField}
           currentUserRole={currentUserRole}
           currentUserEmail={currentUserEmail}
+          detailView={detailView}
         />
       ))}
     </div>
@@ -82,6 +85,7 @@ function SynchronizedRow({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: {
   buckets: string[];
   groupedQueries: Record<string, Query[]>;
@@ -94,6 +98,7 @@ function SynchronizedRow({
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }) {
   const scrollRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const isSyncingRef = useRef(false);
@@ -105,31 +110,37 @@ function SynchronizedRow({
   // Smooth scroll animation with easing
   const animateScroll = () => {
     const diff = targetScrollRef.current - currentScrollRef.current;
-    
+
     // If close enough, snap to target
     if (Math.abs(diff) < 0.5) {
       currentScrollRef.current = targetScrollRef.current;
       scrollRefs.current.forEach((element) => {
         const maxScroll = element.scrollHeight - element.clientHeight;
         if (maxScroll > 0) {
-          element.scrollTop = Math.max(0, Math.min(maxScroll, currentScrollRef.current));
+          element.scrollTop = Math.max(
+            0,
+            Math.min(maxScroll, currentScrollRef.current),
+          );
         }
       });
       isSyncingRef.current = false;
       rafRef.current = null;
       return;
     }
-    
+
     // Smooth interpolation (ease-out effect)
     currentScrollRef.current += diff * 0.15;
-    
+
     scrollRefs.current.forEach((element) => {
       const maxScroll = element.scrollHeight - element.clientHeight;
       if (maxScroll > 0) {
-        element.scrollTop = Math.max(0, Math.min(maxScroll, currentScrollRef.current));
+        element.scrollTop = Math.max(
+          0,
+          Math.min(maxScroll, currentScrollRef.current),
+        );
       }
     });
-    
+
     rafRef.current = requestAnimationFrame(animateScroll);
   };
 
@@ -141,14 +152,19 @@ function SynchronizedRow({
       currentScrollRef.current = firstElement.scrollTop;
       targetScrollRef.current = firstElement.scrollTop;
     }
-    
+
     // Update target scroll position
     targetScrollRef.current += deltaY;
-    
+
     // Clamp target to valid range
-    const maxScroll = firstElement ? firstElement.scrollHeight - firstElement.clientHeight : 0;
-    targetScrollRef.current = Math.max(0, Math.min(maxScroll, targetScrollRef.current));
-    
+    const maxScroll = firstElement
+      ? firstElement.scrollHeight - firstElement.clientHeight
+      : 0;
+    targetScrollRef.current = Math.max(
+      0,
+      Math.min(maxScroll, targetScrollRef.current),
+    );
+
     // Start animation if not already running
     if (!isSyncingRef.current) {
       isSyncingRef.current = true;
@@ -233,6 +249,7 @@ function SynchronizedRow({
           dateField={dateField}
           currentUserRole={currentUserRole}
           currentUserEmail={currentUserEmail}
+          detailView={detailView}
         />
       ))}
     </div>
@@ -257,6 +274,7 @@ function BucketColumnWithSync({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: {
   bucketKey: string;
   config: any;
@@ -270,9 +288,13 @@ function BucketColumnWithSync({
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }) {
   // Color coding for query types - matches BucketColumn
-  const typeColors: Record<string, { bg: string; text: string; border: string }> = {
+  const typeColors: Record<
+    string,
+    { bg: string; text: string; border: string }
+  > = {
     "SEO Query": {
       bg: "bg-purple-50",
       text: "text-purple-700",
@@ -367,6 +389,7 @@ function BucketColumnWithSync({
                         dateField={dateField}
                         currentUserRole={currentUserRole}
                         currentUserEmail={currentUserEmail}
+                        detailView={detailView}
                       />
                     ))}
                   </div>
@@ -423,6 +446,7 @@ function BucketColumnWithSync({
                         dateField={dateField}
                         currentUserRole={currentUserRole}
                         currentUserEmail={currentUserEmail}
+                        detailView={detailView}
                       />
                     ))}
                 </div>

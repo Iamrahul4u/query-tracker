@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { Query, User } from "../utils/sheets";
-import { BUCKETS, BUCKET_ORDER, QUERY_TYPE_ORDER } from "../config/sheet-constants";
+import {
+  BUCKETS,
+  BUCKET_ORDER,
+  QUERY_TYPE_ORDER,
+} from "../config/sheet-constants";
 import { QueryCardCompact } from "./QueryCardCompact";
 import { UserViewDefault } from "./UserViewDefault";
 import { UserViewLinear } from "./UserViewLinear";
@@ -20,6 +24,7 @@ interface UserViewProps {
   isFilterExpanded?: boolean;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
+  detailView?: boolean;
 }
 
 export function UserView({
@@ -34,6 +39,7 @@ export function UserView({
   isFilterExpanded = true,
   showDateOnCards = false,
   dateField = "Added Date Time",
+  detailView = false,
 }: UserViewProps) {
   const currentEmail = currentUser?.Email?.toLowerCase();
   const [activeTab, setActiveTab] = useState<string>("");
@@ -42,14 +48,15 @@ export function UserView({
   const allAssignees = Object.keys(groupedQueries);
 
   // Create a list of users to display
-  const displayUsers: Array<{ email: string; name: string; isKnown: boolean }> = [];
+  const displayUsers: Array<{ email: string; name: string; isKnown: boolean }> =
+    [];
 
   // First, add all known users that have assigned queries
   users.forEach((user) => {
     if (!user.Email) return;
-    
+
     const matchingKey = allAssignees.find(
-      (k) => k.toLowerCase() === user.Email.toLowerCase()
+      (k) => k.toLowerCase() === user.Email.toLowerCase(),
     );
     if (matchingKey && groupedQueries[matchingKey]?.length > 0) {
       displayUsers.push({
@@ -64,7 +71,7 @@ export function UserView({
   allAssignees.forEach((assignee) => {
     if (assignee === "Unassigned") return;
     const isKnown = displayUsers.some(
-      (u) => u.email.toLowerCase() === assignee.toLowerCase()
+      (u) => u.email.toLowerCase() === assignee.toLowerCase(),
     );
     if (!isKnown && groupedQueries[assignee]?.length > 0) {
       displayUsers.push({
@@ -126,7 +133,8 @@ export function UserView({
                 : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
             }`}
           >
-            {displayUser.name} ({groupedQueries[displayUser.email]?.length || 0})
+            {displayUser.name} ({groupedQueries[displayUser.email]?.length || 0}
+            )
           </button>
         ))}
       </div>
@@ -147,6 +155,7 @@ export function UserView({
             dateField={dateField}
             currentUserRole={currentUser?.Role || ""}
             currentUserEmail={currentUser?.Email || ""}
+            detailView={detailView}
           />
         ) : (
           <UserViewLinear
@@ -161,6 +170,7 @@ export function UserView({
             dateField={dateField}
             currentUserRole={currentUser?.Role || ""}
             currentUserEmail={currentUser?.Email || ""}
+            detailView={detailView}
           />
         )}
       </div>
@@ -178,6 +188,7 @@ export function UserView({
             onEditQuery={onEditQuery}
             showDateOnCards={showDateOnCards}
             dateField={dateField}
+            detailView={detailView}
           />
         )}
       </div>
@@ -198,6 +209,7 @@ function MobileUserColumn({
   onEditQuery,
   showDateOnCards = false,
   dateField = "Added Date Time",
+  detailView = false,
 }: {
   displayUser: { email: string; name: string; isKnown: boolean };
   queries: Query[];
@@ -208,6 +220,7 @@ function MobileUserColumn({
   onEditQuery: (query: Query) => void;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
+  detailView?: boolean;
 }) {
   const sortedQueries = [...queries].sort((a, b) => {
     const typeA = (a["Query Type"] || "").trim();
@@ -244,6 +257,7 @@ function MobileUserColumn({
             dateField={dateField}
             currentUserRole={currentUser?.Role || ""}
             currentUserEmail={currentUser?.Email || ""}
+            detailView={detailView}
           />
         ))}
       </div>

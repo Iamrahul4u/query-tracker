@@ -26,7 +26,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
   // Determine Role
   const role = (currentUser?.Role || "").toLowerCase();
-  const isAdminOrSenior = ["admin", "pseudo admin", "senior"].includes(role.toLowerCase());
+  const isAdminOrSenior = ["admin", "pseudo admin", "senior"].includes(
+    role.toLowerCase(),
+  );
   const isAssignedToMe =
     (query["Assigned To"] || "").toLowerCase() ===
     (currentUser?.Email || "").toLowerCase();
@@ -76,10 +78,14 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
       // Admin can delete directly - permanent deletion
       if (
         confirm(
-          "Are you sure you want to permanently delete this query? This action cannot be undone."
+          "Are you sure you want to permanently delete this query? This action cannot be undone.",
         )
       ) {
-        deleteQueryOptimistic(query["Query ID"], currentUser?.Email || "", true);
+        deleteQueryOptimistic(
+          query["Query ID"],
+          currentUser?.Email || "",
+          true,
+        );
         onClose();
       }
     } else {
@@ -243,29 +249,31 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
             </div>
           )}
 
-          {/* GM Indicator Checkbox */}
-          <div className="mb-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.GmIndicator === "TRUE"}
-                onChange={(e) =>
-                  updateField(
-                    "GmIndicator",
-                    e.target.checked ? "TRUE" : "FALSE",
-                  )
-                }
-                disabled={!canEdit}
-                className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-              />
-              <span className="text-sm font-medium text-gray-700">
-                GM Indicator
-              </span>
-              <span className="text-xs text-gray-500">
-                (Shows ✉️ icon in all buckets)
-              </span>
-            </label>
-          </div>
+          {/* GM Indicator Checkbox - Only show for E/F status */}
+          {(formData.Status === "E" || formData.Status === "F") && (
+            <div className="mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.GmIndicator === "TRUE"}
+                  onChange={(e) =>
+                    updateField(
+                      "GmIndicator",
+                      e.target.checked ? "TRUE" : "FALSE",
+                    )
+                  }
+                  disabled={!canEdit}
+                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  GM Indicator
+                </span>
+                <span className="text-xs text-gray-500">
+                  (Gmail entry - shows ✉️ icon)
+                </span>
+              </label>
+            </div>
+          )}
 
           {/* Remarks (B) */}
           {showField("Remarks") && (
@@ -309,7 +317,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 <input
                   type="text"
                   value={formData["Event ID in SF"]}
-                  onChange={(e) => updateField("Event ID in SF", e.target.value)}
+                  onChange={(e) =>
+                    updateField("Event ID in SF", e.target.value)
+                  }
                   disabled={!canEdit}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm"
                 />
@@ -321,7 +331,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 <input
                   type="text"
                   value={formData["Event Title in SF"]}
-                  onChange={(e) => updateField("Event Title in SF", e.target.value)}
+                  onChange={(e) =>
+                    updateField("Event Title in SF", e.target.value)
+                  }
                   disabled={!canEdit}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm"
                 />

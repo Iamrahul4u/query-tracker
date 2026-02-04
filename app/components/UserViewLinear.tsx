@@ -16,6 +16,7 @@ interface UserViewLinearProps {
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }
 
 /**
@@ -36,9 +37,11 @@ export function UserViewLinear({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: UserViewLinearProps) {
   // Split users into rows based on column count
-  const rows: Array<Array<{ email: string; name: string; isKnown: boolean }>> = [];
+  const rows: Array<Array<{ email: string; name: string; isKnown: boolean }>> =
+    [];
   for (let i = 0; i < sortedUsers.length; i += columnCount) {
     rows.push(sortedUsers.slice(i, i + columnCount));
   }
@@ -59,6 +62,7 @@ export function UserViewLinear({
           dateField={dateField}
           currentUserRole={currentUserRole}
           currentUserEmail={currentUserEmail}
+          detailView={detailView}
         />
       ))}
     </div>
@@ -81,6 +85,7 @@ function SynchronizedUserRow({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: {
   rowUsers: Array<{ email: string; name: string; isKnown: boolean }>;
   groupedQueries: Record<string, Query[]>;
@@ -93,6 +98,7 @@ function SynchronizedUserRow({
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }) {
   const scrollRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const isSyncingRef = useRef(false);
@@ -104,35 +110,41 @@ function SynchronizedUserRow({
   // Smooth scroll animation with easing
   const animateScroll = () => {
     const diff = targetScrollRef.current - currentScrollRef.current;
-    
+
     // If close enough, snap to target
     if (Math.abs(diff) < 0.5) {
       currentScrollRef.current = targetScrollRef.current;
       scrollRefs.current.forEach((element) => {
         const maxScroll = element.scrollHeight - element.clientHeight;
         if (maxScroll > 0) {
-          element.scrollTop = Math.max(0, Math.min(maxScroll, currentScrollRef.current));
+          element.scrollTop = Math.max(
+            0,
+            Math.min(maxScroll, currentScrollRef.current),
+          );
         }
       });
       isSyncingRef.current = false;
       rafRef.current = null;
       return;
     }
-    
+
     // Smooth interpolation (ease-out effect)
     currentScrollRef.current += diff * 0.15;
-    
+
     scrollRefs.current.forEach((element) => {
       const maxScroll = element.scrollHeight - element.clientHeight;
       if (maxScroll > 0) {
-        element.scrollTop = Math.max(0, Math.min(maxScroll, currentScrollRef.current));
+        element.scrollTop = Math.max(
+          0,
+          Math.min(maxScroll, currentScrollRef.current),
+        );
       }
     });
-    
+
     rafRef.current = requestAnimationFrame(animateScroll);
   };
 
-  /* 
+  /*
    * Synchronize scroll by adding same delta to all columns
    * Note: We use a lock here because we're handling 'wheel' events, which don't trigger recursively
    * (unlike 'scroll' events). Using a lock avoids main-thread jank and ensures smooth animation.
@@ -144,20 +156,23 @@ function SynchronizedUserRow({
       currentScrollRef.current = firstElement.scrollTop;
       targetScrollRef.current = firstElement.scrollTop;
     }
-    
+
     // Update target scroll position
     targetScrollRef.current += deltaY;
-    
+
     // Calculate max scroll across ALL columns (not just the first one)
     let maxScroll = 0;
     scrollRefs.current.forEach((element) => {
       const elementMax = element.scrollHeight - element.clientHeight;
       if (elementMax > maxScroll) maxScroll = elementMax;
     });
-    
+
     // Clamp target to valid range
-    targetScrollRef.current = Math.max(0, Math.min(maxScroll, targetScrollRef.current));
-    
+    targetScrollRef.current = Math.max(
+      0,
+      Math.min(maxScroll, targetScrollRef.current),
+    );
+
     // Start animation if not already running
     if (!isSyncingRef.current) {
       isSyncingRef.current = true;
@@ -236,6 +251,7 @@ function SynchronizedUserRow({
           dateField={dateField}
           currentUserRole={currentUserRole}
           currentUserEmail={currentUserEmail}
+          detailView={detailView}
         />
       ))}
     </div>
@@ -258,6 +274,7 @@ function UserColumnWithSync({
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
+  detailView = false,
 }: {
   displayUser: { email: string; name: string; isKnown: boolean };
   queries: Query[];
@@ -270,9 +287,13 @@ function UserColumnWithSync({
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
+  detailView?: boolean;
 }) {
   // Color coding for query types - matches BucketColumn
-  const typeColors: Record<string, { bg: string; text: string; border: string }> = {
+  const typeColors: Record<
+    string,
+    { bg: string; text: string; border: string }
+  > = {
     "SEO Query": {
       bg: "bg-purple-50",
       text: "text-purple-700",
@@ -371,6 +392,7 @@ function UserColumnWithSync({
                         dateField={dateField}
                         currentUserRole={currentUserRole}
                         currentUserEmail={currentUserEmail}
+                        detailView={detailView}
                       />
                     ))}
                   </div>
@@ -427,6 +449,7 @@ function UserColumnWithSync({
                         dateField={dateField}
                         currentUserRole={currentUserRole}
                         currentUserEmail={currentUserEmail}
+                        detailView={detailView}
                       />
                     ))}
                 </div>

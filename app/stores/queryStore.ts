@@ -53,7 +53,11 @@ interface QueryState {
     updates: Partial<Query>,
   ) => Promise<void>;
 
-  deleteQueryOptimistic: (queryId: string, requestedBy: string, isAdmin?: boolean) => Promise<void>;
+  deleteQueryOptimistic: (
+    queryId: string,
+    requestedBy: string,
+    isAdmin?: boolean,
+  ) => Promise<void>;
   approveDeleteOptimistic: (queryId: string) => Promise<void>;
   rejectDeleteOptimistic: (queryId: string) => Promise<void>;
   savePreferences: (prefs: Partial<Preferences>) => Promise<void>;
@@ -71,10 +75,10 @@ export const useQueryStore = create<QueryState>()(
     // Set up background refresh listener with cleanup
     // Use a flag to prevent multiple registrations (hot reload safe)
     const LISTENER_KEY = "__queryStore_dataRefreshed_registered__";
-    
+
     if (typeof window !== "undefined" && !(window as any)[LISTENER_KEY]) {
       (window as any)[LISTENER_KEY] = true;
-      
+
       const handleDataRefreshed = ((event: CustomEvent) => {
         const { queries, users, preferences } = event.detail;
 
@@ -111,18 +115,38 @@ export const useQueryStore = create<QueryState>()(
           state.users = users;
           state.preferences = preferences;
           state.lastSyncedAt = new Date();
+
+          // Re-set current user from updated users list
+          const userEmail = localStorage.getItem("user_email");
+          if (userEmail) {
+            const emailLower = userEmail.toLowerCase();
+            const foundUser = users.find(
+              (u: User) => u.Email?.toLowerCase() === emailLower,
+            );
+            if (foundUser) {
+              state.currentUser = foundUser;
+            } else {
+              // Fallback for unknown users
+              state.currentUser = {
+                Email: userEmail,
+                Name: userEmail.split("@")[0],
+                Role: "Junior",
+                "Display Order": "999",
+                "Is Active": "TRUE",
+              };
+            }
+          }
         });
       }) as EventListener;
 
       window.addEventListener("data-refreshed", handleDataRefreshed);
-      
+
       // Cleanup on page unload to prevent memory leaks
       window.addEventListener("beforeunload", () => {
         window.removeEventListener("data-refreshed", handleDataRefreshed);
         delete (window as any)[LISTENER_KEY];
       });
     }
-
 
     return {
       queries: [],
@@ -410,7 +434,12 @@ export const useQueryStore = create<QueryState>()(
         if (result.success) {
           useToast
             .getState()
-            .showToast(isAdmin ? "Query permanently deleted" : "Delete request submitted", "success");
+            .showToast(
+              isAdmin
+                ? "Query permanently deleted"
+                : "Delete request submitted",
+              "success",
+            );
         } else {
           useToast
             .getState()
@@ -434,7 +463,9 @@ export const useQueryStore = create<QueryState>()(
         if (result.success) {
           useToast.getState().showToast("Deletion approved", "success");
         } else {
-          useToast.getState().showToast(result.error || "Failed to approve deletion", "error");
+          useToast
+            .getState()
+            .showToast(result.error || "Failed to approve deletion", "error");
         }
       },
 
@@ -452,9 +483,13 @@ export const useQueryStore = create<QueryState>()(
         );
 
         if (result.success) {
-          useToast.getState().showToast("Deletion rejected, query restored", "success");
+          useToast
+            .getState()
+            .showToast("Deletion rejected, query restored", "success");
         } else {
-          useToast.getState().showToast(result.error || "Failed to reject deletion", "error");
+          useToast
+            .getState()
+            .showToast(result.error || "Failed to reject deletion", "error");
         }
       },
 

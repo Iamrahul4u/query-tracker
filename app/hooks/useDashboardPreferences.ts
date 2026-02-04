@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQueryStore } from "../stores/queryStore";
+import { DateFieldKey } from "../utils/queryFilters";
 
 type ViewMode = "bucket" | "user" | "list";
 type BucketViewMode = "default" | "linear";
@@ -19,6 +20,12 @@ export function useDashboardPreferences() {
     useState<BucketViewMode>("default");
   const [columnCount, setColumnCount] = useState<ColumnCount>(4);
   const [historyDays, setHistoryDays] = useState<HistoryDays>(3);
+  const [detailView, setDetailView] = useState<boolean>(false);
+  const [sortField, setSortField] = useState<DateFieldKey | undefined>(
+    undefined,
+  );
+  const [sortAscending, setSortAscending] = useState<boolean>(true);
+  const [sortBuckets, setSortBuckets] = useState<string[]>(["ALL"]);
 
   // Sync from store preferences
   useEffect(() => {
@@ -42,6 +49,18 @@ export function useDashboardPreferences() {
 
       if (preferences.HistoryDays)
         setHistoryDays(preferences.HistoryDays as HistoryDays);
+
+      if (preferences.DetailView !== undefined)
+        setDetailView(preferences.DetailView);
+
+      if (preferences.SortField !== undefined)
+        setSortField(preferences.SortField as DateFieldKey);
+
+      if (preferences.SortAscending !== undefined)
+        setSortAscending(preferences.SortAscending);
+
+      if (preferences.SortBuckets !== undefined)
+        setSortBuckets(preferences.SortBuckets);
     }
   }, [preferences]);
 
@@ -66,14 +85,59 @@ export function useDashboardPreferences() {
     savePreferences({ HistoryDays: days });
   };
 
+  const updateDetailView = (detail: boolean) => {
+    setDetailView(detail);
+    savePreferences({ DetailView: detail });
+  };
+
+  const updateSortField = (field: DateFieldKey | undefined) => {
+    setSortField(field);
+    savePreferences({ SortField: field || "" });
+  };
+
+  const updateSortAscending = (ascending: boolean) => {
+    setSortAscending(ascending);
+    savePreferences({ SortAscending: ascending });
+  };
+
+  const updateSortBuckets = (buckets: string[]) => {
+    setSortBuckets(buckets);
+    // Save as comma-separated string or "ALL"
+    const value =
+      buckets.includes("ALL") || buckets.length === 0
+        ? "ALL"
+        : buckets.join(",");
+    savePreferences({ SortBuckets: [value] });
+  };
+
+  const clearSort = () => {
+    setSortField(undefined);
+    setSortAscending(true);
+    setSortBuckets(["ALL"]);
+    savePreferences({
+      SortField: "",
+      SortAscending: true,
+      SortBuckets: ["ALL"],
+    });
+  };
+
   return {
     viewMode,
     bucketViewMode,
     columnCount,
     historyDays,
+    detailView,
+    sortField,
+    sortAscending,
+    sortBuckets,
     updateViewMode,
     updateBucketViewMode,
     updateColumnCount,
     updateHistoryDays,
+    updateDetailView,
+    updateSortField,
+    updateSortAscending,
+    updateSortBuckets,
+    clearSort,
   };
 }

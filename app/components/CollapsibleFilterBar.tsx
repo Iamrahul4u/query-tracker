@@ -27,6 +27,9 @@ interface CollapsibleFilterBarProps {
   onSortFieldChange?: (field: DateFieldKey) => void;
   sortAscending?: boolean;
   onSortAscendingChange?: (ascending: boolean) => void;
+  sortBuckets?: string[]; // Buckets to apply custom sort to
+  onSortBucketsChange?: (buckets: string[]) => void;
+  onClearSort?: () => void; // Clear custom sort
   showDateOnCards?: boolean;
   onShowDateOnCardsChange?: (show: boolean) => void;
   // Detail View toggle (1-row vs 2-row per query card)
@@ -50,6 +53,9 @@ export function CollapsibleFilterBar({
   onSortFieldChange,
   sortAscending = true,
   onSortAscendingChange,
+  sortBuckets = ["ALL"],
+  onSortBucketsChange,
+  onClearSort,
   showDateOnCards = false,
   onShowDateOnCardsChange,
   detailView = false,
@@ -65,6 +71,32 @@ export function CollapsibleFilterBar({
       onCollapseChange(newState);
     }
   };
+
+  // Available buckets for multi-select
+  const AVAILABLE_BUCKETS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
+  // Toggle bucket selection
+  const toggleBucket = (bucket: string) => {
+    if (!onSortBucketsChange) return;
+
+    if (bucket === "ALL") {
+      onSortBucketsChange(["ALL"]);
+    } else {
+      const currentBuckets = sortBuckets.includes("ALL") ? [] : sortBuckets;
+
+      if (currentBuckets.includes(bucket)) {
+        // Remove bucket
+        const newBuckets = currentBuckets.filter((b) => b !== bucket);
+        onSortBucketsChange(newBuckets.length === 0 ? ["ALL"] : newBuckets);
+      } else {
+        // Add bucket
+        onSortBucketsChange([...currentBuckets, bucket]);
+      }
+    }
+  };
+
+  const isAllSelected = sortBuckets.includes("ALL");
+  const selectedCount = isAllSelected ? 8 : sortBuckets.length;
 
   // Filter section component for reuse in desktop and drawer
   const ColumnsFilter = () => (
@@ -141,9 +173,7 @@ export function CollapsibleFilterBar({
       </span>
       <select
         value={sortField}
-        onChange={(e) =>
-          onSortFieldChange?.(e.target.value as DateFieldKey)
-        }
+        onChange={(e) => onSortFieldChange?.(e.target.value as DateFieldKey)}
         className="px-2 py-1 text-[10px] font-medium rounded-md bg-gray-100 text-gray-700 border-0 focus:ring-1 focus:ring-blue-500"
       >
         {DATE_FIELDS.map((f) => (
@@ -159,6 +189,73 @@ export function CollapsibleFilterBar({
       >
         {sortAscending ? "↑ Oldest" : "↓ Newest"}
       </button>
+      {/* Bucket Multi-Select Dropdown */}
+      <div className="relative group">
+        <button
+          className="px-2 py-1 text-[10px] font-medium rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition flex items-center gap-1"
+          title="Select buckets to apply custom sort"
+        >
+          <span>
+            Apply to: {isAllSelected ? "All" : `${selectedCount} buckets`}
+          </span>
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+        {/* Dropdown Menu */}
+        <div className="hidden group-hover:block absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]">
+          <div className="p-2 space-y-1">
+            <label className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={() => toggleBucket("ALL")}
+                className="w-3 h-3 text-blue-600 rounded"
+              />
+              <span className="text-[10px] font-medium text-gray-700">
+                All Buckets
+              </span>
+            </label>
+            <div className="border-t border-gray-100 my-1"></div>
+            {AVAILABLE_BUCKETS.map((bucket) => (
+              <label
+                key={bucket}
+                className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={!isAllSelected && sortBuckets.includes(bucket)}
+                  onChange={() => toggleBucket(bucket)}
+                  disabled={isAllSelected}
+                  className="w-3 h-3 text-blue-600 rounded disabled:opacity-50"
+                />
+                <span className="text-[10px] font-medium text-gray-700">
+                  Bucket {bucket}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+      {onClearSort && (
+        <button
+          onClick={onClearSort}
+          className="px-2 py-1 text-[10px] font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition"
+          title="Reset to default bucket sorting"
+        >
+          ✕ Reset
+        </button>
+      )}
     </div>
   );
 
@@ -227,29 +324,6 @@ export function CollapsibleFilterBar({
               </div>
             </div>
 
-            {/* History Toggle - Always visible */}
-            {historyDays && setHistoryDays && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-                  History:
-                </span>
-                <div className="flex bg-gray-100 rounded-lg p-0.5">
-                  <button
-                    onClick={() => setHistoryDays(3)}
-                    className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${historyDays === 3 ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                  >
-                    3d
-                  </button>
-                  <button
-                    onClick={() => setHistoryDays(7)}
-                    className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${historyDays === 7 ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                  >
-                    7d
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Desktop Only Filters - Hidden on mobile (<lg / <1024px) */}
             {(viewMode === "bucket" || viewMode === "user") && (
               <>
@@ -267,24 +341,36 @@ export function CollapsibleFilterBar({
               </>
             )}
 
-            {(viewMode === "bucket" || viewMode === "user") && onSortFieldChange && (
-              <div className="hidden lg:flex">
-                <SortFilter />
-              </div>
-            )}
+            {(viewMode === "bucket" || viewMode === "user") &&
+              onSortFieldChange && (
+                <div className="hidden lg:flex">
+                  <SortFilter />
+                </div>
+              )}
 
-            {(viewMode === "bucket" || viewMode === "user") && onShowDateOnCardsChange && (
-              <div className="hidden lg:flex items-center gap-1.5">
-                <DateToggle />
-              </div>
-            )}
+            {(viewMode === "bucket" || viewMode === "user") &&
+              onShowDateOnCardsChange && (
+                <div className="hidden lg:flex items-center gap-1.5">
+                  <DateToggle />
+                </div>
+              )}
 
             {/* Search - Hidden on mobile - INLINED to prevent focus loss */}
             <div className="hidden lg:flex items-center gap-1.5 ml-auto">
               <div className="relative w-48">
                 <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                  <svg className="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  <svg
+                    className="h-3 w-3 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
                   </svg>
                 </div>
                 <input
@@ -295,9 +381,22 @@ export function CollapsibleFilterBar({
                   placeholder="Search ID or description..."
                 />
                 {searchQuery && (
-                  <button onClick={() => onSearchChange?.("")} className="absolute inset-y-0 right-0 pr-2 flex items-center">
-                    <svg className="h-3 w-3 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <button
+                    onClick={() => onSearchChange?.("")}
+                    className="absolute inset-y-0 right-0 pr-2 flex items-center"
+                  >
+                    <svg
+                      className="h-3 w-3 text-gray-400 hover:text-gray-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                   </button>
                 )}
@@ -308,9 +407,7 @@ export function CollapsibleFilterBar({
             <div className="lg:hidden ml-auto">
               <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
                 <DrawerTrigger asChild>
-                  <button
-                    className="flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition"
-                  >
+                  <button className="flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
                     <SlidersHorizontal className="w-3.5 h-3.5" />
                     <span>Filters</span>
                   </button>
@@ -322,11 +419,23 @@ export function CollapsibleFilterBar({
                   <div className="px-4 pb-6 space-y-4">
                     {/* Search - INLINED to prevent focus loss */}
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-gray-600 uppercase">Search</label>
+                      <label className="text-xs font-semibold text-gray-600 uppercase">
+                        Search
+                      </label>
                       <div className="relative w-full">
                         <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                          <svg className="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          <svg
+                            className="h-3 w-3 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
                           </svg>
                         </div>
                         <input
@@ -337,9 +446,22 @@ export function CollapsibleFilterBar({
                           placeholder="Search ID or description..."
                         />
                         {searchQuery && (
-                          <button onClick={() => onSearchChange?.("")} className="absolute inset-y-0 right-0 pr-2 flex items-center">
-                            <svg className="h-3 w-3 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          <button
+                            onClick={() => onSearchChange?.("")}
+                            className="absolute inset-y-0 right-0 pr-2 flex items-center"
+                          >
+                            <svg
+                              className="h-3 w-3 text-gray-400 hover:text-gray-600"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
                             </svg>
                           </button>
                         )}
@@ -349,7 +471,9 @@ export function CollapsibleFilterBar({
                     {/* Columns */}
                     {(viewMode === "bucket" || viewMode === "user") && (
                       <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-600 uppercase">Columns</label>
+                        <label className="text-xs font-semibold text-gray-600 uppercase">
+                          Columns
+                        </label>
                         <div className="flex bg-gray-100 rounded-lg p-0.5 w-fit">
                           {[2, 3, 4].map((count) => (
                             <button
@@ -367,7 +491,9 @@ export function CollapsibleFilterBar({
                     {/* Layout */}
                     {(viewMode === "bucket" || viewMode === "user") && (
                       <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-600 uppercase">Layout</label>
+                        <label className="text-xs font-semibold text-gray-600 uppercase">
+                          Layout
+                        </label>
                         <div className="flex bg-gray-100 rounded-lg p-0.5 w-fit">
                           <button
                             onClick={() => setBucketViewMode("default")}
@@ -386,49 +512,115 @@ export function CollapsibleFilterBar({
                     )}
 
                     {/* Sort */}
-                    {(viewMode === "bucket" || viewMode === "user") && onSortFieldChange && (
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-600 uppercase">Sort By</label>
-                        <div className="flex gap-2">
-                          <select
-                            value={sortField}
-                            onChange={(e) =>
-                              onSortFieldChange(e.target.value as DateFieldKey)
-                            }
-                            className="flex-1 px-3 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 border-0 focus:ring-1 focus:ring-blue-500"
-                          >
-                            {DATE_FIELDS.map((f) => (
-                              <option key={f.value} value={f.value}>
-                                {f.label}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => onSortAscendingChange?.(!sortAscending)}
-                            className="px-3 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-                          >
-                            {sortAscending ? "↑ Oldest" : "↓ Newest"}
-                          </button>
+                    {(viewMode === "bucket" || viewMode === "user") &&
+                      onSortFieldChange && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-gray-600 uppercase">
+                            Sort By
+                          </label>
+                          <div className="flex gap-2">
+                            <select
+                              value={sortField}
+                              onChange={(e) =>
+                                onSortFieldChange(
+                                  e.target.value as DateFieldKey,
+                                )
+                              }
+                              className="flex-1 px-3 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 border-0 focus:ring-1 focus:ring-blue-500"
+                            >
+                              {DATE_FIELDS.map((f) => (
+                                <option key={f.value} value={f.value}>
+                                  {f.label}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() =>
+                                onSortAscendingChange?.(!sortAscending)
+                              }
+                              className="px-3 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+                            >
+                              {sortAscending ? "↑ Oldest" : "↓ Newest"}
+                            </button>
+                          </div>
+
+                          {/* Bucket Multi-Select */}
+                          {onSortBucketsChange && (
+                            <div className="space-y-2 mt-3">
+                              <label className="text-xs font-semibold text-gray-600 uppercase">
+                                Apply Sort To
+                              </label>
+                              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={isAllSelected}
+                                    onChange={() => toggleBucket("ALL")}
+                                    className="w-4 h-4 text-blue-600 rounded"
+                                  />
+                                  <span className="text-sm font-medium text-gray-700">
+                                    All Buckets
+                                  </span>
+                                </label>
+                                <div className="border-t border-gray-200 my-2"></div>
+                                <div className="grid grid-cols-4 gap-2">
+                                  {AVAILABLE_BUCKETS.map((bucket) => (
+                                    <label
+                                      key={bucket}
+                                      className="flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          !isAllSelected &&
+                                          sortBuckets.includes(bucket)
+                                        }
+                                        onChange={() => toggleBucket(bucket)}
+                                        disabled={isAllSelected}
+                                        className="w-4 h-4 text-blue-600 rounded disabled:opacity-50"
+                                      />
+                                      <span className="text-sm font-medium text-gray-700">
+                                        {bucket}
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {onClearSort && (
+                            <button
+                              onClick={onClearSort}
+                              className="w-full px-3 py-2 text-sm font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition"
+                            >
+                              ✕ Reset to Default Sorting
+                            </button>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      )}
 
                     {/* Dates Toggle */}
-                    {(viewMode === "bucket" || viewMode === "user") && onShowDateOnCardsChange && (
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-600 uppercase">Display</label>
-                        <button
-                          onClick={() => onShowDateOnCardsChange(!showDateOnCards)}
-                          className={`px-4 py-2 text-sm font-medium rounded-md transition ${
-                            showDateOnCards
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-gray-100 text-gray-500 hover:text-gray-700"
-                          }`}
-                        >
-                          📅 Show Dates on Cards
-                        </button>
-                      </div>
-                    )}
+                    {(viewMode === "bucket" || viewMode === "user") &&
+                      onShowDateOnCardsChange && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-gray-600 uppercase">
+                            Display
+                          </label>
+                          <button
+                            onClick={() =>
+                              onShowDateOnCardsChange(!showDateOnCards)
+                            }
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition ${
+                              showDateOnCards
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-gray-100 text-gray-500 hover:text-gray-700"
+                            }`}
+                          >
+                            📅 Show Dates on Cards
+                          </button>
+                        </div>
+                      )}
 
                     {/* Close button */}
                     <DrawerClose asChild>
@@ -446,4 +638,3 @@ export function CollapsibleFilterBar({
     </div>
   );
 }
-

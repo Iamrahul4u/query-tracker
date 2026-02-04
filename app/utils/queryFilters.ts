@@ -28,12 +28,9 @@ export function getVisibleQueries(
     if (q.Status === "A") {
       return true;
     }
-    
+
     // For all other buckets (B-G), only show if assigned to this user
-    return (
-      q["Assigned To"] &&
-      q["Assigned To"].toLowerCase() === userEmail
-    );
+    return q["Assigned To"] && q["Assigned To"].toLowerCase() === userEmail;
   });
 }
 
@@ -94,20 +91,22 @@ export function groupQueriesByUser(queries: Query[]): Record<string, Query[]> {
  * Filter queries by history days for F and G buckets
  * Returns queries with F/G status older than historyDays removed
  */
-export function filterByHistoryDays(queries: Query[], historyDays: number): Query[] {
+export function filterByHistoryDays(
+  queries: Query[],
+  historyDays: number,
+): Query[] {
   return queries.filter((q) => {
     const status = q["Status"];
-    
+
     // Only filter F and G buckets by history
     if (!["F", "G"].includes(status)) return true;
-    
+
     // Get the relevant date for the bucket
-    const dateStr = status === "F" 
-      ? q["Entered In SF Date Time"] 
-      : q["Discarded Date Time"];
-    
+    const dateStr =
+      status === "F" ? q["Entered In SF Date Time"] : q["Discarded Date Time"];
+
     if (!dateStr) return false;
-    
+
     // Parse date: "DD/MM/YYYY, HH:MM:SS"
     const d = parseDateRobust(dateStr);
     if (d) {
@@ -125,19 +124,19 @@ export function filterByHistoryDays(queries: Query[], historyDays: number): Quer
  */
 function parseDateRobust(dateStr: string): Date | null {
   if (!dateStr) return null;
-  
+
   // Try DD/MM/YYYY (Standard)
   const parts = dateStr.split(",")[0].split("/");
   if (parts.length === 3) {
-      // Check if DD/MM/YYYY
-      const d1 = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
-      if (!isNaN(d1.getTime())) return d1;
-      
-      // Try MM/DD/YYYY (US)
-      const d2 = new Date(`${parts[0]}/${parts[1]}/${parts[2]}`);
-      if (!isNaN(d2.getTime())) return d2;
+    // Check if DD/MM/YYYY
+    const d1 = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
+    if (!isNaN(d1.getTime())) return d1;
+
+    // Try MM/DD/YYYY (US)
+    const d2 = new Date(`${parts[0]}/${parts[1]}/${parts[2]}`);
+    if (!isNaN(d2.getTime())) return d2;
   }
-  
+
   // Fallback to standard parse
   const d3 = new Date(dateStr);
   return !isNaN(d3.getTime()) ? d3 : null;
@@ -194,6 +193,8 @@ export const DATE_FIELDS = [
   { value: "Assignment Date Time", label: "Assigned" },
   { value: "Proposal Sent Date Time", label: "Proposal Sent" },
   { value: "Entered In SF Date Time", label: "In SF" },
+  { value: "Discarded Date Time", label: "Discarded" },
+  { value: "Delete Requested Date Time", label: "Delete Requested" },
 ] as const;
 
 export type DateFieldKey = (typeof DATE_FIELDS)[number]["value"];
@@ -228,11 +229,76 @@ function parseDate(dateStr: string | undefined): Date | null {
 export function sortQueriesByDate(
   queries: Query[],
   dateField: DateFieldKey,
-  ascending: boolean = true
+  ascending: boolean = true,
 ): Query[] {
   return [...queries].sort((a, b) => {
     const dateA = parseDate(a[dateField]);
     const dateB = parseDate(b[dateField]);
+
+    // Handle missing dates - push to end
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+
+    const diff = dateA.getTime() - dateB.getTime();
+    return ascending ? diff : -diff;
+  });
+}
+
+/**
+ * Get default sort field for a bucket based on requirements
+ * Per FRD: Each bucket has a primary date field for sorting
+ */
+export function getDefaultSortFieldForBucket(bucketKey: string): DateFieldKey {
+  const sortMap: Record<string, DateFieldKey> = {
+    A: "Added Date Time",
+    B: "Assignment Date Time",
+    C: "Proposal Sent Date Time",
+    D: "Proposal Sent Date Time",
+    E: "Entered In SF Date Time",
+    F: "Entered In SF Date Time",
+    G: "Discarded Date Time",
+    H: "Delete Requested Date Time",
+  };
+
+  return sortMap[bucketKey] || "Added Date Time";
+}
+
+/**
+ * Sort queries with bucket-specific logic
+ * - If customSortField is provided AND bucket is in sortBuckets, use it (with fallback to bucket default if field missing)
+ * - Otherwise use bucket's default sort field
+ * - All sorting is newest first (descending) per requirements
+ */
+export function sortQueriesForBucket(
+  queries: Query[],
+  bucketKey: string,
+  customSortField?: DateFieldKey,
+  customAscending?: boolean,
+  sortBuckets?: string[],
+): Query[] {
+  const defaultField = getDefaultSortFieldForBucket(bucketKey);
+
+  // Check if custom sort should apply to this bucket
+  const applyCustomSort =
+    customSortField &&
+    sortBuckets &&
+    (sortBuckets.includes("ALL") || sortBuckets.includes(bucketKey));
+
+  const sortField = applyCustomSort ? customSortField : defaultField;
+  const ascending =
+    applyCustomSort && customAscending !== undefined ? customAscending : false; // Default: newest first
+
+  return [...queries].sort((a, b) => {
+    // Try sort field first
+    let dateA = parseDate(a[sortField]);
+    let dateB = parseDate(b[sortField]);
+
+    // If custom field is missing, fall back to bucket default
+    if (applyCustomSort && (!dateA || !dateB)) {
+      if (!dateA) dateA = parseDate(a[defaultField]);
+      if (!dateB) dateB = parseDate(b[defaultField]);
+    }
 
     // Handle missing dates - push to end
     if (!dateA && !dateB) return 0;
