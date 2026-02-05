@@ -107,37 +107,29 @@ function SynchronizedRow({
   const targetScrollRef = useRef<number>(0);
   const currentScrollRef = useRef<number>(0);
 
-  // Smooth scroll animation with easing
+  // Smooth scroll animation with easing - applies to each bucket independently
   const animateScroll = () => {
     const diff = targetScrollRef.current - currentScrollRef.current;
 
     // If close enough, snap to target
     if (Math.abs(diff) < 0.5) {
       currentScrollRef.current = targetScrollRef.current;
-      scrollRefs.current.forEach((element) => {
-        const maxScroll = element.scrollHeight - element.clientHeight;
-        if (maxScroll > 0) {
-          element.scrollTop = Math.max(
-            0,
-            Math.min(maxScroll, currentScrollRef.current),
-          );
-        }
-      });
       isSyncingRef.current = false;
       rafRef.current = null;
       return;
     }
 
     // Smooth interpolation (ease-out effect)
-    currentScrollRef.current += diff * 0.15;
+    const delta = diff * 0.15;
+    currentScrollRef.current += delta;
 
+    // Apply the delta to each scrollable bucket independently
     scrollRefs.current.forEach((element) => {
       const maxScroll = element.scrollHeight - element.clientHeight;
-      if (maxScroll > 0) {
-        element.scrollTop = Math.max(
-          0,
-          Math.min(maxScroll, currentScrollRef.current),
-        );
+      // Only scroll elements that have scrollable content
+      if (maxScroll > 5) {
+        const newScrollTop = element.scrollTop + delta;
+        element.scrollTop = Math.max(0, Math.min(maxScroll, newScrollTop));
       }
     });
 
@@ -146,28 +138,14 @@ function SynchronizedRow({
 
   // Synchronize scroll by adding same delta to all buckets
   const syncScroll = (deltaY: number) => {
-    // Get current scroll position from first element
-    const firstElement = scrollRefs.current.values().next().value;
-    if (firstElement && currentScrollRef.current === 0) {
-      currentScrollRef.current = firstElement.scrollTop;
-      targetScrollRef.current = firstElement.scrollTop;
-    }
-
     // Update target scroll position
     targetScrollRef.current += deltaY;
-
-    // Clamp target to valid range
-    const maxScroll = firstElement
-      ? firstElement.scrollHeight - firstElement.clientHeight
-      : 0;
-    targetScrollRef.current = Math.max(
-      0,
-      Math.min(maxScroll, targetScrollRef.current),
-    );
 
     // Start animation if not already running
     if (!isSyncingRef.current) {
       isSyncingRef.current = true;
+      currentScrollRef.current = 0; // Reset for delta calculation
+      targetScrollRef.current = deltaY;
       rafRef.current = requestAnimationFrame(animateScroll);
     }
   };
@@ -178,31 +156,40 @@ function SynchronizedRow({
     if (!rowElement) return;
 
     const handleWheel = (e: WheelEvent) => {
-      // Check if ANY bucket can still scroll in the requested direction
+      // Check which buckets have scrollable content
+      const scrollableElements: HTMLDivElement[] = [];
       let canScrollDown = false;
       let canScrollUp = false;
 
       scrollRefs.current.forEach((element) => {
         const maxScroll = element.scrollHeight - element.clientHeight;
-        const currentScroll = element.scrollTop;
 
-        // Can scroll down if not at bottom (with 1px tolerance)
-        if (currentScroll < maxScroll - 1) {
-          canScrollDown = true;
-        }
-        // Can scroll up if not at top (with 1px tolerance)
-        if (currentScroll > 1) {
-          canScrollUp = true;
+        // Only consider elements that have scrollable content (height > container)
+        if (maxScroll > 5) {
+          scrollableElements.push(element);
+          const currentScroll = element.scrollTop;
+
+          // Can scroll down if not at bottom (with 1px tolerance)
+          if (currentScroll < maxScroll - 1) {
+            canScrollDown = true;
+          }
+          // Can scroll up if not at top (with 1px tolerance)
+          if (currentScroll > 1) {
+            canScrollUp = true;
+          }
         }
       });
 
-      // Check if we're trying to scroll in a direction where at least one bucket can scroll
+      // Only prevent default and sync scroll if:
+      // 1. There are scrollable elements
+      // 2. At least one can scroll in the requested direction
       const shouldPreventDefault =
-        (e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp);
+        scrollableElements.length > 0 &&
+        ((e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp));
 
       if (shouldPreventDefault) {
         e.preventDefault();
-        // Apply the same scroll delta to all buckets
+        // Apply the same scroll delta only to scrollable buckets
         syncScroll(e.deltaY);
       }
     };

@@ -739,7 +739,6 @@ export function QueryCardCompact({
                 }}
                 title={`${dateInfo.label}: ${dateInfo.value}`}
               >
-                <Calendar className="w-3 h-3 flex-shrink-0" />
                 <span>{dateInfo.value}</span>
               </div>
             ))}

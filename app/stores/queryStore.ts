@@ -164,7 +164,6 @@ export const useQueryStore = create<QueryState>()(
       // ═══════════════════════════════════════════════════════════════
       initialize: async (token: string) => {
         const syncManager = SyncManager.getInstance();
-        syncManager.initialize(token);
 
         set({ isLoading: true });
 

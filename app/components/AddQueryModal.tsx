@@ -4,41 +4,74 @@ import { useState } from "react";
 import { useQueryStore } from "../stores/queryStore";
 import { QUERY_TYPE_ORDER } from "../config/sheet-constants";
 import { Query, User } from "../utils/sheets";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 
 interface AddQueryModalProps {
   onClose: () => void;
 }
 
+interface QueryRow {
+  id: string;
+  description: string;
+  queryType: string;
+}
+
 export function AddQueryModal({ onClose }: AddQueryModalProps) {
   const { currentUser, users, addQueryOptimistic } = useQueryStore();
-  const [description, setDescription] = useState("");
-  const [queryType, setQueryType] = useState("New");
-  const [allocateTo, setAllocateTo] = useState(""); // Empty = Bucket A, else Bucket B
+  const [allocateTo, setAllocateTo] = useState("");
+  const [queryRows, setQueryRows] = useState<QueryRow[]>([
+    { id: "1", description: "", queryType: "New" },
+  ]);
   const [error, setError] = useState("");
-  const [addedQueries, setAddedQueries] = useState<string[]>([]); // Track added in this session
-  const [showAllocate, setShowAllocate] = useState(false); // Show allocate field after first add
 
-  const MIN_CHARS = 10;
   const MAX_CHARS = 200;
 
-  // Filter active users for Allocate To dropdown
+  const canAllocate =
+    currentUser?.Role === "Senior" ||
+    currentUser?.Role === "Admin" ||
+    currentUser?.Role === "Pseudo Admin";
+
   const activeUsers = users.filter(
     (u: User) => u["Is Active"]?.toLowerCase() === "true",
   );
 
-  const handleSubmit = async (
-    e: React.FormEvent,
-    keepModalOpen: boolean = false,
-  ) => {
+  const addNewRow = () => {
+    const newId = String(Date.now());
+    setQueryRows([
+      ...queryRows,
+      { id: newId, description: "", queryType: "New" },
+    ]);
+  };
+
+  const removeRow = (id: string) => {
+    if (queryRows.length === 1) return;
+    setQueryRows(queryRows.filter((row) => row.id !== id));
+  };
+
+  const updateRow = (id: string, field: keyof QueryRow, value: string) => {
+    setQueryRows(
+      queryRows.map((row) =>
+        row.id === id ? { ...row, [field]: value } : row,
+      ),
+    );
+    setError("");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (description.length < MIN_CHARS) {
-      setError(`Description must be at least ${MIN_CHARS} characters.`);
+    // Validate
+    const emptyRows = queryRows.filter((row) => !row.description.trim());
+    if (emptyRows.length > 0) {
+      setError("All descriptions must be filled");
       return;
     }
-    if (description.length > MAX_CHARS) {
-      setError(`Description must be less than ${MAX_CHARS} characters.`);
+
+    const tooLongRows = queryRows.filter(
+      (row) => row.description.length > MAX_CHARS,
+    );
+    if (tooLongRows.length > 0) {
+      setError(`Descriptions must be less than ${MAX_CHARS} characters`);
       return;
     }
 
@@ -51,33 +84,25 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
       second: "2-digit",
     });
 
-    const newQueryData: Partial<Query> = {
-      "Query Description": description,
-      "Query Type": queryType,
-      GmIndicator: "FALSE", // Always FALSE for new queries (GM Indicator only in Edit Modal for E/F)
-    };
+    // Add all queries
+    for (const row of queryRows) {
+      const newQueryData: Partial<Query> = {
+        "Query Description": row.description,
+        "Query Type": row.queryType,
+        GmIndicator: "", // Empty for new queries (only relevant for E/F buckets)
+      };
 
-    // If Allocate To is set, go to Bucket B with assignment fields
-    if (allocateTo) {
-      newQueryData.Status = "B";
-      newQueryData["Assigned To"] = allocateTo;
-      newQueryData["Assigned By"] = currentUser?.Email || "";
-      newQueryData["Assignment Date Time"] = now;
+      if (allocateTo) {
+        newQueryData.Status = "B";
+        newQueryData["Assigned To"] = allocateTo;
+        newQueryData["Assigned By"] = currentUser?.Email || "";
+        newQueryData["Assignment Date Time"] = now;
+      }
+
+      await addQueryOptimistic(newQueryData);
     }
 
-    await addQueryOptimistic(newQueryData);
-
-    // Track added query
-    setAddedQueries([...addedQueries, description.slice(0, 30) + "..."]);
-
-    if (keepModalOpen) {
-      // Reset form for next add (keep allocateTo for same user multi-add)
-      setDescription("");
-      setError("");
-      setShowAllocate(true); // Show allocate field after first add
-    } else {
-      onClose();
-    }
+    onClose();
   };
 
   return (
@@ -86,15 +111,13 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 overflow-hidden"
+        className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
-          <div>
-            <h3 className="text-base font-semibold text-gray-800">
-              Add New Query
-            </h3>
-          </div>
+          <h3 className="text-base font-semibold text-gray-800">
+            Add New Queries
+          </h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -115,122 +138,115 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
           </button>
         </div>
 
-        <form onSubmit={(e) => handleSubmit(e, false)} className="p-4">
-          {/* Compact Single Row: Description + Type */}
-          <div className="flex gap-2 mb-3">
-            {/* Query Description - Compact */}
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                Query Description <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => {
-                  setDescription(e.target.value);
-                  setError("");
-                }}
-                maxLength={MAX_CHARS}
-                className="w-full border border-gray-300 rounded-md px-2 py-1.5 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                placeholder="Enter query details..."
-                autoFocus
-              />
-            </div>
-
-            {/* Query Type - Compact Inline */}
-            <div className="w-48">
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                Type
-              </label>
-              <div className="flex gap-1">
-                {QUERY_TYPE_ORDER.map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setQueryType(type)}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded border transition-colors ${
-                      queryType === type
-                        ? "bg-blue-50 border-blue-500 text-blue-700"
-                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col flex-1 overflow-hidden"
+        >
+          <div className="p-4 overflow-y-auto flex-1">
+            {/* Allocate To */}
+            {canAllocate && (
+              <div className="mb-3 p-2 bg-blue-50 rounded border border-blue-200">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Allocate To{" "}
+                  <span className="text-xs text-gray-500">
+                    (applies to all)
+                  </span>
+                </label>
+                <select
+                  value={allocateTo}
+                  onChange={(e) => setAllocateTo(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                >
+                  <option value="">-- Unassigned (Bucket A) --</option>
+                  {activeUsers.map((user: User) => (
+                    <option key={user.Email} value={user.Email}>
+                      {user.Name}
+                    </option>
+                  ))}
+                </select>
               </div>
+            )}
+
+            {/* Query Rows - Minimal */}
+            <div className="space-y-2">
+              {queryRows.map((row) => (
+                <div key={row.id} className="flex gap-2 items-center">
+                  {/* Description */}
+                  <input
+                    type="text"
+                    value={row.description}
+                    onChange={(e) =>
+                      updateRow(row.id, "description", e.target.value)
+                    }
+                    maxLength={MAX_CHARS}
+                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    placeholder="Enter query description..."
+                  />
+
+                  {/* Type Buttons */}
+                  <div className="flex gap-1">
+                    {QUERY_TYPE_ORDER.map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => updateRow(row.id, "queryType", type)}
+                        className={`px-3 py-2 text-xs font-medium rounded border transition-colors ${
+                          row.queryType === type
+                            ? "bg-blue-50 border-blue-500 text-blue-700"
+                            : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Plus Icon (always) */}
+                  <button
+                    type="button"
+                    onClick={addNewRow}
+                    className="w-8 h-8 flex items-center justify-center text-green-600 hover:bg-green-50 rounded"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+
+                  {/* Remove Icon (only when multiple rows) */}
+                  {queryRows.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeRow(row.id)}
+                      className="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
+
+            {/* Error */}
+            {error && <div className="mt-2 text-xs text-red-500">{error}</div>}
           </div>
 
-          {/* Character Counter and Error */}
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-xs text-red-500 min-h-[16px]">{error}</span>
-            <span
-              className={`text-xs ${description.length > MAX_CHARS ? "text-red-500" : description.length > MAX_CHARS - 20 ? "text-amber-500" : "text-gray-400"}`}
-            >
-              {description.length}/{MAX_CHARS}
+          {/* Footer */}
+          <div className="bg-gray-50 px-4 py-3 flex justify-between border-t">
+            <span className="text-xs text-gray-500 flex items-center">
+              {queryRows.length} {queryRows.length === 1 ? "query" : "queries"}
             </span>
-          </div>
-
-          {/* Allocate To - Shows after first add */}
-          {showAllocate && (
-            <div className="mb-3 p-2 bg-blue-50 rounded border border-blue-200">
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                Allocate To{" "}
-                <span className="text-xs text-gray-500">
-                  (optional → goes to B)
-                </span>
-              </label>
-              <select
-                value={allocateTo}
-                onChange={(e) => setAllocateTo(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-2 py-1.5 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              >
-                <option value="">-- Unassigned (Bucket A) --</option>
-                {activeUsers.map((user: User) => (
-                  <option key={user.Email} value={user.Email}>
-                    {user.Name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Footer with buttons */}
-          <div className="bg-gray-50 -mx-4 -mb-4 px-4 py-3 flex justify-between gap-2 border-t border-gray-200 mt-3">
-            <div className="text-xs text-gray-400 flex flex-col justify-center">
-              {addedQueries.length > 0 && (
-                <span className="text-green-600 font-medium">
-                  ✓ {addedQueries.length} added
-                </span>
-              )}
-            </div>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-3 py-1.5 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 text-sm"
+                className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm"
               >
-                {addedQueries.length > 0 ? "Done" : "Cancel"}
+                Cancel
               </button>
               <button
                 type="submit"
-                disabled={!description.trim() || !!error}
-                className="px-4 py-1.5 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
               >
-                Add Query
+                Add All
               </button>
-              {addedQueries.length > 0 && (
-                <button
-                  type="button"
-                  onClick={(e) => handleSubmit(e as any, true)}
-                  disabled={!description.trim() || !!error}
-                  className="px-3 py-1.5 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-1"
-                  title="Add another query"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add +
-                </button>
-              )}
             </div>
           </div>
         </form>

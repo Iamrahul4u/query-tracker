@@ -24,10 +24,7 @@ declare global {
             client_id: string;
             scope: string;
             ux_mode: "popup" | "redirect";
-            callback: (response: {
-              code?: string;
-              error?: string;
-            }) => void;
+            callback: (response: { code?: string; error?: string }) => void;
           }) => { requestCode: () => void };
         };
       };
@@ -124,7 +121,7 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
           body: JSON.stringify({ refresh_token: refreshToken }),
         });
         const data = await res.json();
-        
+
         if (data.access_token) {
           localStorage.setItem("auth_token", data.access_token);
           localStorage.setItem(
@@ -161,7 +158,9 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
       attemptRefresh();
     } else if (refreshToken) {
       // No auth_token but have refresh_token - try to refresh
-      console.log("⚠️ auth_token missing but refresh_token exists, attempting refresh...");
+      console.log(
+        "⚠️ auth_token missing but refresh_token exists, attempting refresh...",
+      );
       attemptRefresh();
     } else {
       setStatus("Sign in to access Query Tracker");
@@ -198,7 +197,7 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
 
         if (response.code) {
           setStatus("Completing sign-in...");
-          
+
           try {
             // Exchange code for tokens via our API
             const tokenRes = await fetch("/api/auth/callback", {
@@ -213,23 +212,48 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
 
             const data = await tokenRes.json();
 
+            console.log("🔐 [LOGIN] Token exchange response received");
+            console.log(
+              `🔐 [LOGIN] Access token: ${data.access_token ? "YES" : "NO"}`,
+            );
+            console.log(
+              `🔐 [LOGIN] Refresh token: ${data.refresh_token ? "YES ✅" : "NO ❌"}`,
+            );
+            console.log(`🔐 [LOGIN] Expires in: ${data.expires_in}s`);
+            console.log(`🔐 [LOGIN] User: ${data.email}`);
+
             // Store tokens
             localStorage.setItem("auth_token", data.access_token);
             localStorage.setItem("user_email", data.email);
             localStorage.setItem("user_name", data.name || data.email);
-            
+
             // Store refresh token for silent refresh
             if (data.refresh_token) {
               localStorage.setItem("refresh_token", data.refresh_token);
+              console.log(
+                "✅ [LOGIN] Refresh token stored - persistent session enabled",
+              );
+            } else {
+              console.warn(
+                "⚠️ [LOGIN] NO REFRESH TOKEN - Session will expire in 1 hour!",
+              );
+              console.warn(
+                "⚠️ [LOGIN] User may have previously authorized. To fix: Revoke app access in Google Account settings and re-login.",
+              );
             }
-            
+
             // Store expiry time
-            localStorage.setItem(
-              "token_expiry",
-              String(Date.now() + data.expires_in * 1000),
+            const expiryTime = Date.now() + data.expires_in * 1000;
+            localStorage.setItem("token_expiry", String(expiryTime));
+
+            const expiryDate = new Date(expiryTime);
+            console.log(
+              `🔐 [LOGIN] Token will expire at: ${expiryDate.toLocaleTimeString()}`,
             );
 
-            console.log(`✅ Logged in. Token expires in ${data.expires_in}s`);
+            console.log(
+              `✅ [LOGIN] Login complete. Redirecting to dashboard...`,
+            );
             setStatus("Redirecting to dashboard...");
             router.push("/dashboard");
           } catch (err) {

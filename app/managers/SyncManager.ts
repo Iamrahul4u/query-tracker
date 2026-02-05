@@ -22,7 +22,6 @@ export class SyncManager {
   private static instance: SyncManager;
   private refreshInterval: NodeJS.Timeout | null = null;
   private isSyncing = false;
-  private token: string = "";
 
   private constructor() {}
 
@@ -31,15 +30,6 @@ export class SyncManager {
       this.instance = new SyncManager();
     }
     return this.instance;
-  }
-
-  /**
-   * Initialize SyncManager with auth token
-   * Background refresh is handled by useAutoRefresh hook in the React component
-   */
-  initialize(token: string): void {
-    this.token = token;
-    // Note: Background refresh is handled by useAutoRefresh hook for proper React lifecycle
   }
 
   /**
@@ -105,8 +95,14 @@ export class SyncManager {
     preferences: Preferences;
   }> {
     try {
+      // Always get fresh token from localStorage (it may have been refreshed)
+      const currentToken = localStorage.getItem("auth_token");
+      if (!currentToken) {
+        throw new Error("No auth token available");
+      }
+
       const response = await fetch("/api/queries", {
-        headers: { Authorization: `Bearer ${this.token}` },
+        headers: { Authorization: `Bearer ${currentToken}` },
       });
 
       // Handle unauthorized - token expired
@@ -221,12 +217,12 @@ export class SyncManager {
       "Query ID": tempId,
       "Query Description": queryData["Query Description"] || "",
       "Query Type": queryData["Query Type"] || "New",
-      Status: "A",
+      Status: queryData.Status || "A", // Use provided status (e.g., "B" if allocated) or default to "A"
       "Added By": currentUserEmail,
       "Added Date Time": now,
-      "Assigned To": "",
-      "Assigned By": "",
-      "Assignment Date Time": "",
+      "Assigned To": queryData["Assigned To"] || "",
+      "Assigned By": queryData["Assigned By"] || "",
+      "Assignment Date Time": queryData["Assignment Date Time"] || "",
       Remarks: "",
       "Proposal Sent Date Time": "",
       "Whats Pending": "",
@@ -258,12 +254,18 @@ export class SyncManager {
       const queryForApi = { ...newQuery };
       delete queryForApi._isPending;
       delete queryForApi._tempId;
-      
+
+      // Always get fresh token from localStorage
+      const currentToken = localStorage.getItem("auth_token");
+      if (!currentToken) {
+        throw new Error("No auth token available");
+      }
+
       const response = await fetch("/api/queries", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.token}`,
+          Authorization: `Bearer ${currentToken}`,
         },
         body: JSON.stringify({
           action: "add",
@@ -340,11 +342,17 @@ export class SyncManager {
 
     // Step 2: API call in background
     try {
+      // Always get fresh token from localStorage
+      const currentToken = localStorage.getItem("auth_token");
+      if (!currentToken) {
+        throw new Error("No auth token available");
+      }
+
       const response = await fetch("/api/queries", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.token}`,
+          Authorization: `Bearer ${currentToken}`,
         },
         body: JSON.stringify({
           action: "assign",
@@ -404,11 +412,17 @@ export class SyncManager {
     updateStore(optimisticQueries);
 
     try {
+      // Always get fresh token from localStorage
+      const currentToken = localStorage.getItem("auth_token");
+      if (!currentToken) {
+        throw new Error("No auth token available");
+      }
+
       const response = await fetch("/api/queries", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.token}`,
+          Authorization: `Bearer ${currentToken}`,
         },
         body: JSON.stringify({
           action: "edit",
@@ -448,7 +462,7 @@ export class SyncManager {
     isAdmin: boolean = false,
   ): Promise<SyncResult> {
     const now = new Date().toLocaleString("en-GB");
-    
+
     if (isAdmin) {
       // Admin: Remove from UI immediately (permanent delete)
       const optimisticQueries = currentQueries.filter(
@@ -457,11 +471,17 @@ export class SyncManager {
       updateStore(optimisticQueries);
 
       try {
+        // Always get fresh token from localStorage
+        const currentToken = localStorage.getItem("auth_token");
+        if (!currentToken) {
+          throw new Error("No auth token available");
+        }
+
         const response = await fetch("/api/queries", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${this.token}`,
+            Authorization: `Bearer ${currentToken}`,
           },
           body: JSON.stringify({
             action: "delete",
@@ -507,16 +527,22 @@ export class SyncManager {
       };
 
       const optimisticQueries = currentQueries.map((q) =>
-        q["Query ID"] === queryId ? updatedQuery : q
+        q["Query ID"] === queryId ? updatedQuery : q,
       );
       updateStore(optimisticQueries);
 
       try {
+        // Always get fresh token from localStorage
+        const currentToken = localStorage.getItem("auth_token");
+        if (!currentToken) {
+          throw new Error("No auth token available");
+        }
+
         const response = await fetch("/api/queries", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${this.token}`,
+            Authorization: `Bearer ${currentToken}`,
           },
           body: JSON.stringify({
             action: "delete",
@@ -533,7 +559,10 @@ export class SyncManager {
 
         return {
           success: true,
-          data: { message: "Delete request submitted for approval", status: "H" },
+          data: {
+            message: "Delete request submitted for approval",
+            status: "H",
+          },
         };
       } catch (error: any) {
         updateStore(currentQueries);
@@ -544,7 +573,6 @@ export class SyncManager {
       }
     }
   }
-
 
   /**
    * Approve a pending deletion (Admin only)
@@ -562,11 +590,17 @@ export class SyncManager {
     updateStore(optimisticQueries);
 
     try {
+      // Always get fresh token from localStorage
+      const currentToken = localStorage.getItem("auth_token");
+      if (!currentToken) {
+        throw new Error("No auth token available");
+      }
+
       const response = await fetch("/api/queries", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.token}`,
+          Authorization: `Bearer ${currentToken}`,
         },
         body: JSON.stringify({
           action: "approveDelete",
@@ -595,7 +629,6 @@ export class SyncManager {
     }
   }
 
-
   /**
    * Reject a pending deletion (Admin only) - restores query to previous status
    */
@@ -606,9 +639,11 @@ export class SyncManager {
     rejectedBy?: string,
   ): Promise<SyncResult> {
     const now = new Date().toLocaleString("en-GB");
-    
+
     // Find the query and get its previous status
-    const queryToRestore = currentQueries.find((q) => q["Query ID"] === queryId);
+    const queryToRestore = currentQueries.find(
+      (q) => q["Query ID"] === queryId,
+    );
     if (!queryToRestore) {
       return { success: false, error: "Query not found" };
     }
@@ -627,17 +662,23 @@ export class SyncManager {
             "Delete Rejected": "true", // Shows "Del-Rej" indicator
             "Last Activity Date Time": now,
           }
-        : q
+        : q,
     );
 
     updateStore(optimisticQueries);
 
     try {
+      // Always get fresh token from localStorage
+      const currentToken = localStorage.getItem("auth_token");
+      if (!currentToken) {
+        throw new Error("No auth token available");
+      }
+
       const response = await fetch("/api/queries", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.token}`,
+          Authorization: `Bearer ${currentToken}`,
         },
         body: JSON.stringify({
           action: "rejectDelete",
@@ -654,7 +695,10 @@ export class SyncManager {
 
       return {
         success: true,
-        data: { message: "Deletion rejected, query restored", restoredStatus: previousStatus },
+        data: {
+          message: "Deletion rejected, query restored",
+          restoredStatus: previousStatus,
+        },
       };
     } catch (error: any) {
       updateStore(currentQueries);
@@ -665,7 +709,6 @@ export class SyncManager {
       };
     }
   }
-
 
   /**
    * Optimistic status update
@@ -737,7 +780,7 @@ export class SyncManager {
 
         if (newIndex >= 0 && oldIndex >= 0 && newIndex < oldIndex) {
           // Moving backwards - clear fields that don't belong in the target bucket
-          
+
           // Moving to A: Clear assignment fields
           if (newStatus === "A") {
             updated["Assigned To"] = "";
@@ -802,11 +845,17 @@ export class SyncManager {
     );
 
     try {
+      // Always get fresh token from localStorage
+      const currentToken = localStorage.getItem("auth_token");
+      if (!currentToken) {
+        throw new Error("No auth token available");
+      }
+
       const response = await fetch("/api/queries", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.token}`,
+          Authorization: `Bearer ${currentToken}`,
         },
         body: JSON.stringify({
           action: "updateStatus",

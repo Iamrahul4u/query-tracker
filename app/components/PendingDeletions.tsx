@@ -15,16 +15,18 @@ interface PendingDeletionsProps {
  */
 function getDisplayName(email: string | undefined, users: User[]): string {
   if (!email) return "-";
-  
+
   // Defensive check: ensure users is an array
   if (!Array.isArray(users)) {
     const namePart = email.split("@")[0];
     return namePart.charAt(0).toUpperCase() + namePart.slice(1);
   }
-  
-  const user = users.find((u) => u.Email?.toLowerCase() === email.toLowerCase());
+
+  const user = users.find(
+    (u) => u.Email?.toLowerCase() === email.toLowerCase(),
+  );
   if (user?.Name) return user.Name;
-  
+
   const namePart = email.split("@")[0];
   return namePart.charAt(0).toUpperCase() + namePart.slice(1);
 }
@@ -34,7 +36,7 @@ function getDisplayName(email: string | undefined, users: User[]): string {
  */
 function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return "";
-  
+
   try {
     const parts = dateStr.split(",")[0].split("/");
     if (parts.length !== 3) return dateStr;
@@ -59,16 +61,22 @@ function formatDate(dateStr: string | undefined): string {
   }
 }
 
-export function PendingDeletions({ queries, users, currentUserRole }: PendingDeletionsProps) {
+export function PendingDeletions({
+  queries,
+  users,
+  currentUserRole,
+}: PendingDeletionsProps) {
   const { approveDeleteOptimistic, rejectDeleteOptimistic } = useQueryStore();
-  
-  // Only show for Admin or Pseudo Admin
-  const isAdmin = ["admin", "pseudo admin"].includes(currentUserRole.toLowerCase());
+
+  // Only show for Admin, Pseudo Admin, or Senior
+  const isAdmin = ["admin", "pseudo admin", "senior"].includes(
+    currentUserRole.toLowerCase(),
+  );
   if (!isAdmin) return null;
-  
+
   // Filter queries with pending deletion requests
   const pendingDeletions = queries.filter((q) => q["Delete Requested By"]);
-  
+
   if (pendingDeletions.length === 0) return null;
 
   return (
@@ -79,7 +87,7 @@ export function PendingDeletions({ queries, users, currentUserRole }: PendingDel
           Pending Deletions ({pendingDeletions.length})
         </h3>
       </div>
-      
+
       <div className="space-y-2">
         {pendingDeletions.map((query) => (
           <div
@@ -91,11 +99,12 @@ export function PendingDeletions({ queries, users, currentUserRole }: PendingDel
                 {query["Query Description"]}
               </p>
               <p className="text-xs text-gray-500">
-                Requested by {getDisplayName(query["Delete Requested By"], users)} on{" "}
+                Requested by{" "}
+                {getDisplayName(query["Delete Requested By"], users)} on{" "}
                 {formatDate(query["Delete Requested Date Time"])}
               </p>
             </div>
-            
+
             <div className="flex gap-2 ml-3">
               <button
                 onClick={() => approveDeleteOptimistic(query["Query ID"])}

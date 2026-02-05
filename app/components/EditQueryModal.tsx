@@ -26,6 +26,42 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   // Track original values to detect changes for color coding
   const originalValues = query;
 
+  // Helper functions to convert between date formats
+  // Sheets format: "DD/MM/YYYY, HH:MM:SS"
+  // datetime-local format: "YYYY-MM-DDTHH:MM"
+  const convertToDateTimeLocal = (dateStr: string): string => {
+    if (!dateStr) return "";
+    try {
+      // Parse "05/02/2026, 8:18:01" or "05/02/2026, 08:18:01"
+      const parts = dateStr.split(", ");
+      if (parts.length !== 2) return "";
+
+      const [datePart, timePart] = parts;
+      const [day, month, year] = datePart.split("/");
+      const [hours, minutes] = timePart.split(":");
+
+      // Return YYYY-MM-DDTHH:MM format
+      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
+    } catch {
+      return "";
+    }
+  };
+
+  const convertFromDateTimeLocal = (dateTimeLocal: string): string => {
+    if (!dateTimeLocal) return "";
+    try {
+      // Parse "2026-02-05T08:18"
+      const [datePart, timePart] = dateTimeLocal.split("T");
+      const [year, month, day] = datePart.split("-");
+      const [hours, minutes] = timePart.split(":");
+
+      // Return "DD/MM/YYYY, HH:MM:SS" format
+      return `${day}/${month}/${year}, ${hours}:${minutes}:00`;
+    } catch {
+      return "";
+    }
+  };
+
   // Determine Role
   const role = (currentUser?.Role || "").toLowerCase();
   const isAdminOrSenior = ["admin", "pseudo admin", "senior"].includes(
@@ -193,73 +229,181 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 Date Fields (Editable)
               </h4>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    Added Date
-                  </label>
-                  <input
-                    type="text"
-                    value={formData["Added Date Time"] || ""}
-                    onChange={(e) =>
-                      updateField("Added Date Time", e.target.value)
-                    }
-                    className={getInputClass("Added Date Time", "text-xs")}
-                    placeholder="DD/MM/YYYY HH:MM"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    Assigned Date
-                  </label>
-                  <input
-                    type="text"
-                    value={formData["Assignment Date Time"] || ""}
-                    onChange={(e) =>
-                      updateField("Assignment Date Time", e.target.value)
-                    }
-                    className={getInputClass("Assignment Date Time", "text-xs")}
-                    placeholder="DD/MM/YYYY HH:MM"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    Proposal Sent Date
-                  </label>
-                  <input
-                    type="text"
-                    value={formData["Proposal Sent Date Time"] || ""}
-                    onChange={(e) =>
-                      updateField("Proposal Sent Date Time", e.target.value)
-                    }
-                    className={getInputClass(
-                      "Proposal Sent Date Time",
-                      "text-xs",
-                    )}
-                    placeholder="DD/MM/YYYY HH:MM"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    SF Entry Date
-                  </label>
-                  <input
-                    type="text"
-                    value={formData["Entered In SF Date Time"] || ""}
-                    onChange={(e) =>
-                      updateField("Entered In SF Date Time", e.target.value)
-                    }
-                    className={getInputClass(
-                      "Entered In SF Date Time",
-                      "text-xs",
-                    )}
-                    placeholder="DD/MM/YYYY HH:MM"
-                  />
-                </div>
+                {/* Added Date - Show for all buckets except G and H */}
+                {!["G", "H"].includes(status) && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      Added Date
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={
+                        formData["Added Date Time"]
+                          ? convertToDateTimeLocal(formData["Added Date Time"])
+                          : ""
+                      }
+                      onChange={(e) =>
+                        updateField(
+                          "Added Date Time",
+                          convertFromDateTimeLocal(e.target.value),
+                        )
+                      }
+                      className={getInputClass("Added Date Time", "text-xs")}
+                    />
+                  </div>
+                )}
+
+                {/* Assigned Date - Show for B, C, D, E, F */}
+                {["B", "C", "D", "E", "F"].includes(status) && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      Assigned Date
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={
+                        formData["Assignment Date Time"]
+                          ? convertToDateTimeLocal(
+                              formData["Assignment Date Time"],
+                            )
+                          : ""
+                      }
+                      onChange={(e) =>
+                        updateField(
+                          "Assignment Date Time",
+                          convertFromDateTimeLocal(e.target.value),
+                        )
+                      }
+                      className={getInputClass(
+                        "Assignment Date Time",
+                        "text-xs",
+                      )}
+                    />
+                  </div>
+                )}
+
+                {/* Proposal Sent Date - Show for C, D, E, F */}
+                {["C", "D", "E", "F"].includes(status) && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      Proposal Sent Date
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={
+                        formData["Proposal Sent Date Time"]
+                          ? convertToDateTimeLocal(
+                              formData["Proposal Sent Date Time"],
+                            )
+                          : ""
+                      }
+                      onChange={(e) =>
+                        updateField(
+                          "Proposal Sent Date Time",
+                          convertFromDateTimeLocal(e.target.value),
+                        )
+                      }
+                      className={getInputClass(
+                        "Proposal Sent Date Time",
+                        "text-xs",
+                      )}
+                    />
+                  </div>
+                )}
+
+                {/* SF Entry Date - Show for E, F */}
+                {["E", "F"].includes(status) && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      SF Entry Date
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={
+                        formData["Entered In SF Date Time"]
+                          ? convertToDateTimeLocal(
+                              formData["Entered In SF Date Time"],
+                            )
+                          : ""
+                      }
+                      onChange={(e) =>
+                        updateField(
+                          "Entered In SF Date Time",
+                          convertFromDateTimeLocal(e.target.value),
+                        )
+                      }
+                      className={getInputClass(
+                        "Entered In SF Date Time",
+                        "text-xs",
+                      )}
+                    />
+                  </div>
+                )}
+
+                {/* Discarded Date - Show only for G */}
+                {status === "G" && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      Discarded Date
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={
+                        formData["Discarded Date Time"]
+                          ? convertToDateTimeLocal(
+                              formData["Discarded Date Time"],
+                            )
+                          : ""
+                      }
+                      onChange={(e) =>
+                        updateField(
+                          "Discarded Date Time",
+                          convertFromDateTimeLocal(e.target.value),
+                        )
+                      }
+                      className={getInputClass(
+                        "Discarded Date Time",
+                        "text-xs",
+                      )}
+                    />
+                  </div>
+                )}
+
+                {/* Deleted Date - Show only for H */}
+                {status === "H" && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      Deleted Date
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={
+                        formData["Delete Requested Date Time"]
+                          ? convertToDateTimeLocal(
+                              formData["Delete Requested Date Time"],
+                            )
+                          : ""
+                      }
+                      onChange={(e) =>
+                        updateField(
+                          "Delete Requested Date Time",
+                          convertFromDateTimeLocal(e.target.value),
+                        )
+                      }
+                      className={getInputClass(
+                        "Delete Requested Date Time",
+                        "text-xs",
+                      )}
+                    />
+                  </div>
+                )}
               </div>
               {(isFieldModified("Added Date Time") ||
                 isFieldModified("Assignment Date Time") ||
                 isFieldModified("Proposal Sent Date Time") ||
-                isFieldModified("Entered In SF Date Time")) && (
+                isFieldModified("Entered In SF Date Time") ||
+                isFieldModified("Discarded Date Time") ||
+                isFieldModified("Delete Requested Date Time")) && (
                 <p className="text-xs text-blue-600 mt-2">
                   * Modified fields shown in blue
                 </p>

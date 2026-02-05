@@ -31,10 +31,12 @@
 
 ### 5. **Allocate To Field**
 
-- ✅ Only shows AFTER first query is added (`showAllocate` state)
+- ✅ **Always visible for Seniors/Admins** (role-based check)
+- ✅ Juniors don't see this field (they can only self-assign)
 - ✅ Appears in highlighted blue box (`bg-blue-50 border-blue-200`)
-- ✅ Optional field at the end of form
+- ✅ Optional field - empty = Bucket A, selected = Bucket B
 - ✅ Persists across multiple adds for same-user allocation
+- ✅ Enables multi-add workflow: Select user once → Add multiple queries
 
 ### 6. **Button Layout**
 
@@ -44,13 +46,15 @@
 - ✅ Cancel button changes to "Done" after queries added
 - ✅ Added counter shows "✓ X added" in footer
 
-### 7. **Multi-Add Workflow**
+### 7. **Multi-Add Workflow (Seniors/Admins)**
 
-1. User enters description + type → clicks "Add Query"
-2. Query added, form resets, "Allocate To" field appears
-3. "Add +" button appears for adding more queries
-4. User can allocate to same user for multiple queries
-5. "Done" button closes modal
+1. User opens modal → "Allocate To" field is visible
+2. User selects assignee (or leaves empty for Bucket A)
+3. User enters description + type → clicks "Add Query"
+4. Query added, form resets, "Allocate To" selection persists
+5. "Add +" button appears for adding more queries
+6. User can add multiple queries for same assignee
+7. "Done" button closes modal
 
 ### 8. **Code Cleanup**
 
@@ -70,7 +74,10 @@ const [queryType, setQueryType] = useState("New");
 const [allocateTo, setAllocateTo] = useState("");
 const [error, setError] = useState("");
 const [addedQueries, setAddedQueries] = useState<string[]>([]);
-const [showAllocate, setShowAllocate] = useState(false); // NEW
+
+// Role-based check
+const canAllocate =
+  currentUser?.Role === "Senior" || currentUser?.Role === "Admin";
 ```
 
 ### handleSubmit Signature

@@ -63,10 +63,11 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("API Error:", error);
     // Google API errors can be objects, not strings
-    const errorMessage = typeof error.message === 'string' 
-      ? error.message 
-      : JSON.stringify(error.message || error);
-    
+    const errorMessage =
+      typeof error.message === "string"
+        ? error.message
+        : JSON.stringify(error.message || error);
+
     // Google API 401/400 often means token issues
     if (
       error.code === 401 ||
@@ -190,8 +191,6 @@ const COL_MAP: Record<string, string> = {
   "Delete Approved Date Time": "Y",
   "Delete Rejected": "Z",
 };
-
-
 
 /**
  * Finds the row number (1-based) for a given Query ID.
@@ -356,8 +355,10 @@ async function handleUpdateStatus(
   const newIndex = bucketOrder.indexOf(data.newStatus);
 
   if (newIndex >= 0 && oldIndex >= 0 && newIndex < oldIndex) {
-    console.log(`  ⬅️ Backward transition detected: ${currentStatus} → ${data.newStatus}`);
-    
+    console.log(
+      `  ⬅️ Backward transition detected: ${currentStatus} → ${data.newStatus}`,
+    );
+
     // Moving to A: Clear assignment fields
     if (data.newStatus === "A") {
       updates["Assigned To"] = "";
@@ -420,44 +421,61 @@ async function handleEdit(sheets: any, queryId: string, data: any) {
 }
 
 async function handleAdd(sheets: any, data: Query) {
-  // data is the full Query object from optimistic store
-  // We need to append a new row.
-  // We should generate a new REAL ID here or accept the temp one?
-  // User/Plan says: "Replace temp ID with real ID after sync".
-  // So server generates ID.
+  console.log("🔧 API handleAdd called");
+  console.log("  Incoming data:", JSON.stringify(data, null, 2));
 
-  const realId = `Q-${Date.now()}`; // Simple ID generation
-  const now = new Date().toLocaleString("en-GB");
+  // Generate unique ID with timestamp + random component to prevent collisions
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 9);
+  const realId = `Q-${timestamp}-${random}`;
+
+  console.log("  Generated real ID:", realId);
 
   // Construct row in correct order (Columns A-Z)
-  // Mapping
-  const newRow: string[] = [];
-  const fields = Object.values(COL_MAP); // This gives A, B, C... NOT ordered keys.
-
-  // We need keys in column order A->Z
   const keysInOrder = Object.entries(COL_MAP)
     .sort(([, a], [, b]) => a.localeCompare(b))
     .map(([key]) => key);
 
+  console.log("  Keys in column order:", keysInOrder);
+
+  const newRow: string[] = [];
   keysInOrder.forEach((key) => {
-    if (key === "Query ID") newRow.push(realId);
-    else newRow.push(data[key as keyof Query] || "");
+    if (key === "Query ID") {
+      newRow.push(realId);
+    } else {
+      newRow.push(data[key as keyof Query] || "");
+    }
   });
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SPREADSHEET_ID,
-    range: "Queries!A:Z",
-    valueInputOption: "USER_ENTERED",
-    resource: {
-      values: [newRow],
-    },
-  });
+  console.log("  New row to append:", newRow);
+  console.log("  Row length:", newRow.length);
 
-  // Invalidate entire cache since row indices have shifted
-  console.log("⚠ Clearing row index cache (new row added)");
-  rowIndexCache.clear();
+  try {
+    const appendResult = await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "Queries!A:Z",
+      valueInputOption: "RAW", // CRITICAL: Use RAW to prevent date conversion to serial numbers
+      insertDataOption: "INSERT_ROWS",
+      resource: {
+        values: [newRow],
+      },
+    });
 
-  return NextResponse.json({ success: true, queryId: realId });
+    console.log(
+      "✅ Append result:",
+      JSON.stringify(appendResult.data, null, 2),
+    );
+
+    // Invalidate entire cache since row indices have shifted
+    console.log("⚠ Clearing row index cache (new row added)");
+    rowIndexCache.clear();
+
+    return NextResponse.json({ success: true, queryId: realId });
+  } catch (error: any) {
+    console.error("❌ Failed to append row:", error);
+    console.error("  Error details:", JSON.stringify(error, null, 2));
+    throw error;
+  }
 }
 
 async function handleDelete(
@@ -479,7 +497,7 @@ async function handleDelete(
         spreadsheetId: SPREADSHEET_ID,
       });
       const queriesSheet = spreadsheet.data.sheets?.find(
-        (s: any) => s.properties?.title === "Queries"
+        (s: any) => s.properties?.title === "Queries",
       );
       const sheetId = queriesSheet?.properties?.sheetId || 0;
 
@@ -510,7 +528,7 @@ async function handleDelete(
       console.error("Failed to delete row:", error);
       return NextResponse.json(
         { error: "Failed to permanently delete query" },
-        { status: 500 }
+        { status: 500 },
       );
     }
   } else {
@@ -536,11 +554,14 @@ async function handleDelete(
   }
 }
 
-
 /**
  * Approve a pending deletion (Admin only) - sets approval then removes the row
  */
-async function handleApproveDelete(sheets: any, queryId: string, approvedBy?: string) {
+async function handleApproveDelete(
+  sheets: any,
+  queryId: string,
+  approvedBy?: string,
+) {
   const rowIndex = await findRowIndex(sheets, queryId);
   if (!rowIndex)
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
@@ -561,7 +582,7 @@ async function handleApproveDelete(sheets: any, queryId: string, approvedBy?: st
       spreadsheetId: SPREADSHEET_ID,
     });
     const queriesSheet = spreadsheet.data.sheets?.find(
-      (s: any) => s.properties?.title === "Queries"
+      (s: any) => s.properties?.title === "Queries",
     );
     const sheetId = queriesSheet?.properties?.sheetId || 0;
 
@@ -589,16 +610,19 @@ async function handleApproveDelete(sheets: any, queryId: string, approvedBy?: st
     console.error("Failed to approve delete:", error);
     return NextResponse.json(
       { error: "Failed to approve deletion" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-
 /**
  * Reject a pending deletion (Admin only) - returns to previous status with Del-Rej flag
  */
-async function handleRejectDelete(sheets: any, queryId: string, approvedBy?: string) {
+async function handleRejectDelete(
+  sheets: any,
+  queryId: string,
+  approvedBy?: string,
+) {
   const rowIndex = await findRowIndex(sheets, queryId);
   if (!rowIndex)
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
