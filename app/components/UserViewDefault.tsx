@@ -1,5 +1,5 @@
 import { Query, User } from "../utils/sheets";
-import { BUCKETS, QUERY_TYPE_ORDER } from "../config/sheet-constants";
+import { BUCKETS, BUCKET_ORDER } from "../config/sheet-constants";
 import { QueryCardCompact } from "./QueryCardCompact";
 import { DateFieldKey } from "../utils/queryFilters";
 
@@ -107,39 +107,12 @@ function UserColumn({
   currentUserEmail?: string;
   detailView?: boolean;
 }) {
-  // Color coding for query types - matches BucketColumn
-  const typeColors: Record<
-    string,
-    { bg: string; text: string; border: string }
-  > = {
-    "SEO Query": {
-      bg: "bg-purple-50",
-      text: "text-purple-700",
-      border: "border-purple-200",
-    },
-    New: {
-      bg: "bg-green-50",
-      text: "text-green-700",
-      border: "border-green-200",
-    },
-    Ongoing: {
-      bg: "bg-blue-50",
-      text: "text-blue-700",
-      border: "border-blue-200",
-    },
-    Other: {
-      bg: "bg-gray-50",
-      text: "text-gray-700",
-      border: "border-gray-200",
-    },
-  };
-
-  // Sort queries by Query Type: SEO Query -> New -> Ongoing
+  // Sort queries by Status (Bucket): A -> B -> C -> D -> E -> F -> G -> H
   const sortedQueries = [...queries].sort((a, b) => {
-    const typeA = (a["Query Type"] || "").trim();
-    const typeB = (b["Query Type"] || "").trim();
-    const indexA = QUERY_TYPE_ORDER.indexOf(typeA);
-    const indexB = QUERY_TYPE_ORDER.indexOf(typeB);
+    const statusA = a.Status || "";
+    const statusB = b.Status || "";
+    const indexA = BUCKET_ORDER.indexOf(statusA);
+    const indexB = BUCKET_ORDER.indexOf(statusB);
     return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
   });
 
@@ -167,45 +140,47 @@ function UserColumn({
           <p className="p-4 text-gray-400 text-sm text-center">No queries</p>
         ) : (
           <div className="p-2 space-y-3">
-            {/* Group by Query Type */}
-            {QUERY_TYPE_ORDER.map((groupName) => {
-              const typeQueries = sortedQueries.filter((q) => {
-                const qType = (q["Query Type"] || "").trim();
-                return qType === groupName;
+            {/* Group by Bucket/Status */}
+            {BUCKET_ORDER.map((bucketKey) => {
+              const bucketQueries = sortedQueries.filter((q) => {
+                const status = (q.Status || "").trim();
+                return status === bucketKey;
               });
-              if (typeQueries.length === 0) return null;
+              if (bucketQueries.length === 0) return null;
 
-              const colors = typeColors[groupName] || typeColors.Other;
+              const bucketConfig = BUCKETS[bucketKey];
+              if (!bucketConfig) return null;
 
               return (
                 <div
-                  key={`${displayUser.email}-${groupName}`}
-                  className={`rounded-lg border ${colors.border} ${colors.bg} overflow-hidden`}
+                  key={`${displayUser.email}-${bucketKey}`}
+                  className="rounded-lg border overflow-hidden"
+                  style={{
+                    borderColor: bucketConfig.color,
+                    backgroundColor: `${bucketConfig.color}10`,
+                  }}
                 >
-                  {/* Type Header */}
+                  {/* Bucket Header */}
                   <div
-                    className={`flex items-center justify-between px-3 py-2 ${colors.bg}`}
+                    className="flex items-center justify-between px-3 py-2"
+                    style={{ backgroundColor: bucketConfig.color }}
                   >
-                    <h4
-                      className={`text-xs font-bold ${colors.text} uppercase tracking-wider`}
-                    >
-                      {groupName}
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                      {bucketConfig.name}
                     </h4>
-                    <span
-                      className={`${colors.text} text-xs font-bold px-2 py-0.5 rounded-full bg-white/50`}
-                    >
-                      {typeQueries.length}
+                    <span className="text-white text-xs font-bold px-2 py-0.5 rounded-full bg-white/30">
+                      {bucketQueries.length}
                     </span>
                   </div>
 
-                  {/* Type Content */}
+                  {/* Bucket Content */}
                   <div className="p-2 space-y-1 bg-white">
-                    {typeQueries.map((query, idx) => (
+                    {bucketQueries.map((query, idx) => (
                       <QueryCardCompact
-                        key={`${displayUser.email}-${groupName}-${query["Query ID"]}-${idx}`}
+                        key={`${displayUser.email}-${bucketKey}-${query["Query ID"]}-${idx}`}
                         query={query}
                         users={users}
-                        bucketColor={BUCKETS[query.Status]?.color || "#gray"}
+                        bucketColor={bucketConfig.color}
                         onClick={() => onSelectQuery(query)}
                         onAssign={onAssignQuery}
                         onEdit={onEditQuery}
@@ -220,62 +195,6 @@ function UserColumn({
                 </div>
               );
             })}
-
-            {/* Other types (fallback for any unknown types) */}
-            {sortedQueries.filter((q) => {
-              const qType = (q["Query Type"] || "").trim();
-              return !QUERY_TYPE_ORDER.includes(qType);
-            }).length > 0 && (
-              <div
-                className={`rounded-lg border ${typeColors.Other.border} ${typeColors.Other.bg} overflow-hidden`}
-              >
-                {/* Type Header */}
-                <div
-                  className={`flex items-center justify-between px-3 py-2 ${typeColors.Other.bg}`}
-                >
-                  <h4
-                    className={`text-xs font-bold ${typeColors.Other.text} uppercase tracking-wider`}
-                  >
-                    Other
-                  </h4>
-                  <span
-                    className={`${typeColors.Other.text} text-xs font-bold px-2 py-0.5 rounded-full bg-white/50`}
-                  >
-                    {
-                      sortedQueries.filter((q) => {
-                        const qType = (q["Query Type"] || "").trim();
-                        return !QUERY_TYPE_ORDER.includes(qType);
-                      }).length
-                    }
-                  </span>
-                </div>
-
-                {/* Type Content */}
-                <div className="p-2 space-y-1 bg-white">
-                  {sortedQueries
-                    .filter((q) => {
-                      const qType = (q["Query Type"] || "").trim();
-                      return !QUERY_TYPE_ORDER.includes(qType);
-                    })
-                    .map((query, idx) => (
-                      <QueryCardCompact
-                        key={`${displayUser.email}-other-${query["Query ID"]}-${idx}`}
-                        query={query}
-                        users={users}
-                        bucketColor={BUCKETS[query.Status]?.color || "#gray"}
-                        onClick={() => onSelectQuery(query)}
-                        onAssign={onAssignQuery}
-                        onEdit={onEditQuery}
-                        showDate={showDateOnCards}
-                        dateField={dateField}
-                        currentUserRole={currentUserRole}
-                        currentUserEmail={currentUserEmail}
-                        detailView={detailView}
-                      />
-                    ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
