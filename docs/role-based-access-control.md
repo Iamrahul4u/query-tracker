@@ -58,7 +58,8 @@ const canAllocate =
 | **Assign to Others**         | ❌           | ✅                        |
 | **Edit Own Queries**         | ✅           | ✅                        |
 | **Edit Any Query**           | ❌           | ✅                        |
-| **Edit Date Fields**         | ❌           | ✅                        |
+| **Edit Assignment Date**     | ❌           | ✅                        |
+| **Edit Other Date Fields**   | ✅           | ✅                        |
 | **Delete Own Queries**       | ✅ (Request) | ✅ (Direct)               |
 | **Approve/Reject Deletions** | ❌           | ✅                        |
 | **View Pending Deletions**   | ❌           | ✅                        |
@@ -99,9 +100,19 @@ const canEdit = isAdminOrSenior || isAssignedToMe || query.Status === "A";
 
 **Access**:
 
-- Date fields: Senior/Admin/Pseudo Admin only
+- **Assignment Date Time**: Senior/Admin/Pseudo Admin only (locked for Juniors with 🔒 icon)
+- **Added Date Time**: Senior/Admin/Pseudo Admin only (disabled for Juniors)
+- **Other date fields** (Proposal Sent, SF Entry, Discarded): All roles can edit
 - Edit any query: Senior/Admin/Pseudo Admin only
 - Edit own query: All roles
+
+**Implementation Details**:
+
+- Date fields section is visible to all roles
+- Assignment Date Time field is `disabled={!isAdminOrSenior}` with gray background
+- Added Date Time field is `disabled={!isAdminOrSenior}`
+- Other date fields (Proposal Sent, SF Entry, Discarded) are editable by all roles
+- Section header shows "(Assignment Date locked)" for Juniors
 
 ---
 
@@ -222,7 +233,9 @@ const canEdit = !isJunior || (bucketStatus !== "A" && isOwnQuery);
 - [ ] Cannot see "Allocate To" in Add Query Modal
 - [ ] Can only self-assign
 - [ ] Can only edit own queries
-- [ ] Cannot edit date fields
+- [ ] Cannot edit Assignment Date Time (locked with 🔒)
+- [ ] Cannot edit Added Date Time (disabled)
+- [ ] CAN edit other date fields (Proposal Sent, SF Entry, Discarded)
 - [ ] Delete requests go to Bucket H (pending approval)
 - [ ] Cannot approve/reject deletions
 - [ ] Cannot see Pending Deletions panel

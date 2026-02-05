@@ -18,6 +18,25 @@ interface SyncResult {
   data?: any;
 }
 
+/**
+ * Get current date/time in IST (Indian Standard Time, UTC+5:30)
+ * Returns format: "DD/MM/YYYY HH:MM:SS"
+ */
+function getISTDateTime(): string {
+  const date = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+  const istDate = new Date(date.getTime() + istOffset);
+
+  const day = String(istDate.getUTCDate()).padStart(2, "0");
+  const month = String(istDate.getUTCMonth() + 1).padStart(2, "0");
+  const year = istDate.getUTCFullYear();
+  const hours = String(istDate.getUTCHours()).padStart(2, "0");
+  const minutes = String(istDate.getUTCMinutes()).padStart(2, "0");
+  const seconds = String(istDate.getUTCSeconds()).padStart(2, "0");
+
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+}
+
 export class SyncManager {
   private static instance: SyncManager;
   private refreshInterval: NodeJS.Timeout | null = null;
@@ -210,7 +229,7 @@ export class SyncManager {
     currentUserEmail: string,
   ): Promise<{ success: boolean; error?: string; tempId?: string }> {
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const now = new Date().toLocaleString("en-GB");
+    const now = getISTDateTime();
 
     // Create optimistic query with all required fields
     const newQuery: any = {
@@ -320,7 +339,7 @@ export class SyncManager {
     updateStore: (queries: Query[]) => void,
     currentUserEmail: string,
   ): Promise<SyncResult> {
-    const now = new Date().toLocaleString("en-GB");
+    const now = getISTDateTime();
 
     // Step 1: Optimistic update (immediate UI change)
     const optimisticQueries = currentQueries.map((q) => {
@@ -393,7 +412,7 @@ export class SyncManager {
     updateStore: (queries: Query[]) => void,
     currentUserEmail: string,
   ): Promise<SyncResult> {
-    const now = new Date().toLocaleString("en-GB");
+    const now = getISTDateTime();
 
     // Optimistic update
     const optimisticQueries = currentQueries.map((q) => {
@@ -461,7 +480,7 @@ export class SyncManager {
     requestedBy: string,
     isAdmin: boolean = false,
   ): Promise<SyncResult> {
-    const now = new Date().toLocaleString("en-GB");
+    const now = getISTDateTime();
 
     if (isAdmin) {
       // Admin: Remove from UI immediately (permanent delete)
@@ -638,7 +657,7 @@ export class SyncManager {
     updateStore: (queries: Query[]) => void,
     rejectedBy?: string,
   ): Promise<SyncResult> {
-    const now = new Date().toLocaleString("en-GB");
+    const now = getISTDateTime();
 
     // Find the query and get its previous status
     const queryToRestore = currentQueries.find(
@@ -727,7 +746,7 @@ export class SyncManager {
     console.log("  Fields:", JSON.stringify(fields, null, 2));
     console.log("  Current user:", currentUserEmail);
 
-    const now = new Date().toLocaleString("en-GB");
+    const now = getISTDateTime();
 
     // Find the query to update
     const targetQuery = currentQueries.find((q) => q["Query ID"] === queryId);
@@ -781,7 +800,7 @@ export class SyncManager {
         if (newIndex >= 0 && oldIndex >= 0 && newIndex < oldIndex) {
           // Moving backwards - clear fields that don't belong in the target bucket
 
-          // Moving to A: Clear assignment fields
+          // Moving to A: Clear ALL fields except Query Description, Type, Added By/Date
           if (newStatus === "A") {
             updated["Assigned To"] = "";
             updated["Assigned By"] = "";
@@ -792,27 +811,53 @@ export class SyncManager {
             updated["Entered In SF Date Time"] = "";
             updated["Event ID in SF"] = "";
             updated["Event Title in SF"] = "";
+            updated["GmIndicator"] = "";
             updated["Discarded Date Time"] = "";
+            updated["Delete Requested By"] = "";
+            updated["Delete Requested Date Time"] = "";
+            updated["Previous Status"] = "";
+            updated["Delete Rejected"] = "";
           }
-          // Moving to B: Clear proposal and SF fields
+          // Moving to B: Clear proposal, SF, discard, and deletion fields
           else if (newStatus === "B") {
             updated["Proposal Sent Date Time"] = "";
             updated["Whats Pending"] = "";
             updated["Entered In SF Date Time"] = "";
             updated["Event ID in SF"] = "";
             updated["Event Title in SF"] = "";
+            updated["GmIndicator"] = "";
             updated["Discarded Date Time"] = "";
+            updated["Delete Requested By"] = "";
+            updated["Delete Requested Date Time"] = "";
+            updated["Previous Status"] = "";
+            updated["Delete Rejected"] = "";
           }
-          // Moving to C or D: Clear SF fields
+          // Moving to C or D: Clear SF, discard, and deletion fields
           else if (["C", "D"].includes(newStatus)) {
             updated["Entered In SF Date Time"] = "";
             updated["Event ID in SF"] = "";
             updated["Event Title in SF"] = "";
+            updated["GmIndicator"] = "";
             updated["Discarded Date Time"] = "";
+            updated["Delete Requested By"] = "";
+            updated["Delete Requested Date Time"] = "";
+            updated["Previous Status"] = "";
+            updated["Delete Rejected"] = "";
           }
-          // Moving to E or F: Clear discard fields
+          // Moving to E or F: Clear discard and deletion fields
           else if (["E", "F"].includes(newStatus)) {
             updated["Discarded Date Time"] = "";
+            updated["Delete Requested By"] = "";
+            updated["Delete Requested Date Time"] = "";
+            updated["Previous Status"] = "";
+            updated["Delete Rejected"] = "";
+          }
+          // Moving to G: Clear deletion fields only
+          else if (newStatus === "G") {
+            updated["Delete Requested By"] = "";
+            updated["Delete Requested Date Time"] = "";
+            updated["Previous Status"] = "";
+            updated["Delete Rejected"] = "";
           }
         }
 

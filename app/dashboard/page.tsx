@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryStore } from "../stores/queryStore";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { useAuth } from "../hooks/useAuth";
@@ -43,6 +43,7 @@ function DashboardContent() {
     sortField,
     sortAscending,
     sortBuckets,
+    hasPendingChanges,
     updateViewMode,
     updateBucketViewMode,
     updateColumnCount,
@@ -52,6 +53,7 @@ function DashboardContent() {
     updateSortAscending,
     updateSortBuckets,
     clearSort,
+    saveView,
   } = useDashboardPreferences();
 
   // Store
@@ -81,6 +83,24 @@ function DashboardContent() {
   const [showDateOnCards, setShowDateOnCards] = useState(false);
   // Extended days per bucket (for Load +7 Days feature)
   const [extendedDays, setExtendedDays] = useState<Record<string, number>>({});
+  // Loading state for Load +7 Days button
+  const [loadingBuckets, setLoadingBuckets] = useState<Set<string>>(new Set());
+
+  // Keep selectedQuery in sync with store updates (for optimistic updates)
+  // Use a ref to track the selected query ID to avoid infinite loops
+  useEffect(() => {
+    if (selectedQuery) {
+      const selectedId = selectedQuery["Query ID"];
+      const updatedQuery = queries.find((q) => q["Query ID"] === selectedId);
+      if (
+        updatedQuery &&
+        JSON.stringify(updatedQuery) !== JSON.stringify(selectedQuery)
+      ) {
+        setSelectedQuery(updatedQuery);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queries]); // Only depend on queries, not selectedQuery
 
   // Computed data
   const visibleQueries = getVisibleQueries(queries, currentUser);
@@ -111,8 +131,9 @@ function DashboardContent() {
     return sortQueriesByDate(queries, field, sortAscending);
   };
 
-  // Group by bucket (already applies history filter internally, but using pre-filtered for consistency)
-  const groupedByBucketRaw = groupQueriesByBucket(filteredQueries, historyDays);
+  // Group by bucket - use historyFilteredQueries (already filtered with extendedDays)
+  // Pass large number to prevent double-filtering inside groupQueriesByBucket
+  const groupedByBucketRaw = groupQueriesByBucket(historyFilteredQueries, 999);
   const groupedByBucket = Object.fromEntries(
     Object.entries(groupedByBucketRaw).map(([bucket, queries]) => [
       bucket,
@@ -146,11 +167,24 @@ function DashboardContent() {
   };
 
   const handleLoadMore = (bucketKey: string) => {
+    // Set loading state
+    setLoadingBuckets((prev) => new Set(prev).add(bucketKey));
+
+    // Update extended days
     setExtendedDays((prev) => {
       const current = prev[bucketKey] || historyDays;
       // Increment by 7 days: 3 → 10 → 17 → 24...
       return { ...prev, [bucketKey]: current + 7 };
     });
+
+    // Clear loading state after a brief delay (for visual feedback)
+    setTimeout(() => {
+      setLoadingBuckets((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(bucketKey);
+        return newSet;
+      });
+    }, 300);
   };
 
   // Loading state - removed authChecked check since AuthProvider handles it
@@ -192,6 +226,9 @@ function DashboardContent() {
         onShowDateOnCardsChange={setShowDateOnCards}
         detailView={detailView}
         onDetailViewChange={updateDetailView}
+        hasPendingChanges={hasPendingChanges}
+        onSaveView={saveView}
+        currentUserRole={currentUser?.Role || ""}
       />
 
       {/* Pending Deletions (Admin only) */}
@@ -220,6 +257,8 @@ function DashboardContent() {
             onApproveDelete={handleApproveDelete}
             onRejectDelete={handleRejectDelete}
             onLoadMore={handleLoadMore}
+            extendedDays={extendedDays}
+            loadingBuckets={loadingBuckets}
             isFilterExpanded={isFilterExpanded}
             showDateOnCards={showDateOnCards}
             dateField={sortField}

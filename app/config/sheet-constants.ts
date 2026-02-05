@@ -5,7 +5,7 @@ export const SPREADSHEET_ID = "1Itpin1gPmJIy0KK6kBDklfhgOnNapvqywgypZ0h2bqA";
 export const SHEET_RANGES = {
   QUERIES: "Queries!A:Z",
   USERS: "Users!A:F",
-  PREFERENCES: "Preferences!A:H", // Updated to include SortField, SortAscending, and SortBuckets
+  PREFERENCES: "Preferences!A:D", // Updated: A=Email, B=PreferredView, C=BucketViewPrefs (JSON), D=UserViewPrefs (JSON)
 };
 
 export interface BucketConfig {
@@ -128,7 +128,8 @@ export const BUCKETS: Record<string, BucketConfig> = {
       "Delete Requested By",
       "Previous Status",
     ],
-    evaporateAfterDays: 7, // Evaporates 7 days after approval
+    // H does NOT evaporate - queries stay visible until approved/rejected by Admin
+    // After approval: permanently deleted. After rejection: returns to previous bucket.
   },
 };
 

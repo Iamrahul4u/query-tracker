@@ -38,11 +38,16 @@ function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return "";
 
   try {
-    const parts = dateStr.split(",")[0].split("/");
-    if (parts.length !== 3) return dateStr;
+    // Parse date - handle both "DD/MM/YYYY HH:MM:SS" and "DD/MM/YYYY, HH:MM:SS" formats
+    const normalized = dateStr.replace(", ", " ");
+    const parts = normalized.split(" ");
 
-    const [day, month, year] = parts.map((p) => parseInt(p, 10));
-    const timePart = dateStr.split(",")[1]?.trim() || "00:00:00";
+    if (parts.length < 1) return dateStr;
+
+    const datePart = parts[0];
+    const timePart = parts[1] || "00:00:00";
+
+    const [day, month, year] = datePart.split("/").map((p) => parseInt(p, 10));
     const [hours, minutes] = timePart.split(":").map((t) => parseInt(t, 10));
     const date = new Date(year, month - 1, day, hours || 0, minutes || 0);
 

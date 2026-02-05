@@ -11,17 +11,19 @@ interface AuditTooltipProps {
  */
 function getDisplayName(email: string | undefined, users: User[]): string {
   if (!email) return "-";
-  
+
   // Defensive check: ensure users is an array
   if (!Array.isArray(users)) {
     const namePart = email.split("@")[0];
     return namePart.charAt(0).toUpperCase() + namePart.slice(1);
   }
-  
+
   // Find user by email
-  const user = users.find((u) => u.Email?.toLowerCase() === email.toLowerCase());
+  const user = users.find(
+    (u) => u.Email?.toLowerCase() === email.toLowerCase(),
+  );
   if (user?.Name) return user.Name;
-  
+
   // Fallback: extract name from email (before @)
   const namePart = email.split("@")[0];
   return namePart.charAt(0).toUpperCase() + namePart.slice(1);
@@ -32,14 +34,18 @@ function getDisplayName(email: string | undefined, users: User[]): string {
  */
 function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return "";
-  
-  try {
-    // Parse DD/MM/YYYY, HH:MM:SS format
-    const parts = dateStr.split(",")[0].split("/");
-    if (parts.length !== 3) return dateStr;
 
-    const [day, month, year] = parts.map((p) => parseInt(p, 10));
-    const timePart = dateStr.split(",")[1]?.trim() || "00:00:00";
+  try {
+    // Parse date - handle both "DD/MM/YYYY HH:MM:SS" and "DD/MM/YYYY, HH:MM:SS" formats
+    const normalized = dateStr.replace(", ", " ");
+    const parts = normalized.split(" ");
+
+    if (parts.length < 1) return dateStr;
+
+    const datePart = parts[0];
+    const timePart = parts[1] || "00:00:00";
+
+    const [day, month, year] = datePart.split("/").map((p) => parseInt(p, 10));
     const [hours, minutes] = timePart.split(":").map((t) => parseInt(t, 10));
     const date = new Date(year, month - 1, day, hours || 0, minutes || 0);
 
@@ -50,7 +56,7 @@ function formatDate(dateStr: string | undefined): string {
       minute: "2-digit",
       hour12: true,
     });
-    
+
     const dateFormatted = date.toLocaleDateString("en-US", {
       day: "numeric",
       month: "short",
@@ -85,9 +91,7 @@ export function AuditTooltip({ query, users }: AuditTooltipProps) {
   ];
 
   return (
-    <div
-      className="relative w-64 bg-gray-800 text-white text-xs p-3 rounded shadow-xl border border-gray-700 pointer-events-none"
-    >
+    <div className="relative w-64 bg-gray-800 text-white text-xs p-3 rounded shadow-xl border border-gray-700 pointer-events-none">
       <div className="space-y-2">
         {auditItems.map((item, idx) => (
           <div key={idx} className="flex flex-col">

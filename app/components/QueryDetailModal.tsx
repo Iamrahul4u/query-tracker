@@ -18,22 +18,27 @@ const BUCKET_NAMES: Record<string, string> = {
   E: "Partial Proposal + In SF",
   F: "Full Proposal + In SF",
   G: "Discarded",
+  H: "Deleted (Pending Approval)",
 };
 
 /**
- * Format date from DD/MM/YYYY, HH:MM:SS to user-friendly format
+ * Format date from DD/MM/YYYY HH:MM:SS to user-friendly format
  * Returns "6:30 PM, 21 January 2026"
  */
 function formatAuditDate(dateStr: string | undefined): string {
   if (!dateStr) return "—";
 
   try {
-    // Parse DD/MM/YYYY, HH:MM:SS format
-    const parts = dateStr.split(",")[0].split("/");
-    if (parts.length !== 3) return dateStr;
+    // Parse date - handle both "DD/MM/YYYY HH:MM:SS" and "DD/MM/YYYY, HH:MM:SS" formats
+    const normalized = dateStr.replace(", ", " ");
+    const parts = normalized.split(" ");
 
-    const [day, month, year] = parts.map((p) => parseInt(p, 10));
-    const timePart = dateStr.split(",")[1]?.trim() || "00:00:00";
+    if (parts.length < 1) return dateStr;
+
+    const datePart = parts[0];
+    const timePart = parts[1] || "00:00:00";
+
+    const [day, month, year] = datePart.split("/").map((p) => parseInt(p, 10));
     const [hours, minutes] = timePart.split(":").map((t) => parseInt(t, 10));
     const date = new Date(year, month - 1, day, hours || 0, minutes || 0);
 
@@ -45,7 +50,7 @@ function formatAuditDate(dateStr: string | undefined): string {
       minute: "2-digit",
       hour12: true,
     });
-    
+
     const dateFormatted = date.toLocaleDateString("en-US", {
       day: "numeric",
       month: "long",
@@ -64,18 +69,26 @@ function formatAuditDate(dateStr: string | undefined): string {
  */
 function getDisplayName(email: string | undefined, users: User[]): string {
   if (!email) return "—";
-  
+
   // Find user by email
-  const user = users.find((u) => u.Email?.toLowerCase() === email.toLowerCase());
+  const user = users.find(
+    (u) => u.Email?.toLowerCase() === email.toLowerCase(),
+  );
   if (user?.Name) return user.Name;
-  
+
   // Fallback: extract name from email (before @)
   const namePart = email.split("@")[0];
   // Convert to title case: "rahulgupta" -> "Rahulgupta"
   return namePart.charAt(0).toUpperCase() + namePart.slice(1);
 }
 
-export function QueryDetailModal({ query, users, currentUser, onClose, onEdit }: QueryDetailModalProps) {
+export function QueryDetailModal({
+  query,
+  users,
+  currentUser,
+  onClose,
+  onEdit,
+}: QueryDetailModalProps) {
   // Audit trail expanded by default (client requirement)
   const [showAuditTrail, setShowAuditTrail] = useState(true);
 
@@ -86,7 +99,7 @@ export function QueryDetailModal({ query, users, currentUser, onClose, onEdit }:
   const userEmailLC = (currentUser?.Email || "").toLowerCase();
   const assignedToLC = (query["Assigned To"] || "").toLowerCase().trim();
   const isOwnQuery = assignedToLC && assignedToLC === userEmailLC;
-  
+
   // Junior Edit restrictions:
   // - Bucket A: NEVER show Edit (Junior can only self-assign, not edit)
   // - Bucket B-G: Only show if it's their own query
@@ -99,7 +112,8 @@ export function QueryDetailModal({ query, users, currentUser, onClose, onEdit }:
   };
 
   // Helper to get display name for audit trail
-  const displayName = (email: string | undefined) => getDisplayName(email, users);
+  const displayName = (email: string | undefined) =>
+    getDisplayName(email, users);
 
   return (
     <div
@@ -241,22 +255,36 @@ export function QueryDetailModal({ query, users, currentUser, onClose, onEdit }:
                   </div>
                 )}
 
-                {/* Assigned/Allocated */}
+                {/* Assigned/Allocated - Show "Self-assigned" if same person */}
                 {query["Assigned By"] && (
                   <div className="flex justify-between items-center">
                     <span>
-                      <span className="text-blue-600 font-medium">
-                        Allocated
-                      </span>{" "}
-                      by{" "}
-                      <span className="font-medium text-gray-700">
-                        {displayName(query["Assigned By"])}
-                      </span>
-                      {query["Assigned To"] && (
-                        <span className="text-gray-500">
-                          {" "}
-                          → {displayName(query["Assigned To"])}
-                        </span>
+                      {query["Assigned By"] === query["Assigned To"] ? (
+                        <>
+                          <span className="text-blue-600 font-medium">
+                            Self-assigned
+                          </span>{" "}
+                          by{" "}
+                          <span className="font-medium text-gray-700">
+                            {displayName(query["Assigned By"])}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-blue-600 font-medium">
+                            Allocated
+                          </span>{" "}
+                          by{" "}
+                          <span className="font-medium text-gray-700">
+                            {displayName(query["Assigned By"])}
+                          </span>
+                          {query["Assigned To"] && (
+                            <span className="text-gray-500">
+                              {" "}
+                              → {displayName(query["Assigned To"])}
+                            </span>
+                          )}
+                        </>
                       )}
                     </span>
                     <span className="text-gray-400 text-right">
@@ -293,23 +321,27 @@ export function QueryDetailModal({ query, users, currentUser, onClose, onEdit }:
                   </div>
                 )}
 
-                {/* Last Edited */}
-                {query["Last Edited By"] && (
-                  <div className="flex justify-between items-center">
-                    <span>
-                      <span className="text-orange-600 font-medium">
-                        Edited
-                      </span>{" "}
-                      by{" "}
-                      <span className="font-medium text-gray-700">
-                        {displayName(query["Last Edited By"])}
+                {/* Last Edited - only show if ACTUALLY edited (different time from added) */}
+                {query["Last Edited By"] &&
+                  query["Last Edited Date Time"] &&
+                  query["Added Date Time"] &&
+                  query["Last Edited Date Time"] !==
+                    query["Added Date Time"] && (
+                    <div className="flex justify-between items-center">
+                      <span>
+                        <span className="text-orange-600 font-medium">
+                          Edited
+                        </span>{" "}
+                        by{" "}
+                        <span className="font-medium text-gray-700">
+                          {displayName(query["Last Edited By"])}
+                        </span>
                       </span>
-                    </span>
-                    <span className="text-gray-400 text-right">
-                      {formatAuditDate(query["Last Edited Date Time"])}
-                    </span>
-                  </div>
-                )}
+                      <span className="text-gray-400 text-right">
+                        {formatAuditDate(query["Last Edited Date Time"])}
+                      </span>
+                    </div>
+                  )}
 
                 {/* Discarded */}
                 {query["Discarded Date Time"] && (

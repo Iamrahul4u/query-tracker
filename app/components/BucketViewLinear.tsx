@@ -11,6 +11,9 @@ interface BucketViewLinearProps {
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
+  onLoadMore?: (bucketKey: string) => void;
+  extendedDays?: Record<string, number>;
+  loadingBuckets?: Set<string>;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
   currentUserRole?: string;
@@ -33,6 +36,9 @@ export function BucketViewLinear({
   onSelectQuery,
   onAssignQuery,
   onEditQuery,
+  onLoadMore,
+  extendedDays = {},
+  loadingBuckets = new Set(),
   showDateOnCards = false,
   dateField = "Added Date Time",
   currentUserRole = "",
@@ -57,6 +63,9 @@ export function BucketViewLinear({
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
           onEditQuery={onEditQuery}
+          onLoadMore={onLoadMore}
+          extendedDays={extendedDays}
+          loadingBuckets={loadingBuckets}
           showDateOnCards={showDateOnCards}
           dateField={dateField}
           currentUserRole={currentUserRole}
@@ -81,6 +90,9 @@ function SynchronizedRow({
   onSelectQuery,
   onAssignQuery,
   onEditQuery,
+  onLoadMore,
+  extendedDays = {},
+  loadingBuckets = new Set(),
   showDateOnCards = false,
   dateField = "Added Date Time",
   currentUserRole = "",
@@ -94,6 +106,9 @@ function SynchronizedRow({
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
+  onLoadMore?: (bucketKey: string) => void;
+  extendedDays?: Record<string, number>;
+  loadingBuckets?: Set<string>;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
   currentUserRole?: string;
@@ -225,6 +240,9 @@ function SynchronizedRow({
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
           onEditQuery={onEditQuery}
+          onLoadMore={onLoadMore}
+          extendedDays={extendedDays[bucketKey] || 3}
+          isLoading={loadingBuckets.has(bucketKey)}
           scrollRef={(el) => {
             if (el) {
               scrollRefs.current.set(bucketKey, el);
@@ -233,7 +251,7 @@ function SynchronizedRow({
             }
           }}
           showDateOnCards={showDateOnCards}
-          dateField={dateField}
+          dateField={BUCKETS[bucketKey].defaultSortField as DateFieldKey}
           currentUserRole={currentUserRole}
           currentUserEmail={currentUserEmail}
           detailView={detailView}
@@ -256,6 +274,9 @@ function BucketColumnWithSync({
   onSelectQuery,
   onAssignQuery,
   onEditQuery,
+  onLoadMore,
+  extendedDays = 3,
+  isLoading = false,
   scrollRef,
   showDateOnCards = false,
   dateField = "Added Date Time",
@@ -270,6 +291,9 @@ function BucketColumnWithSync({
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
+  onLoadMore?: (bucketKey: string) => void;
+  extendedDays?: number;
+  isLoading?: boolean;
   scrollRef: (el: HTMLDivElement | null) => void;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
@@ -325,11 +349,14 @@ function BucketColumnWithSync({
       </div>
 
       {/* Scrollable Content */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gray-50">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto bg-gray-50 flex flex-col"
+      >
         {queries.length === 0 ? (
           <p className="p-4 text-gray-400 text-sm text-center">No queries</p>
         ) : (
-          <div className="p-2 space-y-3">
+          <div className="p-2 space-y-3 flex-1">
             {/* Group by Query Type: SEO Query -> New -> Ongoing */}
             {["SEO Query", "New", "Ongoing"].map((groupName) => {
               const typeQueries = queries.filter((q) => {
@@ -373,7 +400,7 @@ function BucketColumnWithSync({
                         onAssign={onAssignQuery}
                         onEdit={onEditQuery}
                         showDate={showDateOnCards}
-                        dateField={dateField}
+                        dateField={config.defaultSortField}
                         currentUserRole={currentUserRole}
                         currentUserEmail={currentUserEmail}
                         detailView={detailView}
@@ -430,7 +457,7 @@ function BucketColumnWithSync({
                         onAssign={onAssignQuery}
                         onEdit={onEditQuery}
                         showDate={showDateOnCards}
-                        dateField={dateField}
+                        dateField={config.defaultSortField}
                         currentUserRole={currentUserRole}
                         currentUserEmail={currentUserEmail}
                         detailView={detailView}
@@ -438,6 +465,51 @@ function BucketColumnWithSync({
                     ))}
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Load +7 Days Button for F, G, H buckets */}
+        {config.evaporateAfterDays && onLoadMore && (
+          <div className="p-2 border-t border-gray-200 flex-shrink-0">
+            {extendedDays >= 30 ? (
+              <div className="w-full py-2 px-3 text-xs font-medium text-gray-400 text-center">
+                No more results found
+              </div>
+            ) : (
+              <button
+                onClick={() => onLoadMore(bucketKey)}
+                disabled={isLoading}
+                className="w-full py-2 px-3 text-xs font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin h-3 w-3 text-gray-700"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Loading...
+                  </>
+                ) : (
+                  "Load +7 Days"
+                )}
+              </button>
             )}
           </div>
         )}

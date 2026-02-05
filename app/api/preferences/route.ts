@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { SPREADSHEET_ID, SHEET_RANGES } from "../../config/sheet-constants";
-import { Preferences } from "../../utils/sheets";
+import { Preferences, ViewPreferences } from "../../utils/sheets";
 
 export async function POST(request: NextRequest) {
   const token = request.headers.get("Authorization")?.replace("Bearer ", "");
@@ -30,92 +30,65 @@ export async function POST(request: NextRequest) {
     // 1. Find User Row in Preferences Sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: SHEET_RANGES.PREFERENCES, // A:H (updated to include sort fields and buckets)
+      range: SHEET_RANGES.PREFERENCES, // A:D
     });
 
     const rows = response.data.values || [];
     let rowIndex = rows.findIndex((row: string[]) => row[0] === userEmail);
 
-    // Data to save
-    // Structure: A=Email, B=View, C=BucketOrder, D=UserOrder, E=DetailView, F=SortField, G=SortAscending, H=SortBuckets
-    // ColumnCount and HistoryDays are NOT stored in sheet (always use defaults)
+    // Default preferences
+    const defaultViewPrefs: ViewPreferences = {
+      layout: "default",
+      columns: 4,
+      detailView: false,
+      sortField: "",
+      sortAscending: true,
+      sortBuckets: "ALL",
+    };
 
-    let currentPrefs: any = {};
+    let currentPrefs: Preferences = {
+      preferredView: "bucket",
+      bucketViewPrefs: { ...defaultViewPrefs },
+      userViewPrefs: { ...defaultViewPrefs },
+    };
+
+    // Load existing preferences if row exists
     if (rowIndex !== -1) {
       const row = rows[rowIndex];
-      currentPrefs = {
-        ViewType: row[1] || "bucket",
-        BucketOrder: row[2] || "[]",
-        UserOrder: row[3] || "[]",
-        DetailView: row[4] === "true" || row[4] === "TRUE" || false,
-        SortField: row[5] || "",
-        SortAscending:
-          row[6] === undefined || row[6] === ""
-            ? true
-            : row[6] === "true" || row[6] === "TRUE",
-        SortBuckets: row[7] || "ALL",
-      };
-    } else {
-      // Defaults
-      currentPrefs = {
-        ViewType: "bucket",
-        BucketOrder: JSON.stringify(["A", "B", "C", "D", "E", "F", "G", "H"]),
-        UserOrder: "[]",
-        DetailView: false,
-        SortField: "",
-        SortAscending: true,
-        SortBuckets: "ALL",
-      };
+      try {
+        currentPrefs = {
+          preferredView: (row[1] || "bucket") as "bucket" | "user",
+          bucketViewPrefs: row[2]
+            ? JSON.parse(row[2])
+            : { ...defaultViewPrefs },
+          userViewPrefs: row[3] ? JSON.parse(row[3]) : { ...defaultViewPrefs },
+        };
+      } catch (e) {
+        console.error("Error parsing existing preferences:", e);
+      }
     }
 
-    // Merge updates (only update fields that are in the sheet)
-    const updatedPrefs = { ...currentPrefs };
+    // Merge updates
+    const updatedPrefs: Preferences = {
+      preferredView: preferences.preferredView || currentPrefs.preferredView,
+      bucketViewPrefs:
+        preferences.bucketViewPrefs || currentPrefs.bucketViewPrefs,
+      userViewPrefs: preferences.userViewPrefs || currentPrefs.userViewPrefs,
+    };
 
-    // Only update fields that exist in your sheet structure
-    if (preferences.ViewType !== undefined)
-      updatedPrefs.ViewType = preferences.ViewType;
-    if (preferences.BucketOrder !== undefined) {
-      updatedPrefs.BucketOrder = Array.isArray(preferences.BucketOrder)
-        ? JSON.stringify(preferences.BucketOrder)
-        : preferences.BucketOrder;
-    }
-    if (preferences.UserOrder !== undefined) {
-      updatedPrefs.UserOrder = Array.isArray(preferences.UserOrder)
-        ? JSON.stringify(preferences.UserOrder)
-        : preferences.UserOrder;
-    }
-    if (preferences.DetailView !== undefined)
-      updatedPrefs.DetailView = preferences.DetailView;
-    if (preferences.SortField !== undefined)
-      updatedPrefs.SortField = preferences.SortField;
-    if (preferences.SortAscending !== undefined)
-      updatedPrefs.SortAscending = preferences.SortAscending;
-    if (preferences.SortBuckets !== undefined) {
-      // Convert array to comma-separated string or "ALL"
-      updatedPrefs.SortBuckets = Array.isArray(preferences.SortBuckets)
-        ? preferences.SortBuckets.includes("ALL") ||
-          preferences.SortBuckets.length === 0
-          ? "ALL"
-          : preferences.SortBuckets.join(",")
-        : preferences.SortBuckets;
-    }
-
+    // Prepare row data
     const rowData = [
       userEmail,
-      updatedPrefs.ViewType,
-      updatedPrefs.BucketOrder,
-      updatedPrefs.UserOrder,
-      String(updatedPrefs.DetailView), // Convert boolean to string
-      updatedPrefs.SortField || "", // Empty string if no custom sort
-      String(updatedPrefs.SortAscending), // Convert boolean to string
-      updatedPrefs.SortBuckets || "ALL", // Comma-separated buckets or "ALL"
+      updatedPrefs.preferredView,
+      JSON.stringify(updatedPrefs.bucketViewPrefs),
+      JSON.stringify(updatedPrefs.userViewPrefs),
     ];
 
     if (rowIndex !== -1) {
       // Update existing row
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `Preferences!A${rowIndex + 1}:H${rowIndex + 1}`,
+        range: `Preferences!A${rowIndex + 1}:D${rowIndex + 1}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
           values: [rowData],
@@ -125,7 +98,7 @@ export async function POST(request: NextRequest) {
       // Append new row
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range: "Preferences!A:H",
+        range: "Preferences!A:D",
         valueInputOption: "USER_ENTERED",
         requestBody: {
           values: [rowData],

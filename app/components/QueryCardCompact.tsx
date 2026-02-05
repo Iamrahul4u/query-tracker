@@ -153,6 +153,55 @@ export function QueryCardCompact({
     return () => window.removeEventListener("scroll", handleScroll, true);
   }, [isThisCardActive, query, showTooltip, instanceId]);
 
+  // Close dropdown when scrolling
+  useEffect(() => {
+    if (!showAssignDropdown) return;
+
+    const handleScroll = () => {
+      setShowAssignDropdown(false);
+    };
+
+    // Listen to scroll on window and all scrollable parents with capture phase
+    // This ensures we catch scroll events from any scrollable container
+    window.addEventListener("scroll", handleScroll, {
+      capture: true,
+      passive: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll, {
+        capture: true,
+        passive: true,
+      });
+    };
+  }, [showAssignDropdown]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!showAssignDropdown) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Check if click is outside the dropdown and assign button
+      if (
+        !target.closest('[title*="ssign"]') &&
+        !target.closest(".bg-white.border")
+      ) {
+        setShowAssignDropdown(false);
+      }
+    };
+
+    // Small delay to prevent immediate closing when opening
+    const timeoutId = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showAssignDropdown]);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -193,6 +242,8 @@ export function QueryCardCompact({
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Close assign dropdown if open
+    setShowAssignDropdown(false);
     if (onEdit) {
       onEdit(query);
     } else {
@@ -216,16 +267,24 @@ export function QueryCardCompact({
   const formatDateDisplay = (dateValue: string | undefined): string | null => {
     if (!dateValue) return null;
 
-    // Parse DD/MM/YYYY, HH:MM:SS format from Google Sheets
+    // Parse date - handle both "DD/MM/YYYY HH:MM:SS" and "DD/MM/YYYY, HH:MM:SS" formats
     let date: Date | null = null;
     try {
-      const parts = dateValue.split(",")[0].split("/");
-      if (parts.length === 3) {
-        const [day, month, year] = parts.map((p: string) => parseInt(p, 10));
-        const timePart = dateValue.split(",")[1]?.trim() || "00:00:00";
+      // Normalize: remove comma if present
+      const normalized = dateValue.replace(", ", " ");
+      const parts = normalized.split(" ");
+
+      if (parts.length >= 1) {
+        const datePart = parts[0];
+        const timePart = parts[1] || "00:00:00";
+
+        const [day, month, year] = datePart
+          .split("/")
+          .map((p: string) => parseInt(p, 10));
         const [hours, minutes] = timePart
           .split(":")
           .map((t: string) => parseInt(t, 10));
+
         date = new Date(year, month - 1, day, hours || 0, minutes || 0);
       }
     } catch {
@@ -490,22 +549,20 @@ export function QueryCardCompact({
                         onAssign(query, currentUserEmail);
                       }
                     }}
-                    className="px-2 py-1 text-[10px] font-medium rounded-md bg-green-100 hover:bg-green-200 text-green-700 transition-colors flex items-center gap-1"
+                    className="w-7 h-7 rounded-full flex items-center justify-center bg-green-100 hover:bg-green-200 text-green-700 transition-colors"
                     title="Assign to yourself"
                   >
-                    <UserCheck className="w-3 h-3" />
-                    <span>Self</span>
+                    <UserCheck className="w-3.5 h-3.5" />
                   </button>
 
                   {/* Assign Button (opens dropdown) */}
                   <div className="relative">
                     <button
                       onClick={handleAssignClick}
-                      className="px-2 py-1 text-[10px] font-medium rounded-md bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors flex items-center gap-1"
+                      className="w-7 h-7 rounded-full flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors"
                       title="Assign to someone"
                     >
-                      <UserPlus className="w-3 h-3" />
-                      <span>Assign</span>
+                      <UserPlus className="w-3.5 h-3.5" />
                     </button>
 
                     {showAssignDropdown &&

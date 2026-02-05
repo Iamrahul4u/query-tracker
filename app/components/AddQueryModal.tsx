@@ -167,59 +167,86 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
               </div>
             )}
 
-            {/* Query Rows - Minimal */}
-            <div className="space-y-2">
+            {/* Query Rows - Responsive: 2 rows on mobile, 1 row on desktop */}
+            <div className="space-y-3">
               {queryRows.map((row) => (
-                <div key={row.id} className="flex gap-2 items-center">
-                  {/* Description */}
-                  <input
-                    type="text"
-                    value={row.description}
-                    onChange={(e) =>
-                      updateRow(row.id, "description", e.target.value)
-                    }
-                    maxLength={MAX_CHARS}
-                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
-                    placeholder="Enter query description..."
-                  />
+                <div key={row.id} className="flex flex-col sm:flex-row gap-2">
+                  {/* Row 1: Description + Plus/X icons */}
+                  <div className="flex gap-2 items-center flex-1">
+                    {/* Description */}
+                    <input
+                      type="text"
+                      value={row.description}
+                      onChange={(e) =>
+                        updateRow(row.id, "description", e.target.value)
+                      }
+                      maxLength={MAX_CHARS}
+                      className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+                      placeholder="Enter query description..."
+                    />
 
-                  {/* Type Buttons */}
-                  <div className="flex gap-1">
-                    {QUERY_TYPE_ORDER.map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => updateRow(row.id, "queryType", type)}
-                        className={`px-3 py-2 text-xs font-medium rounded border transition-colors ${
-                          row.queryType === type
-                            ? "bg-blue-50 border-blue-500 text-blue-700"
-                            : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Plus Icon (always) */}
-                  <button
-                    type="button"
-                    onClick={addNewRow}
-                    className="w-8 h-8 flex items-center justify-center text-green-600 hover:bg-green-50 rounded"
-                  >
-                    <Plus className="w-5 h-5" />
-                  </button>
-
-                  {/* Remove Icon (only when multiple rows) */}
-                  {queryRows.length > 1 && (
+                    {/* Plus Icon (always) - Desktop only */}
                     <button
                       type="button"
-                      onClick={() => removeRow(row.id)}
-                      className="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded"
+                      onClick={addNewRow}
+                      className="hidden sm:flex w-8 h-8 items-center justify-center text-green-600 hover:bg-green-50 rounded"
                     >
-                      <X className="w-5 h-5" />
+                      <Plus className="w-5 h-5" />
                     </button>
-                  )}
+
+                    {/* Remove Icon (only when multiple rows) - Desktop only */}
+                    {queryRows.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeRow(row.id)}
+                        className="hidden sm:flex w-8 h-8 items-center justify-center text-red-500 hover:bg-red-50 rounded"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Row 2: Type Buttons + Icons (mobile) */}
+                  <div className="flex gap-2 items-center justify-between sm:justify-start">
+                    {/* Type Buttons */}
+                    <div className="flex gap-1">
+                      {QUERY_TYPE_ORDER.map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => updateRow(row.id, "queryType", type)}
+                          className={`px-3 py-2 text-xs font-medium rounded border transition-colors ${
+                            row.queryType === type
+                              ? "bg-blue-50 border-blue-500 text-blue-700"
+                              : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Plus/Remove Icons - Mobile only */}
+                    <div className="flex gap-1 sm:hidden">
+                      <button
+                        type="button"
+                        onClick={addNewRow}
+                        className="w-8 h-8 flex items-center justify-center text-green-600 hover:bg-green-50 rounded"
+                      >
+                        <Plus className="w-5 h-5" />
+                      </button>
+
+                      {queryRows.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeRow(row.id)}
+                          className="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

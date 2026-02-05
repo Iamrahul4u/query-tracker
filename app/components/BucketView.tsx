@@ -17,6 +17,8 @@ interface BucketViewProps {
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
   onLoadMore?: (bucketKey: string) => void;
+  extendedDays?: Record<string, number>;
+  loadingBuckets?: Set<string>;
   isFilterExpanded?: boolean;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
@@ -36,6 +38,8 @@ export function BucketView({
   onApproveDelete,
   onRejectDelete,
   onLoadMore,
+  extendedDays = {},
+  loadingBuckets = new Set(),
   isFilterExpanded = true,
   showDateOnCards = false,
   dateField = "Added Date Time",
@@ -79,6 +83,8 @@ export function BucketView({
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
             onLoadMore={onLoadMore}
+            extendedDays={extendedDays}
+            loadingBuckets={loadingBuckets}
             isFilterExpanded={isFilterExpanded}
             showDateOnCards={showDateOnCards}
             dateField={dateField}
@@ -120,6 +126,7 @@ export function BucketView({
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
             onLoadMore={onLoadMore}
+            extendedDays={extendedDays[activeTab] || 3}
             disableScroll={false}
             showDateOnCards={showDateOnCards}
             dateField={dateField}
@@ -132,5 +139,3 @@ export function BucketView({
     </>
   );
 }
-
-

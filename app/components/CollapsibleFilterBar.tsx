@@ -35,6 +35,11 @@ interface CollapsibleFilterBarProps {
   // Detail View toggle (1-row vs 2-row per query card)
   detailView?: boolean;
   onDetailViewChange?: (detail: boolean) => void;
+  // Save View button
+  hasPendingChanges?: boolean;
+  onSaveView?: () => void;
+  // User role for hiding User View from Juniors
+  currentUserRole?: string;
 }
 
 export function CollapsibleFilterBar({
@@ -60,9 +65,16 @@ export function CollapsibleFilterBar({
   onShowDateOnCardsChange,
   detailView = false,
   onDetailViewChange,
+  hasPendingChanges = false,
+  onSaveView,
+  currentUserRole = "",
 }: CollapsibleFilterBarProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [bucketDropdownOpen, setBucketDropdownOpen] = useState(false);
+
+  // Check if user is Junior (cannot access User View)
+  const isJunior = currentUserRole.toLowerCase() === "junior";
 
   const toggleExpanded = () => {
     const newState = !isExpanded;
@@ -75,28 +87,55 @@ export function CollapsibleFilterBar({
   // Available buckets for multi-select
   const AVAILABLE_BUCKETS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
+  // Check if all buckets are selected (either contains "ALL" or all individual buckets)
+  const allBucketsSelected =
+    sortBuckets.includes("ALL") ||
+    AVAILABLE_BUCKETS.every((b) => sortBuckets.includes(b));
+
   // Toggle bucket selection
   const toggleBucket = (bucket: string) => {
     if (!onSortBucketsChange) return;
 
     if (bucket === "ALL") {
-      onSortBucketsChange(["ALL"]);
+      // Toggle all buckets on/off
+      if (allBucketsSelected) {
+        // Deselect all - use empty array (will use default sorting)
+        onSortBucketsChange([]);
+      } else {
+        // Select all - use "ALL" token
+        onSortBucketsChange(["ALL"]);
+      }
     } else {
-      const currentBuckets = sortBuckets.includes("ALL") ? [] : sortBuckets;
+      // Toggle individual bucket
+      // First, if we have "ALL", convert to all individual buckets then toggle
+      const currentBuckets = sortBuckets.includes("ALL")
+        ? AVAILABLE_BUCKETS
+        : sortBuckets;
 
       if (currentBuckets.includes(bucket)) {
-        // Remove bucket
+        // Remove this bucket
         const newBuckets = currentBuckets.filter((b) => b !== bucket);
-        onSortBucketsChange(newBuckets.length === 0 ? ["ALL"] : newBuckets);
+        onSortBucketsChange(newBuckets);
       } else {
-        // Add bucket
-        onSortBucketsChange([...currentBuckets, bucket]);
+        // Add this bucket
+        const newBuckets = [
+          ...currentBuckets.filter((b) => b !== "ALL"),
+          bucket,
+        ];
+        // If all buckets are now selected, convert back to ["ALL"]
+        if (AVAILABLE_BUCKETS.every((b) => newBuckets.includes(b))) {
+          onSortBucketsChange(["ALL"]);
+        } else {
+          onSortBucketsChange(newBuckets);
+        }
       }
     }
   };
 
-  const isAllSelected = sortBuckets.includes("ALL");
-  const selectedCount = isAllSelected ? 8 : sortBuckets.length;
+  // Show "All" if ALL is selected, otherwise show count of selected buckets
+  const selectedCount = allBucketsSelected
+    ? 8
+    : sortBuckets.filter((b) => b !== "ALL").length;
 
   // Filter section component for reuse in desktop and drawer
   const ColumnsFilter = () => (
@@ -190,13 +229,17 @@ export function CollapsibleFilterBar({
         {sortAscending ? "↑ Oldest" : "↓ Newest"}
       </button>
       {/* Bucket Multi-Select Dropdown */}
-      <div className="relative group">
+      <div className="relative">
         <button
+          onClick={() => setBucketDropdownOpen(!bucketDropdownOpen)}
           className="px-2 py-1 text-[10px] font-medium rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition flex items-center gap-1"
           title="Select buckets to apply custom sort"
         >
           <span>
-            Apply to: {isAllSelected ? "All" : `${selectedCount} buckets`}
+            Apply to:{" "}
+            {allBucketsSelected
+              ? "All"
+              : `${selectedCount} ${selectedCount === 1 ? "bucket" : "buckets"}`}
           </span>
           <svg
             className="w-3 h-3"
@@ -213,39 +256,49 @@ export function CollapsibleFilterBar({
           </svg>
         </button>
         {/* Dropdown Menu */}
-        <div className="hidden group-hover:block absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]">
-          <div className="p-2 space-y-1">
-            <label className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isAllSelected}
-                onChange={() => toggleBucket("ALL")}
-                className="w-3 h-3 text-blue-600 rounded"
-              />
-              <span className="text-[10px] font-medium text-gray-700">
-                All Buckets
-              </span>
-            </label>
-            <div className="border-t border-gray-100 my-1"></div>
-            {AVAILABLE_BUCKETS.map((bucket) => (
-              <label
-                key={bucket}
-                className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={!isAllSelected && sortBuckets.includes(bucket)}
-                  onChange={() => toggleBucket(bucket)}
-                  disabled={isAllSelected}
-                  className="w-3 h-3 text-blue-600 rounded disabled:opacity-50"
-                />
-                <span className="text-[10px] font-medium text-gray-700">
-                  Bucket {bucket}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
+        {bucketDropdownOpen && (
+          <>
+            {/* Backdrop to close dropdown */}
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setBucketDropdownOpen(false)}
+            />
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]">
+              <div className="p-2 space-y-1">
+                <label className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allBucketsSelected}
+                    onChange={() => toggleBucket("ALL")}
+                    className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-[10px] font-medium text-gray-700">
+                    All Buckets
+                  </span>
+                </label>
+                <div className="border-t border-gray-100 my-1"></div>
+                {AVAILABLE_BUCKETS.map((bucket) => (
+                  <label
+                    key={bucket}
+                    className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={
+                        allBucketsSelected || sortBuckets.includes(bucket)
+                      }
+                      onChange={() => toggleBucket(bucket)}
+                      className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-[10px] font-medium text-gray-700">
+                      Bucket {bucket}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
       {onClearSort && (
         <button
@@ -257,20 +310,6 @@ export function CollapsibleFilterBar({
         </button>
       )}
     </div>
-  );
-
-  const DateToggle = () => (
-    <button
-      onClick={() => onShowDateOnCardsChange?.(!showDateOnCards)}
-      className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${
-        showDateOnCards
-          ? "bg-blue-100 text-blue-700"
-          : "bg-gray-100 text-gray-500 hover:text-gray-700"
-      }`}
-      title="Show dates on query cards"
-    >
-      📅 Dates
-    </button>
   );
 
   // SearchInput is inlined to prevent focus loss on re-render
@@ -303,7 +342,7 @@ export function CollapsibleFilterBar({
       {isExpanded && (
         <div className="max-w-full mx-auto px-3 sm:px-4 lg:px-6 py-2">
           <div className="flex flex-wrap items-center gap-2">
-            {/* View Toggles - Always visible */}
+            {/* View Toggles - Always visible (User tab hidden for Juniors) */}
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
                 View:
@@ -315,12 +354,14 @@ export function CollapsibleFilterBar({
                 >
                   Bucket
                 </button>
-                <button
-                  onClick={() => setViewMode("user")}
-                  className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${viewMode === "user" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                >
-                  User
-                </button>
+                {!isJunior && (
+                  <button
+                    onClick={() => setViewMode("user")}
+                    className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${viewMode === "user" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                  >
+                    User
+                  </button>
+                )}
               </div>
             </div>
 
@@ -348,15 +389,31 @@ export function CollapsibleFilterBar({
                 </div>
               )}
 
-            {(viewMode === "bucket" || viewMode === "user") &&
-              onShowDateOnCardsChange && (
-                <div className="hidden lg:flex items-center gap-1.5">
-                  <DateToggle />
-                </div>
-              )}
-
-            {/* Search - Hidden on mobile - INLINED to prevent focus loss */}
+            {/* Search + Save View - Hidden on mobile - INLINED to prevent focus loss */}
             <div className="hidden lg:flex items-center gap-1.5 ml-auto">
+              {/* Save View Button - visible when there are pending changes */}
+              {hasPendingChanges && onSaveView && (
+                <button
+                  onClick={onSaveView}
+                  className="px-3 py-1.5 text-[10px] font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition flex items-center gap-1 shadow-sm"
+                  title="Save your current view preferences"
+                >
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  Save View
+                </button>
+              )}
               <div className="relative w-48">
                 <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                   <svg
@@ -554,9 +611,9 @@ export function CollapsibleFilterBar({
                                 <label className="flex items-center gap-2 cursor-pointer">
                                   <input
                                     type="checkbox"
-                                    checked={isAllSelected}
+                                    checked={allBucketsSelected}
                                     onChange={() => toggleBucket("ALL")}
-                                    className="w-4 h-4 text-blue-600 rounded"
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                   />
                                   <span className="text-sm font-medium text-gray-700">
                                     All Buckets
@@ -571,13 +628,9 @@ export function CollapsibleFilterBar({
                                     >
                                       <input
                                         type="checkbox"
-                                        checked={
-                                          !isAllSelected &&
-                                          sortBuckets.includes(bucket)
-                                        }
+                                        checked={sortBuckets.includes(bucket)}
                                         onChange={() => toggleBucket(bucket)}
-                                        disabled={isAllSelected}
-                                        className="w-4 h-4 text-blue-600 rounded disabled:opacity-50"
+                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                       />
                                       <span className="text-sm font-medium text-gray-700">
                                         {bucket}
@@ -600,27 +653,32 @@ export function CollapsibleFilterBar({
                         </div>
                       )}
 
-                    {/* Dates Toggle */}
-                    {(viewMode === "bucket" || viewMode === "user") &&
-                      onShowDateOnCardsChange && (
-                        <div className="space-y-2">
-                          <label className="text-xs font-semibold text-gray-600 uppercase">
-                            Display
-                          </label>
-                          <button
-                            onClick={() =>
-                              onShowDateOnCardsChange(!showDateOnCards)
-                            }
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition ${
-                              showDateOnCards
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-gray-100 text-gray-500 hover:text-gray-700"
-                            }`}
-                          >
-                            📅 Show Dates on Cards
-                          </button>
-                        </div>
-                      )}
+                    {/* Save View Button - Mobile */}
+                    {hasPendingChanges && onSaveView && (
+                      <button
+                        onClick={() => {
+                          onSaveView();
+                          setDrawerOpen(false); // Close drawer after saving
+                        }}
+                        className="w-full px-4 py-2.5 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition flex items-center justify-center gap-2 shadow-sm"
+                        title="Save your current view preferences"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        Save View
+                      </button>
+                    )}
 
                     {/* Close button */}
                     <DrawerClose asChild>

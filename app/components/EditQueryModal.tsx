@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryStore } from "../stores/queryStore";
 import { QUERY_TYPE_ORDER, BUCKETS } from "../config/sheet-constants";
 import { Query } from "../utils/sheets";
@@ -23,17 +23,73 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   const [status, setStatus] = useState(query.Status);
   const [error, setError] = useState("");
 
+  // Ref for scrollable content area
+  const contentRef = useRef<HTMLDivElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+
   // Track original values to detect changes for color coding
   const originalValues = query;
 
+  // Auto-populate date fields when status changes to a new bucket
+  // This ensures the relevant date is set to current datetime when transitioning
+  useEffect(() => {
+    if (status === query.Status) return; // No status change
+
+    // Get current time in IST (Indian Standard Time, UTC+5:30)
+    const date = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(date.getTime() + istOffset);
+
+    const day = String(istDate.getUTCDate()).padStart(2, "0");
+    const month = String(istDate.getUTCMonth() + 1).padStart(2, "0");
+    const year = istDate.getUTCFullYear();
+    const hours = String(istDate.getUTCHours()).padStart(2, "0");
+    const minutes = String(istDate.getUTCMinutes()).padStart(2, "0");
+    const seconds = String(istDate.getUTCSeconds()).padStart(2, "0");
+    const now = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+
+    setFormData((prev) => {
+      const updates: Partial<Query> = { ...prev };
+
+      // Moving to B (Assigned) - set Assignment Date if empty
+      if (status === "B" && !prev["Assignment Date Time"]) {
+        updates["Assignment Date Time"] = now;
+      }
+
+      // Moving to C or D (Proposal Sent) - set Proposal Sent Date if empty
+      if (
+        (status === "C" || status === "D") &&
+        !prev["Proposal Sent Date Time"]
+      ) {
+        updates["Proposal Sent Date Time"] = now;
+      }
+
+      // Moving to E or F (In SF) - set SF Entry Date if empty
+      if (
+        (status === "E" || status === "F") &&
+        !prev["Entered In SF Date Time"]
+      ) {
+        updates["Entered In SF Date Time"] = now;
+      }
+
+      // Moving to G (Discarded) - set Discarded Date if empty
+      if (status === "G" && !prev["Discarded Date Time"]) {
+        updates["Discarded Date Time"] = now;
+      }
+
+      return updates;
+    });
+  }, [status, query.Status]);
+
   // Helper functions to convert between date formats
-  // Sheets format: "DD/MM/YYYY, HH:MM:SS"
+  // Sheets format: "DD/MM/YYYY HH:MM:SS" (no comma - matches backend)
   // datetime-local format: "YYYY-MM-DDTHH:MM"
   const convertToDateTimeLocal = (dateStr: string): string => {
     if (!dateStr) return "";
     try {
-      // Parse "05/02/2026, 8:18:01" or "05/02/2026, 08:18:01"
-      const parts = dateStr.split(", ");
+      // Handle both formats: "DD/MM/YYYY HH:MM:SS" and "DD/MM/YYYY, HH:MM:SS"
+      const normalized = dateStr.replace(", ", " "); // Remove comma if present
+      const parts = normalized.split(" ");
       if (parts.length !== 2) return "";
 
       const [datePart, timePart] = parts;
@@ -55,8 +111,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
       const [year, month, day] = datePart.split("-");
       const [hours, minutes] = timePart.split(":");
 
-      // Return "DD/MM/YYYY, HH:MM:SS" format
-      return `${day}/${month}/${year}, ${hours}:${minutes}:00`;
+      // Return "DD/MM/YYYY HH:MM:SS" format (no comma - matches backend)
+      return `${day}/${month}/${year} ${hours}:${minutes}:00`;
     } catch {
       return "";
     }
@@ -71,6 +127,14 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     (query["Assigned To"] || "").toLowerCase() ===
     (currentUser?.Email || "").toLowerCase();
 
+  // Debug: Log role detection
+  console.log("🔍 EditQueryModal Role Detection:", {
+    currentUserRole: currentUser?.Role,
+    roleLowercase: role,
+    isAdminOrSenior,
+    isAssignedToMe,
+  });
+
   // Permission Check
   // Junior: Can change own queries only (Plan 5.7)
   // Senior/Admin: Can change any
@@ -79,12 +143,22 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   const handleSave = () => {
     if (!canEdit) return;
 
+    // Clear previous error
+    setError("");
+
     // Validation?
     // Plan 5.6: D requires Whats Pending. E/F requires Event stuff?
     // Let's add basic validation.
     if (["E", "F"].includes(status)) {
       if (!formData["Event ID in SF"] || !formData["Event Title in SF"]) {
         setError("Event ID in SF and Title are required for this status.");
+        // Scroll to error message
+        setTimeout(() => {
+          errorRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }, 100);
         return;
       }
     }
@@ -194,7 +268,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
         className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+        <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-800">Edit Query</h3>
           <button
             onClick={onClose}
@@ -216,210 +290,209 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto">
+        <div ref={contentRef} className="p-4 overflow-y-auto scrollbar-visible">
           {/* Read-Only Info */}
-          <div className="text-xs text-gray-400 mb-4 flex gap-4">
+          <div className="text-xs text-gray-400 mb-2 flex gap-4">
             <span>ID: {query["Query ID"]}</span>
           </div>
 
-          {/* Editable Date Fields Section - Admin only */}
-          {isAdminOrSenior && (
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <h4 className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
-                Date Fields (Editable)
-              </h4>
-              <div className="grid grid-cols-2 gap-3">
-                {/* Added Date - Show for all buckets except G and H */}
-                {!["G", "H"].includes(status) && (
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      Added Date
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={
-                        formData["Added Date Time"]
-                          ? convertToDateTimeLocal(formData["Added Date Time"])
-                          : ""
-                      }
-                      onChange={(e) =>
-                        updateField(
-                          "Added Date Time",
-                          convertFromDateTimeLocal(e.target.value),
-                        )
-                      }
-                      className={getInputClass("Added Date Time", "text-xs")}
-                    />
-                  </div>
-                )}
+          {/* Editable Date Fields Section */}
+          <div className="mb-3 p-2 bg-gray-50 rounded-lg">
+            <h4 className="text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
+              Date Fields {!isAdminOrSenior && "(Assignment Date locked)"}
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Added Date - Show for all buckets except G and H */}
+              {!["G", "H"].includes(status) && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Added Date
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={
+                      formData["Added Date Time"]
+                        ? convertToDateTimeLocal(formData["Added Date Time"])
+                        : ""
+                    }
+                    onChange={(e) =>
+                      updateField(
+                        "Added Date Time",
+                        convertFromDateTimeLocal(e.target.value),
+                      )
+                    }
+                    disabled={!isAdminOrSenior}
+                    className={getInputClass("Added Date Time", "text-xs")}
+                  />
+                </div>
+              )}
 
-                {/* Assigned Date - Show for B, C, D, E, F */}
-                {["B", "C", "D", "E", "F"].includes(status) && (
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      Assigned Date
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={
-                        formData["Assignment Date Time"]
-                          ? convertToDateTimeLocal(
-                              formData["Assignment Date Time"],
-                            )
-                          : ""
-                      }
-                      onChange={(e) =>
-                        updateField(
-                          "Assignment Date Time",
-                          convertFromDateTimeLocal(e.target.value),
-                        )
-                      }
-                      className={getInputClass(
+              {/* Assigned Date - Show for B, C, D, E, F - LOCKED for Juniors */}
+              {["B", "C", "D", "E", "F"].includes(status) && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Assigned Date {!isAdminOrSenior && "🔒"}
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={
+                      formData["Assignment Date Time"]
+                        ? convertToDateTimeLocal(
+                            formData["Assignment Date Time"],
+                          )
+                        : ""
+                    }
+                    onChange={(e) =>
+                      updateField(
                         "Assignment Date Time",
-                        "text-xs",
-                      )}
-                    />
-                  </div>
-                )}
+                        convertFromDateTimeLocal(e.target.value),
+                      )
+                    }
+                    disabled={!isAdminOrSenior}
+                    className={`${getInputClass("Assignment Date Time", "text-xs")} ${!isAdminOrSenior ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                    title={
+                      !isAdminOrSenior
+                        ? "Only Admin/Senior can change Assignment Date"
+                        : ""
+                    }
+                  />
+                </div>
+              )}
 
-                {/* Proposal Sent Date - Show for C, D, E, F */}
-                {["C", "D", "E", "F"].includes(status) && (
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      Proposal Sent Date
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={
-                        formData["Proposal Sent Date Time"]
-                          ? convertToDateTimeLocal(
-                              formData["Proposal Sent Date Time"],
-                            )
-                          : ""
-                      }
-                      onChange={(e) =>
-                        updateField(
-                          "Proposal Sent Date Time",
-                          convertFromDateTimeLocal(e.target.value),
-                        )
-                      }
-                      className={getInputClass(
+              {/* Proposal Sent Date - Show for C, D, E, F - Juniors CAN edit */}
+              {["C", "D", "E", "F"].includes(status) && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Proposal Sent Date
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={
+                      formData["Proposal Sent Date Time"]
+                        ? convertToDateTimeLocal(
+                            formData["Proposal Sent Date Time"],
+                          )
+                        : ""
+                    }
+                    onChange={(e) =>
+                      updateField(
                         "Proposal Sent Date Time",
-                        "text-xs",
-                      )}
-                    />
-                  </div>
-                )}
+                        convertFromDateTimeLocal(e.target.value),
+                      )
+                    }
+                    className={getInputClass(
+                      "Proposal Sent Date Time",
+                      "text-xs",
+                    )}
+                  />
+                </div>
+              )}
 
-                {/* SF Entry Date - Show for E, F */}
-                {["E", "F"].includes(status) && (
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      SF Entry Date
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={
-                        formData["Entered In SF Date Time"]
-                          ? convertToDateTimeLocal(
-                              formData["Entered In SF Date Time"],
-                            )
-                          : ""
-                      }
-                      onChange={(e) =>
-                        updateField(
-                          "Entered In SF Date Time",
-                          convertFromDateTimeLocal(e.target.value),
-                        )
-                      }
-                      className={getInputClass(
+              {/* SF Entry Date - Show for E, F - Juniors CAN edit */}
+              {["E", "F"].includes(status) && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    SF Entry Date
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={
+                      formData["Entered In SF Date Time"]
+                        ? convertToDateTimeLocal(
+                            formData["Entered In SF Date Time"],
+                          )
+                        : ""
+                    }
+                    onChange={(e) =>
+                      updateField(
                         "Entered In SF Date Time",
-                        "text-xs",
-                      )}
-                    />
-                  </div>
-                )}
+                        convertFromDateTimeLocal(e.target.value),
+                      )
+                    }
+                    className={getInputClass(
+                      "Entered In SF Date Time",
+                      "text-xs",
+                    )}
+                  />
+                </div>
+              )}
 
-                {/* Discarded Date - Show only for G */}
-                {status === "G" && (
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      Discarded Date
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={
-                        formData["Discarded Date Time"]
-                          ? convertToDateTimeLocal(
-                              formData["Discarded Date Time"],
-                            )
-                          : ""
-                      }
-                      onChange={(e) =>
-                        updateField(
-                          "Discarded Date Time",
-                          convertFromDateTimeLocal(e.target.value),
-                        )
-                      }
-                      className={getInputClass(
+              {/* Discarded Date - Show only for G - Only seniors can access G */}
+              {status === "G" && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Discarded Date
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={
+                      formData["Discarded Date Time"]
+                        ? convertToDateTimeLocal(
+                            formData["Discarded Date Time"],
+                          )
+                        : ""
+                    }
+                    onChange={(e) =>
+                      updateField(
                         "Discarded Date Time",
-                        "text-xs",
-                      )}
-                    />
-                  </div>
-                )}
+                        convertFromDateTimeLocal(e.target.value),
+                      )
+                    }
+                    className={getInputClass("Discarded Date Time", "text-xs")}
+                  />
+                </div>
+              )}
 
-                {/* Deleted Date - Show only for H */}
-                {status === "H" && (
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      Deleted Date
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={
-                        formData["Delete Requested Date Time"]
-                          ? convertToDateTimeLocal(
-                              formData["Delete Requested Date Time"],
-                            )
-                          : ""
-                      }
-                      onChange={(e) =>
-                        updateField(
-                          "Delete Requested Date Time",
-                          convertFromDateTimeLocal(e.target.value),
-                        )
-                      }
-                      className={getInputClass(
+              {/* Deleted Date - Show only for H - Only seniors can access H */}
+              {status === "H" && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Deleted Date
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={
+                      formData["Delete Requested Date Time"]
+                        ? convertToDateTimeLocal(
+                            formData["Delete Requested Date Time"],
+                          )
+                        : ""
+                    }
+                    onChange={(e) =>
+                      updateField(
                         "Delete Requested Date Time",
-                        "text-xs",
-                      )}
-                    />
-                  </div>
-                )}
-              </div>
-              {(isFieldModified("Added Date Time") ||
-                isFieldModified("Assignment Date Time") ||
-                isFieldModified("Proposal Sent Date Time") ||
-                isFieldModified("Entered In SF Date Time") ||
-                isFieldModified("Discarded Date Time") ||
-                isFieldModified("Delete Requested Date Time")) && (
-                <p className="text-xs text-blue-600 mt-2">
-                  * Modified fields shown in blue
-                </p>
+                        convertFromDateTimeLocal(e.target.value),
+                      )
+                    }
+                    className={getInputClass(
+                      "Delete Requested Date Time",
+                      "text-xs",
+                    )}
+                  />
+                </div>
               )}
             </div>
-          )}
+            {(isFieldModified("Added Date Time") ||
+              isFieldModified("Assignment Date Time") ||
+              isFieldModified("Proposal Sent Date Time") ||
+              isFieldModified("Entered In SF Date Time") ||
+              isFieldModified("Discarded Date Time") ||
+              isFieldModified("Delete Requested Date Time")) && (
+              <p className="text-xs text-blue-600 mt-2">
+                * Modified fields shown in blue
+              </p>
+            )}
+          </div>
 
           {!canEdit && (
-            <div className="bg-yellow-50 text-yellow-800 p-3 rounded text-sm mb-4">
+            <div className="bg-yellow-50 text-yellow-800 p-2 rounded text-sm mb-3">
               You do not have permission to edit this query.
             </div>
           )}
 
           {/* Status Selector */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-0.5">
               Status
             </label>
             <select
@@ -436,12 +509,19 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               {/* Show allowed transitions or all? Plan says "Show valid next statuses (progressive flow)". 
                       For simplicity and flexibility, showing all for now, or just allow manual override. 
                       Admins/Seniors might need to jump. 
+                      Juniors cannot move to G (Discarded) or H (Deleted) - they must use delete button for H
                   */}
-              {Object.entries(BUCKETS).map(([key, config]) => (
-                <option key={key} value={key}>
-                  {config.name}
-                </option>
-              ))}
+              {Object.entries(BUCKETS).map(([key, config]) => {
+                // Hide G and H from Juniors - they cannot discard or delete directly
+                if (!isAdminOrSenior && (key === "G" || key === "H")) {
+                  return null;
+                }
+                return (
+                  <option key={key} value={key}>
+                    {config.name}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -449,8 +529,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
           {/* Query Description (A, B, C, D) */}
           {showField("Query Description") && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-0.5">
                 Query Description
                 {isFieldModified("Query Description") && (
                   <span className="text-xs text-blue-600 ml-2">* Modified</span>
@@ -470,8 +550,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
           {/* Query Type (A, B) */}
           {showField("Query Type") && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-0.5">
                 Query Type
               </label>
               <div className="flex gap-2">
@@ -496,7 +576,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
           {/* GM Indicator Checkbox - Only show for E/F status */}
           {(formData.Status === "E" || formData.Status === "F") && (
-            <div className="mb-4">
+            <div className="mb-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -522,8 +602,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
           {/* Remarks (B) */}
           {showField("Remarks") && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-0.5">
                 Remarks
                 {isFieldModified("Remarks") && (
                   <span className="text-xs text-blue-600 ml-2">* Modified</span>
@@ -541,8 +621,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
           {/* Whats Pending (D, E, F) */}
           {showField("Whats Pending") && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-0.5">
                 What's Pending?
                 {isFieldModified("Whats Pending") && (
                   <span className="text-xs text-blue-600 ml-2">* Modified</span>
@@ -560,9 +640,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
           {/* Event ID in SF/Title (E, F) */}
           {(showField("Event ID in SF") || showField("Event Title in SF")) && (
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-0.5">
                   Event ID in SF
                   {isFieldModified("Event ID in SF") && (
                     <span className="text-xs text-blue-600 ml-2">
@@ -581,7 +661,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-0.5">
                   Event Title in SF
                   {isFieldModified("Event Title in SF") && (
                     <span className="text-xs text-blue-600 ml-2">
@@ -602,21 +682,43 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
             </div>
           )}
 
-          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+          {error && (
+            <div
+              ref={errorRef}
+              className="p-3 mb-3 bg-red-50 border border-red-200 rounded-lg"
+            >
+              <p className="text-red-700 text-sm font-medium flex items-center gap-2">
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                {error}
+              </p>
+              <p className="text-red-600 text-xs mt-1">
+                Please scroll down to fill in the required fields.
+              </p>
+            </div>
+          )}
         </div>
 
-        <div className="bg-gray-50 px-6 py-4 flex justify-between items-center border-t border-gray-100">
-          {/* Delete Button (Senior/Admin Only) */}
-          {isAdminOrSenior ? (
+        <div className="bg-gray-50 px-4 py-3 flex justify-between items-center border-t border-gray-100">
+          {/* Delete Button (Senior/Admin/Pseudo Admin can delete directly, Junior requests deletion) */}
+          {(isAdminOrSenior || isAssignedToMe) && (
             <button
               onClick={handleDelete}
               className="text-red-500 text-sm hover:text-red-700 font-medium"
             >
-              Delete Query
+              {isAdminOrSenior ? "Delete Query" : "Request Deletion"}
             </button>
-          ) : (
-            <div></div>
           )}
+          {!isAdminOrSenior && !isAssignedToMe && <div></div>}
 
           <div className="flex gap-3">
             <button

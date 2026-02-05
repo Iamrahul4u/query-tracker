@@ -113,7 +113,22 @@ export const useQueryStore = create<QueryState>()(
           }
 
           state.users = users;
-          state.preferences = preferences;
+
+          // IMPORTANT: Only update preferences if they haven't been modified locally
+          // Check if preferences have changed by comparing with server version
+          // If local preferences exist and differ from server, keep local (user is editing)
+          if (!state.preferences) {
+            // No local preferences yet, use server version
+            state.preferences = preferences;
+          } else {
+            // Preferences exist locally - only update if they match server (no local changes)
+            // We'll keep the local version to preserve unsaved UI state
+            // The user will explicitly save when ready via "Save View" button
+            console.log(
+              "⏸️ Preserving local preferences during background refresh",
+            );
+          }
+
           state.lastSyncedAt = new Date();
 
           // Re-set current user from updated users list

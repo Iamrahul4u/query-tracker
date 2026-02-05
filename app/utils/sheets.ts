@@ -38,17 +38,19 @@ export interface User {
   "Display Name"?: string; // 5-6 char short name for compact view
 }
 
+export interface ViewPreferences {
+  layout: "default" | "linear";
+  columns: 2 | 3 | 4;
+  detailView: boolean;
+  sortField: string;
+  sortAscending: boolean;
+  sortBuckets: string; // "ALL" or comma-separated like "A,B,C"
+}
+
 export interface Preferences {
-  ViewType: string;
-  BucketViewMode?: string;
-  ColumnCount: number;
-  BucketOrder: string[];
-  UserOrder: string[];
-  HistoryDays: number;
-  DetailView?: boolean; // Detail view toggle (1-row vs 2-row cards)
-  SortField?: string; // Custom sort field
-  SortAscending?: boolean; // Sort direction
-  SortBuckets?: string[]; // Buckets to apply custom sort to (default: ["ALL"])
+  preferredView: "bucket" | "user"; // Last active view
+  bucketViewPrefs: ViewPreferences;
+  userViewPrefs: ViewPreferences;
 }
 
 export function parseQueries(rows: string[][]): Query[] {
@@ -83,59 +85,90 @@ export function parsePreferences(
   rows: string[][],
   currentUserEmail: string,
 ): Preferences {
-  const defaultPreferences: Preferences = {
-    ViewType: "bucket",
-    ColumnCount: 4,
-    BucketOrder: ["A", "B", "C", "D", "E", "F", "G", "H"],
-    UserOrder: [],
-    HistoryDays: 3,
-    DetailView: false,
-    SortField: undefined, // No custom sort by default
-    SortAscending: true,
-    SortBuckets: ["ALL"], // Default: apply to all buckets
+  const defaultViewPrefs: ViewPreferences = {
+    layout: "default",
+    columns: 4,
+    detailView: false,
+    sortField: "",
+    sortAscending: true,
+    sortBuckets: "ALL",
   };
 
-  if (!rows || rows.length <= 1) return defaultPreferences;
+  const defaultPreferences: Preferences = {
+    preferredView: "bucket",
+    bucketViewPrefs: { ...defaultViewPrefs },
+    userViewPrefs: { ...defaultViewPrefs },
+  };
+
+  console.log("[parsePreferences] Parsing for user:", currentUserEmail);
+  console.log("[parsePreferences] Total rows:", rows?.length);
+
+  if (!rows || rows.length <= 1) {
+    console.log("[parsePreferences] No data rows, returning defaults");
+    return defaultPreferences;
+  }
 
   // Find row for current user
-  // Structure: A=Email, B=View, C=BucketOrder, D=UserOrder, E=DetailView, F=SortField, G=SortAscending, H=SortBuckets
+  // Structure: A=Email, B=PreferredView, C=BucketViewPreferences (JSON), D=UserViewPreferences (JSON)
   const userRow = rows.find((row) => row[0] === currentUserEmail);
 
-  if (!userRow) return defaultPreferences;
+  if (!userRow) {
+    console.log("[parsePreferences] No row found for user, returning defaults");
+    return defaultPreferences;
+  }
+
+  console.log("[parsePreferences] Found user row:", userRow);
 
   try {
-    // Parse SortBuckets from column H (comma-separated or "ALL")
-    let sortBuckets: string[] = ["ALL"];
-    if (userRow[7]) {
-      const parsed = userRow[7].trim();
-      if (parsed === "ALL" || parsed === "") {
-        sortBuckets = ["ALL"];
-      } else {
-        sortBuckets = parsed
-          .split(",")
-          .map((b) => b.trim())
-          .filter(Boolean);
+    const preferredView = (userRow[1] || "bucket") as "bucket" | "user";
+
+    // Parse Bucket View Preferences from column C
+    let bucketViewPrefs = { ...defaultViewPrefs };
+    if (userRow[2] && userRow[2].trim()) {
+      try {
+        const parsed = JSON.parse(userRow[2]);
+        bucketViewPrefs = { ...defaultViewPrefs, ...parsed };
+        console.log("[parsePreferences] Parsed bucket prefs:", bucketViewPrefs);
+      } catch (e) {
+        console.warn(
+          "[parsePreferences] Failed to parse bucket prefs, using defaults:",
+          e,
+        );
       }
+    } else {
+      console.log("[parsePreferences] No bucket prefs data, using defaults");
     }
 
-    return {
-      ViewType: userRow[1] || "bucket",
-      ColumnCount: 4, // Not stored in sheet, always default to 4
-      BucketOrder: userRow[2]
-        ? JSON.parse(userRow[2])
-        : defaultPreferences.BucketOrder,
-      UserOrder: userRow[3] ? JSON.parse(userRow[3]) : [],
-      HistoryDays: 3, // Not stored in sheet, always default to 3
-      DetailView: userRow[4] === "true" || userRow[4] === "TRUE" || false,
-      SortField: userRow[5] || undefined,
-      SortAscending:
-        userRow[6] === undefined || userRow[6] === ""
-          ? true
-          : userRow[6] === "true" || userRow[6] === "TRUE",
-      SortBuckets: sortBuckets,
+    // Parse User View Preferences from column D
+    let userViewPrefs = { ...defaultViewPrefs };
+    if (userRow[3] && userRow[3].trim()) {
+      try {
+        const parsed = JSON.parse(userRow[3]);
+        userViewPrefs = { ...defaultViewPrefs, ...parsed };
+        console.log("[parsePreferences] Parsed user prefs:", userViewPrefs);
+      } catch (e) {
+        console.warn(
+          "[parsePreferences] Failed to parse user prefs, using defaults:",
+          e,
+        );
+      }
+    } else {
+      console.log("[parsePreferences] No user prefs data, using defaults");
+    }
+
+    const result = {
+      preferredView,
+      bucketViewPrefs,
+      userViewPrefs,
     };
+
+    console.log("[parsePreferences] Final result:", result);
+    return result;
   } catch (e) {
-    console.error("Error parsing preferences JSON:", e);
+    console.error(
+      "[parsePreferences] Unexpected error, returning defaults:",
+      e,
+    );
     return defaultPreferences;
   }
 }

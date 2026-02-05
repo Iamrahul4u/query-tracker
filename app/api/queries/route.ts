@@ -133,6 +133,25 @@ export async function POST(request: NextRequest) {
 // HELPER FUNCTIONS
 // ----------------------------------------------------------------------
 
+/**
+ * Get current date/time in IST (Indian Standard Time, UTC+5:30)
+ * Returns format: "DD/MM/YYYY HH:MM:SS"
+ */
+function getISTDateTime(): string {
+  const date = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+  const istDate = new Date(date.getTime() + istOffset);
+
+  const day = String(istDate.getUTCDate()).padStart(2, "0");
+  const month = String(istDate.getUTCMonth() + 1).padStart(2, "0");
+  const year = istDate.getUTCFullYear();
+  const hours = String(istDate.getUTCHours()).padStart(2, "0");
+  const minutes = String(istDate.getUTCMinutes()).padStart(2, "0");
+  const seconds = String(istDate.getUTCSeconds()).padStart(2, "0");
+
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+}
+
 // Row Index Cache - Stores queryId -> rowIndex mapping
 // This cache is in-memory and will reset on server restart
 // For production, consider Redis or similar for persistent cache
@@ -277,7 +296,7 @@ async function handleAssign(
   if (!rowIndex)
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
 
-  const now = new Date().toLocaleString("en-GB");
+  const now = getISTDateTime();
 
   // Also status -> B if currently A (implicit logic, but safer to trust status update explicitly?
   // No, the store handles optimistic status change, so we should update status on server too if needed.
@@ -342,7 +361,7 @@ async function handleUpdateStatus(
   });
   const currentStatus = statusRes.data.values?.[0]?.[0] || "";
 
-  const now = new Date().toLocaleString("en-GB");
+  const now = getISTDateTime();
   const updates: any = {
     Status: data.newStatus,
     "Last Activity Date Time": now,
@@ -359,7 +378,7 @@ async function handleUpdateStatus(
       `  ⬅️ Backward transition detected: ${currentStatus} → ${data.newStatus}`,
     );
 
-    // Moving to A: Clear assignment fields
+    // Moving to A: Clear ALL fields except Query Description, Type, Added By/Date
     if (data.newStatus === "A") {
       updates["Assigned To"] = "";
       updates["Assigned By"] = "";
@@ -370,27 +389,53 @@ async function handleUpdateStatus(
       updates["Entered In SF Date Time"] = "";
       updates["Event ID in SF"] = "";
       updates["Event Title in SF"] = "";
+      updates["GmIndicator"] = "";
       updates["Discarded Date Time"] = "";
+      updates["Delete Requested By"] = "";
+      updates["Delete Requested Date Time"] = "";
+      updates["Previous Status"] = "";
+      updates["Delete Rejected"] = "";
     }
-    // Moving to B: Clear proposal and SF fields
+    // Moving to B: Clear proposal, SF, discard, and deletion fields
     else if (data.newStatus === "B") {
       updates["Proposal Sent Date Time"] = "";
       updates["Whats Pending"] = "";
       updates["Entered In SF Date Time"] = "";
       updates["Event ID in SF"] = "";
       updates["Event Title in SF"] = "";
+      updates["GmIndicator"] = "";
       updates["Discarded Date Time"] = "";
+      updates["Delete Requested By"] = "";
+      updates["Delete Requested Date Time"] = "";
+      updates["Previous Status"] = "";
+      updates["Delete Rejected"] = "";
     }
-    // Moving to C or D: Clear SF fields
+    // Moving to C or D: Clear SF, discard, and deletion fields
     else if (["C", "D"].includes(data.newStatus)) {
       updates["Entered In SF Date Time"] = "";
       updates["Event ID in SF"] = "";
       updates["Event Title in SF"] = "";
+      updates["GmIndicator"] = "";
       updates["Discarded Date Time"] = "";
+      updates["Delete Requested By"] = "";
+      updates["Delete Requested Date Time"] = "";
+      updates["Previous Status"] = "";
+      updates["Delete Rejected"] = "";
     }
-    // Moving to E or F: Clear discard fields
+    // Moving to E or F: Clear discard and deletion fields
     else if (["E", "F"].includes(data.newStatus)) {
       updates["Discarded Date Time"] = "";
+      updates["Delete Requested By"] = "";
+      updates["Delete Requested Date Time"] = "";
+      updates["Previous Status"] = "";
+      updates["Delete Rejected"] = "";
+    }
+    // Moving to G: Clear deletion fields only
+    else if (data.newStatus === "G") {
+      updates["Delete Requested By"] = "";
+      updates["Delete Requested Date Time"] = "";
+      updates["Previous Status"] = "";
+      updates["Delete Rejected"] = "";
     }
   }
 
@@ -407,7 +452,7 @@ async function handleEdit(sheets: any, queryId: string, data: any) {
   if (!rowIndex)
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
 
-  const now = new Date().toLocaleString("en-GB");
+  const now = getISTDateTime();
   const updates: any = {
     ...data,
     "Last Edited Date Time": now,
@@ -454,7 +499,7 @@ async function handleAdd(sheets: any, data: Query) {
     const appendResult = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: "Queries!A:Z",
-      valueInputOption: "RAW", // CRITICAL: Use RAW to prevent date conversion to serial numbers
+      valueInputOption: "USER_ENTERED", // Let Google Sheets interpret dates properly
       insertDataOption: "INSERT_ROWS",
       resource: {
         values: [newRow],
@@ -487,7 +532,7 @@ async function handleDelete(
   if (!rowIndex)
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
 
-  const now = new Date().toLocaleString("en-GB");
+  const now = getISTDateTime();
 
   if (data.isAdmin) {
     // Admin/Pseudo Admin: Permanent delete - remove the row from sheet
@@ -566,7 +611,7 @@ async function handleApproveDelete(
   if (!rowIndex)
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
 
-  const now = new Date().toLocaleString("en-GB");
+  const now = getISTDateTime();
 
   // First, record who approved (for audit trail before deletion)
   // Note: In future, could keep approved records for evaporation period
@@ -634,7 +679,7 @@ async function handleRejectDelete(
   });
   const previousStatus = prevStatusRes.data.values?.[0]?.[0] || "A";
 
-  const now = new Date().toLocaleString("en-GB");
+  const now = getISTDateTime();
 
   const updates = {
     Status: previousStatus, // Return to previous status

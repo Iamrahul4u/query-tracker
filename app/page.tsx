@@ -319,45 +319,6 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
               <div className="w-8 h-8 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
             </div>
           )}
-
-          {/* Divider */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-400">or</span>
-            </div>
-          </div>
-
-          {/* Chrome Extension Instructions */}
-          <div className="bg-gray-50 rounded-lg p-4 text-left">
-            <h3 className="font-medium text-gray-700 mb-2">
-              Use Chrome Extension:
-            </h3>
-            <ol className="text-sm text-gray-600 space-y-2">
-              <li className="flex items-start">
-                <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs mr-2 mt-0.5 flex-shrink-0">
-                  1
-                </span>
-                <span>Install the Query Tracker Chrome extension</span>
-              </li>
-              <li className="flex items-start">
-                <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs mr-2 mt-0.5 flex-shrink-0">
-                  2
-                </span>
-                <span>Click the extension icon in your browser toolbar</span>
-              </li>
-              <li className="flex items-start">
-                <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs mr-2 mt-0.5 flex-shrink-0">
-                  3
-                </span>
-                <span>
-                  Click &quot;Open Full View&quot; to open this dashboard
-                </span>
-              </li>
-            </ol>
-          </div>
         </div>
       </div>
     </div>
