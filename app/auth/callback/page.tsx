@@ -53,7 +53,6 @@ function AuthCallbackContent() {
           router.replace("/dashboard");
         }, 500);
       } catch (err) {
-        console.error("Auth error:", err);
         setError(err instanceof Error ? err.message : "Authentication failed");
       }
     }

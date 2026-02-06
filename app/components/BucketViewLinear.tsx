@@ -1,8 +1,9 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Query, User } from "../utils/sheets";
 import { BUCKETS, BUCKET_ORDER } from "../config/sheet-constants";
 import { QueryCardCompact } from "./QueryCardCompact";
 import { DateFieldKey } from "../utils/queryFilters";
+import { ExpandedBucketModal } from "./ExpandedBucketModal";
 
 interface BucketViewLinearProps {
   groupedQueries: Record<string, Query[]>;
@@ -11,14 +12,18 @@ interface BucketViewLinearProps {
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
+  onApproveDelete?: (query: Query) => void;
+  onRejectDelete?: (query: Query) => void;
   onLoadMore?: (bucketKey: string) => void;
   extendedDays?: Record<string, number>;
   loadingBuckets?: Set<string>;
+  isFilterExpanded?: boolean;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
   detailView?: boolean;
+  hiddenBuckets?: string[];
 }
 
 /**
@@ -36,19 +41,24 @@ export function BucketViewLinear({
   onSelectQuery,
   onAssignQuery,
   onEditQuery,
+  onApproveDelete,
+  onRejectDelete,
   onLoadMore,
   extendedDays = {},
   loadingBuckets = new Set(),
+  isFilterExpanded = true,
   showDateOnCards = false,
   dateField = "Added Date Time",
   currentUserRole = "",
   currentUserEmail = "",
   detailView = false,
+  hiddenBuckets = [],
 }: BucketViewLinearProps) {
-  // Split buckets into rows based on column count
+  // Filter visible buckets and split into rows based on column count
+  const visibleBuckets = BUCKET_ORDER.filter((b) => !hiddenBuckets.includes(b));
   const rows: string[][] = [];
-  for (let i = 0; i < BUCKET_ORDER.length; i += columnCount) {
-    rows.push(BUCKET_ORDER.slice(i, i + columnCount));
+  for (let i = 0; i < visibleBuckets.length; i += columnCount) {
+    rows.push(visibleBuckets.slice(i, i + columnCount));
   }
 
   return (
@@ -63,9 +73,12 @@ export function BucketViewLinear({
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
           onEditQuery={onEditQuery}
+          onApproveDelete={onApproveDelete}
+          onRejectDelete={onRejectDelete}
           onLoadMore={onLoadMore}
           extendedDays={extendedDays}
           loadingBuckets={loadingBuckets}
+          isFilterExpanded={isFilterExpanded}
           showDateOnCards={showDateOnCards}
           dateField={dateField}
           currentUserRole={currentUserRole}
@@ -90,9 +103,12 @@ function SynchronizedRow({
   onSelectQuery,
   onAssignQuery,
   onEditQuery,
+  onApproveDelete,
+  onRejectDelete,
   onLoadMore,
   extendedDays = {},
   loadingBuckets = new Set(),
+  isFilterExpanded = true,
   showDateOnCards = false,
   dateField = "Added Date Time",
   currentUserRole = "",
@@ -106,9 +122,12 @@ function SynchronizedRow({
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
+  onApproveDelete?: (query: Query) => void;
+  onRejectDelete?: (query: Query) => void;
   onLoadMore?: (bucketKey: string) => void;
   extendedDays?: Record<string, number>;
   loadingBuckets?: Set<string>;
+  isFilterExpanded?: boolean;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
   currentUserRole?: string;
@@ -225,7 +244,7 @@ function SynchronizedRow({
   } else if (columnCount === 3) {
     gridClass = "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
   } else if (columnCount === 4) {
-    gridClass = "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+    gridClass = "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
   }
 
   return (
@@ -240,6 +259,8 @@ function SynchronizedRow({
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
           onEditQuery={onEditQuery}
+          onApproveDelete={onApproveDelete}
+          onRejectDelete={onRejectDelete}
           onLoadMore={onLoadMore}
           extendedDays={extendedDays[bucketKey] || 3}
           isLoading={loadingBuckets.has(bucketKey)}
@@ -250,6 +271,7 @@ function SynchronizedRow({
               scrollRefs.current.delete(bucketKey);
             }
           }}
+          isFilterExpanded={isFilterExpanded}
           showDateOnCards={showDateOnCards}
           dateField={BUCKETS[bucketKey].defaultSortField as DateFieldKey}
           currentUserRole={currentUserRole}
@@ -274,10 +296,13 @@ function BucketColumnWithSync({
   onSelectQuery,
   onAssignQuery,
   onEditQuery,
+  onApproveDelete,
+  onRejectDelete,
   onLoadMore,
   extendedDays = 3,
   isLoading = false,
   scrollRef,
+  isFilterExpanded = true,
   showDateOnCards = false,
   dateField = "Added Date Time",
   currentUserRole = "",
@@ -291,16 +316,26 @@ function BucketColumnWithSync({
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
+  onApproveDelete?: (query: Query) => void;
+  onRejectDelete?: (query: Query) => void;
   onLoadMore?: (bucketKey: string) => void;
   extendedDays?: number;
   isLoading?: boolean;
   scrollRef: (el: HTMLDivElement | null) => void;
+  isFilterExpanded?: boolean;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
   currentUserRole?: string;
   currentUserEmail?: string;
   detailView?: boolean;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Track state changes
+  useEffect(() => {
+    // State tracking for debugging if needed
+  }, [isExpanded, bucketKey]);
+
   // Color coding for query types - matches BucketColumn
   const typeColors: Record<
     string,
@@ -328,35 +363,48 @@ function BucketColumnWithSync({
     },
   };
 
+  // Conditional height based on filter bar visibility
+  const bucketHeight = isFilterExpanded ? "h-[85vh]" : "h-[90vh]";
+
   return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col border border-gray-100 h-[calc(100vh-220px)]">
+    <div
+      className={`bg-white rounded-xl shadow-sm overflow-hidden flex flex-col border border-gray-100 ${bucketHeight}`}
+    >
       {/* Bucket Header */}
       <div
-        className="px-4 py-3 text-white flex items-center justify-between flex-shrink-0"
+        className="px-3 py-2 text-white flex items-center justify-between flex-shrink-0"
         style={{ backgroundColor: config.color }}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <span className="font-bold text-2xl truncate">
+          <span className="font-bold text-3xl truncate">
             {config.name.split(") ")[0]})
           </span>
-          <span className="font-medium text-sm text-white/90 truncate ml-1 pt-1.5">
+          <span className="font-medium text-base text-white/90 truncate ml-1 pt-2">
             {config.name.split(") ")[1]}
           </span>
         </div>
-        <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-sm font-bold ml-2 flex-shrink-0">
+        {/* Clickable count badge to open expanded view */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(true);
+          }}
+          className="bg-white/20 px-3 py-1 rounded-full text-base font-bold ml-2 flex-shrink-0 hover:bg-white/40 hover:scale-110 transition-all cursor-pointer"
+          title="Click to expand view"
+        >
           {queries.length}
-        </span>
+        </button>
       </div>
 
       {/* Scrollable Content */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto bg-gray-50 flex flex-col"
+        className="flex-1 overflow-y-auto bg-gray-50 flex flex-col scrollbar-thin"
       >
         {queries.length === 0 ? (
           <p className="p-4 text-gray-400 text-sm text-center">No queries</p>
         ) : (
-          <div className="p-2 space-y-3 flex-1">
+          <div className="p-1.5 space-y-2 flex-1">
             {/* Group by Query Type: SEO Query -> New -> Ongoing */}
             {["SEO Query", "New", "Ongoing"].map((groupName) => {
               const typeQueries = queries.filter((q) => {
@@ -374,7 +422,7 @@ function BucketColumnWithSync({
                 >
                   {/* Type Header */}
                   <div
-                    className={`flex items-center justify-between px-3 py-2 ${colors.bg}`}
+                    className={`flex items-center justify-between px-2 py-1 ${colors.bg}`}
                   >
                     <h4
                       className={`text-xs font-bold ${colors.text} uppercase tracking-wider`}
@@ -389,7 +437,7 @@ function BucketColumnWithSync({
                   </div>
 
                   {/* Type Content */}
-                  <div className="p-2 space-y-1 bg-white">
+                  <div className="p-1 space-y-0.5 bg-white">
                     {typeQueries.map((query, idx) => (
                       <QueryCardCompact
                         key={`${bucketKey}-${groupName}-${query["Query ID"]}-${idx}`}
@@ -399,6 +447,8 @@ function BucketColumnWithSync({
                         onClick={() => onSelectQuery(query)}
                         onAssign={onAssignQuery}
                         onEdit={onEditQuery}
+                        onApproveDelete={onApproveDelete}
+                        onRejectDelete={onRejectDelete}
                         showDate={showDateOnCards}
                         dateField={config.defaultSortField}
                         currentUserRole={currentUserRole}
@@ -421,7 +471,7 @@ function BucketColumnWithSync({
               >
                 {/* Type Header */}
                 <div
-                  className={`flex items-center justify-between px-3 py-2 ${typeColors.Other.bg}`}
+                  className={`flex items-center justify-between px-2 py-1 ${typeColors.Other.bg}`}
                 >
                   <h4
                     className={`text-xs font-bold ${typeColors.Other.text} uppercase tracking-wider`}
@@ -456,6 +506,8 @@ function BucketColumnWithSync({
                         onClick={() => onSelectQuery(query)}
                         onAssign={onAssignQuery}
                         onEdit={onEditQuery}
+                        onApproveDelete={onApproveDelete}
+                        onRejectDelete={onRejectDelete}
                         showDate={showDateOnCards}
                         dateField={config.defaultSortField}
                         currentUserRole={currentUserRole}
@@ -514,6 +566,27 @@ function BucketColumnWithSync({
           </div>
         )}
       </div>
+
+      {/* Expanded Bucket Modal */}
+      <ExpandedBucketModal
+        isOpen={isExpanded}
+        onClose={() => setIsExpanded(false)}
+        bucketKey={bucketKey}
+        config={config}
+        queries={queries}
+        users={users}
+        onSelectQuery={(q) => {
+          setIsExpanded(false);
+          onSelectQuery(q);
+        }}
+        onAssignQuery={onAssignQuery}
+        onEditQuery={onEditQuery}
+        onApproveDelete={onApproveDelete}
+        onRejectDelete={onRejectDelete}
+        currentUserRole={currentUserRole}
+        currentUserEmail={currentUserEmail}
+        detailView={detailView}
+      />
     </div>
   );
 }

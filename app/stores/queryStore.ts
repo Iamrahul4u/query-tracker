@@ -120,13 +120,6 @@ export const useQueryStore = create<QueryState>()(
           if (!state.preferences) {
             // No local preferences yet, use server version
             state.preferences = preferences;
-          } else {
-            // Preferences exist locally - only update if they match server (no local changes)
-            // We'll keep the local version to preserve unsaved UI state
-            // The user will explicitly save when ready via "Save View" button
-            console.log(
-              "⏸️ Preserving local preferences during background refresh",
-            );
           }
 
           state.lastSyncedAt = new Date();
@@ -214,7 +207,6 @@ export const useQueryStore = create<QueryState>()(
             }
           });
         } catch (error) {
-          console.error("Initialize error:", error);
           set({ isLoading: false });
           useToast.getState().showToast("Failed to load data", "error");
         }
@@ -467,11 +459,13 @@ export const useQueryStore = create<QueryState>()(
       approveDeleteOptimistic: async (queryId) => {
         const syncManager = SyncManager.getInstance();
         const currentQueries = get().queries;
+        const currentUser = get().currentUser;
 
         const result = await syncManager.approveDeleteOptimistic(
           queryId,
           currentQueries,
           (queries) => set({ queries }),
+          currentUser?.Email,
         );
 
         if (result.success) {
@@ -489,11 +483,13 @@ export const useQueryStore = create<QueryState>()(
       rejectDeleteOptimistic: async (queryId) => {
         const syncManager = SyncManager.getInstance();
         const currentQueries = get().queries;
+        const currentUser = get().currentUser;
 
         const result = await syncManager.rejectDeleteOptimistic(
           queryId,
           currentQueries,
           (queries) => set({ queries }),
+          currentUser?.Email,
         );
 
         if (result.success) {
@@ -549,19 +545,17 @@ export const useQueryStore = create<QueryState>()(
             body: JSON.stringify(prefs),
           });
         } catch (e) {
-          console.error("Failed to save preferences", e);
+          // Silent failure
         }
       },
 
       // Legacy methods kept for backward compatibility
       syncPendingActions: async () => {
         // No longer used - SyncManager handles this
-        console.warn("syncPendingActions is deprecated");
       },
 
       rollbackAction: (actionId: string) => {
         // No longer used - SyncManager handles this
-        console.warn("rollbackAction is deprecated");
       },
     };
   }),

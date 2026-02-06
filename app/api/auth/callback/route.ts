@@ -16,7 +16,6 @@ export async function POST(request: NextRequest) {
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
-      console.error("Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
       return NextResponse.json(
         { error: "OAuth not configured" },
         { status: 500 },
@@ -42,7 +41,6 @@ export async function POST(request: NextRequest) {
 
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text();
-      console.error("Token exchange failed:", error);
       return NextResponse.json(
         { error: "Token exchange failed" },
         { status: 400 },
@@ -51,26 +49,10 @@ export async function POST(request: NextRequest) {
 
     const tokens = await tokenResponse.json();
 
-    // LOGGING: Track token exchange results
-    console.log("🔐 [AUTH] Token exchange successful");
-    console.log(
-      `🔐 [AUTH] Access token received: ${tokens.access_token ? "YES" : "NO"}`,
-    );
-    console.log(
-      `🔐 [AUTH] Refresh token received: ${tokens.refresh_token ? "YES ✅" : "NO ❌"}`,
-    );
-    console.log(
-      `🔐 [AUTH] Token expires in: ${tokens.expires_in}s (${(tokens.expires_in / 60).toFixed(1)} minutes)`,
-    );
-
     // CRITICAL: Warn if refresh token not received
     if (!tokens.refresh_token) {
-      console.warn(
-        "⚠️ [AUTH] NO REFRESH TOKEN RECEIVED - User will be logged out after token expires!",
-      );
-      console.warn(
-        "⚠️ [AUTH] This may happen if user previously authorized the app. Consider revoking access and re-authorizing.",
-      );
+      // This may happen if user previously authorized the app
+      // Consider revoking access and re-authorizing
     }
 
     // Get user info using the access token
@@ -91,7 +73,6 @@ export async function POST(request: NextRequest) {
     }
 
     const userInfo = await userInfoResponse.json();
-    console.log(`🔐 [AUTH] User authenticated: ${userInfo.email}`);
 
     // Return tokens and user info
     // Use actual Google token expiry (typically 3600 seconds = 1 hour)
@@ -108,7 +89,6 @@ export async function POST(request: NextRequest) {
       has_refresh_token: !!tokens.refresh_token, // Flag for frontend validation
     });
   } catch (error) {
-    console.error("OAuth callback error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

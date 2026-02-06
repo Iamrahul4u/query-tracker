@@ -21,6 +21,7 @@ interface BucketViewDefaultProps {
   currentUserRole?: string;
   currentUserEmail?: string;
   detailView?: boolean;
+  hiddenBuckets?: string[];
 }
 
 /**
@@ -47,25 +48,31 @@ export function BucketViewDefault({
   currentUserRole = "",
   currentUserEmail = "",
   detailView = false,
+  hiddenBuckets = [],
 }: BucketViewDefaultProps) {
+  // Filter visible buckets
+  const visibleBuckets = BUCKET_ORDER.filter((b) => !hiddenBuckets.includes(b));
+  
   // Dynamic grid classes - simplified for better responsiveness
+  // Changed 4-column to use lg breakpoint (1024px) instead of xl (1280px) for 100% zoom
   let gridClass = "";
   if (columnCount === 2) {
     gridClass = "grid-cols-1 md:grid-cols-2";
   } else if (columnCount === 3) {
     gridClass = "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
   } else if (columnCount === 4) {
-    gridClass = "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+    gridClass = "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
   }
 
   // Dynamic max height based on filter bar state
+  // Using CSS variables from globals.css for consistent styling at 100% zoom
   const maxHeight = isFilterExpanded
-    ? "calc(100vh - 220px)"
-    : "calc(100vh - 160px)";
+    ? "var(--bucket-height-expanded)"
+    : "var(--bucket-height-collapsed)";
 
   return (
     <div className={`grid gap-4 ${gridClass}`}>
-      {BUCKET_ORDER.map((bucketKey) => (
+      {visibleBuckets.map((bucketKey) => (
         <BucketColumn
           key={bucketKey}
           bucketKey={bucketKey}

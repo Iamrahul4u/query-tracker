@@ -20,14 +20,16 @@ export async function PATCH(request: NextRequest) {
     if (!email || !role) {
       return NextResponse.json(
         { error: "Missing email or role" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!["Admin", "Pseudo Admin", "Senior", "Junior"].includes(role)) {
       return NextResponse.json(
-        { error: "Invalid role. Must be Admin, Pseudo Admin, Senior, or Junior" },
-        { status: 400 }
+        {
+          error: "Invalid role. Must be Admin, Pseudo Admin, Senior, or Junior",
+        },
+        { status: 400 },
       );
     }
 
@@ -45,14 +47,6 @@ export async function PATCH(request: NextRequest) {
     const users = usersRes.data.values || [];
     let rowIndex = -1;
 
-    // Debug log
-    console.log(`[Role Update] Looking for email: ${email}`);
-    console.log(`[Role Update] Total users found: ${users.length}`);
-    if (users.length > 1) {
-      console.log(`[Role Update] Headers: ${users[0]?.join(", ")}`);
-      console.log(`[Role Update] First user email: ${users[1]?.[0]}`);
-    }
-
     // Find the row with matching email (Column A is Email - index 0)
     for (let i = 1; i < users.length; i++) {
       if (users[i][0]?.toLowerCase() === email.toLowerCase()) {
@@ -62,7 +56,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (rowIndex === -1) {
-      console.log(`[Role Update] User not found for email: ${email}`);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
@@ -76,8 +69,6 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    console.log(`[Role Update] Updated ${email} to role: ${role}`);
-
     return NextResponse.json({
       success: true,
       email,
@@ -85,10 +76,9 @@ export async function PATCH(request: NextRequest) {
       message: `Role updated to ${role}`,
     });
   } catch (error: any) {
-    console.error("Role update error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to update role" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

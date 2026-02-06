@@ -64,8 +64,6 @@ export class SyncManager {
     this.refreshInterval = setInterval(() => {
       this.refreshInBackground();
     }, 60 * 1000); // 60 seconds
-
-    console.log("✓ Background refresh started (60s interval)");
   }
 
   /**
@@ -75,7 +73,6 @@ export class SyncManager {
     if (this.refreshInterval) {
       clearInterval(this.refreshInterval);
       this.refreshInterval = null;
-      console.log("✓ Background refresh stopped");
     }
   }
 
@@ -91,8 +88,6 @@ export class SyncManager {
     const cached = LocalStorageCache.loadAll();
 
     if (cached) {
-      console.log("✓ Loaded from cache (instant)");
-
       // Return cached data immediately
       // Fetch fresh data in background
       this.refreshInBackground();
@@ -101,7 +96,6 @@ export class SyncManager {
     }
 
     // No cache, fetch immediately with loading state
-    console.log("⟳ No cache, fetching from server...");
     return await this.fetchAndUpdateCache();
   }
 
@@ -126,7 +120,6 @@ export class SyncManager {
 
       // Handle unauthorized - token expired
       if (response.status === 401) {
-        console.warn("Token expired, logging out...");
         localStorage.removeItem("auth_token");
         localStorage.removeItem("user_email");
         this.stopBackgroundRefresh();
@@ -148,15 +141,12 @@ export class SyncManager {
         preferences: data.preferences,
       });
 
-      console.log("✓ Data fetched and cached");
-
       return {
         queries: data.queries,
         users: data.users,
         preferences: data.preferences,
       };
     } catch (error) {
-      console.error("Fetch error:", error);
       throw error;
     }
   }
@@ -167,7 +157,6 @@ export class SyncManager {
    */
   private async refreshInBackground(): Promise<void> {
     if (this.isSyncing) {
-      console.log("⊘ Refresh skipped (already syncing)");
       return;
     }
 
@@ -183,10 +172,7 @@ export class SyncManager {
           detail: data,
         }),
       );
-
-      console.log("✓ Background refresh complete");
     } catch (error) {
-      console.error("Background refresh failed:", error);
       // Silent failure - don't interrupt user
     } finally {
       this.isSyncing = false;
@@ -483,14 +469,30 @@ export class SyncManager {
     const now = getISTDateTime();
 
     if (isAdmin) {
-      // Admin: Remove from UI immediately (permanent delete)
-      const optimisticQueries = currentQueries.filter(
-        (q) => q["Query ID"] !== queryId,
+      // Admin: Move to Bucket H (soft delete, can be permanently removed later)
+      // Changed from permanent delete based on Feb 5th meeting - all deletes go to H first
+      const queryToMove = currentQueries.find((q) => q["Query ID"] === queryId);
+      if (!queryToMove) {
+        return { success: false, error: "Query not found" };
+      }
+
+      const previousStatus = queryToMove.Status;
+      const updatedQuery: Query = {
+        ...queryToMove,
+        Status: "H",
+        "Previous Status": previousStatus,
+        "Deleted Date Time": now,
+        "Delete Requested By": requestedBy,
+        "Delete Rejected": "",
+        "Last Activity Date Time": now,
+      };
+
+      const optimisticQueries = currentQueries.map((q) =>
+        q["Query ID"] === queryId ? updatedQuery : q,
       );
       updateStore(optimisticQueries);
 
       try {
-        // Always get fresh token from localStorage
         const currentToken = localStorage.getItem("auth_token");
         if (!currentToken) {
           throw new Error("No auth token available");
@@ -503,9 +505,16 @@ export class SyncManager {
             Authorization: `Bearer ${currentToken}`,
           },
           body: JSON.stringify({
-            action: "delete",
+            action: "update",
             queryId,
-            data: { requestedBy, isAdmin },
+            data: {
+              Status: "H",
+              "Previous Status": previousStatus,
+              "Deleted Date Time": now,
+              "Delete Requested By": requestedBy,
+              "Delete Rejected": "",
+              "Last Activity Date Time": now,
+            },
           }),
         });
 
@@ -517,7 +526,7 @@ export class SyncManager {
 
         return {
           success: true,
-          data: { message: "Query permanently deleted" },
+          data: { message: "Moved to Deleted bucket" },
         };
       } catch (error: any) {
         updateStore(currentQueries);
@@ -594,7 +603,7 @@ export class SyncManager {
   }
 
   /**
-   * Approve a pending deletion (Admin only)
+   * Approve a pending deletion (Admin only) - REMOVES query from list (permanent delete)
    */
   async approveDeleteOptimistic(
     queryId: string,
@@ -602,6 +611,9 @@ export class SyncManager {
     updateStore: (queries: Query[]) => void,
     approvedBy?: string,
   ): Promise<SyncResult> {
+    const now = getISTDateTime();
+
+    // Optimistically REMOVE the query from the list (permanent delete)
     const optimisticQueries = currentQueries.filter(
       (q) => q["Query ID"] !== queryId,
     );
@@ -636,9 +648,10 @@ export class SyncManager {
 
       return {
         success: true,
-        data: { message: "Deletion approved" },
+        data: { message: "Deletion approved - query removed" },
       };
     } catch (error: any) {
+      // Rollback - restore the query
       updateStore(currentQueries);
 
       return {
@@ -740,29 +753,16 @@ export class SyncManager {
     updateStore: (queries: Query[]) => void,
     currentUserEmail: string,
   ): Promise<SyncResult> {
-    console.log("🔄 SyncManager.updateStatusOptimistic called");
-    console.log("  Query ID:", queryId);
-    console.log("  New Status:", newStatus);
-    console.log("  Fields:", JSON.stringify(fields, null, 2));
-    console.log("  Current user:", currentUserEmail);
-
     const now = getISTDateTime();
 
     // Find the query to update
     const targetQuery = currentQueries.find((q) => q["Query ID"] === queryId);
     if (!targetQuery) {
-      console.error("❌ Query not found:", queryId);
       return {
         success: false,
         error: "Query not found",
       };
     }
-
-    console.log("  Target query current status:", targetQuery.Status);
-    console.log(
-      "  Target query description:",
-      targetQuery["Query Description"],
-    );
 
     // Optimistic update
     const optimisticQueries = currentQueries.map((q) => {
@@ -861,33 +861,12 @@ export class SyncManager {
           }
         }
 
-        console.log("  Optimistic update applied:", {
-          oldStatus: q.Status,
-          newStatus: updated.Status,
-          description: updated["Query Description"],
-        });
-
         return updated;
       }
       return q;
     });
 
     updateStore(optimisticQueries);
-    console.log("  ✅ UI updated optimistically");
-
-    console.log("📤 Sending status update to API...");
-    console.log(
-      "  Payload:",
-      JSON.stringify(
-        {
-          action: "updateStatus",
-          queryId,
-          data: { newStatus, fields },
-        },
-        null,
-        2,
-      ),
-    );
 
     try {
       // Always get fresh token from localStorage
@@ -909,32 +888,23 @@ export class SyncManager {
         }),
       });
 
-      console.log("📥 API response status:", response.status);
-      console.log("📥 API response ok:", response.ok);
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("❌ API error response:", errorText);
         throw new Error(
           `Status update failed: ${response.status} ${errorText}`,
         );
       }
 
       const responseData = await response.json();
-      console.log("✅ Status update successful, response:", responseData);
 
       LocalStorageCache.saveQueries(optimisticQueries);
-      console.log("✅ Cache updated");
 
       return {
         success: true,
         data: { message: "Status updated successfully" },
       };
     } catch (error: any) {
-      console.error("❌ Status update failed:", error);
-      console.error("❌ Error details:", error.message);
       updateStore(currentQueries);
-      console.log("↩️ Rolled back to original state");
 
       return {
         success: false,
@@ -948,6 +918,5 @@ export class SyncManager {
    */
   clearCache(): void {
     LocalStorageCache.clear();
-    console.log("✓ Cache cleared");
   }
 }

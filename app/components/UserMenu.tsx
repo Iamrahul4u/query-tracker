@@ -12,12 +12,21 @@ interface UserMenuProps {
 
 const ROLES = [
   { value: "Admin", label: "Admin", icon: Shield, color: "text-purple-600" },
-  { value: "Pseudo Admin", label: "Pseudo Admin", icon: Shield, color: "text-purple-500" },
+  {
+    value: "Pseudo Admin",
+    label: "Pseudo Admin",
+    icon: Shield,
+    color: "text-purple-500",
+  },
   { value: "Senior", label: "Senior", icon: UserCog, color: "text-blue-600" },
   { value: "Junior", label: "Junior", icon: UserIcon, color: "text-green-600" },
 ];
 
-export function UserMenu({ currentUser, onLogout, onRoleChange }: UserMenuProps) {
+export function UserMenu({
+  currentUser,
+  onLogout,
+  onRoleChange,
+}: UserMenuProps) {
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -25,7 +34,10 @@ export function UserMenu({ currentUser, onLogout, onRoleChange }: UserMenuProps)
   // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setShowRoleDropdown(false);
       }
     };
@@ -56,20 +68,19 @@ export function UserMenu({ currentUser, onLogout, onRoleChange }: UserMenuProps)
 
       if (response.ok) {
         // Clear cached data so fresh data is fetched with new role
-        const { LocalStorageCache } = await import("../utils/localStorageCache");
+        const { LocalStorageCache } =
+          await import("../utils/localStorageCache");
         LocalStorageCache.clear();
-        
+
         // Call parent callback to update local state
         onRoleChange?.(newRole);
         // Reload to apply new role permissions
         window.location.reload();
       } else {
         const error = await response.json();
-        console.error("Failed to update role:", error);
         alert(`Failed to update role: ${error.error}`);
       }
     } catch (error) {
-      console.error("Role update error:", error);
       alert("Failed to update role. Please try again.");
     } finally {
       setIsUpdating(false);
@@ -77,7 +88,8 @@ export function UserMenu({ currentUser, onLogout, onRoleChange }: UserMenuProps)
     }
   };
 
-  const currentRoleInfo = ROLES.find((r) => r.value === currentUser?.Role) || ROLES[2];
+  const currentRoleInfo =
+    ROLES.find((r) => r.value === currentUser?.Role) || ROLES[2];
   const RoleIcon = currentRoleInfo.icon;
 
   return (
@@ -99,7 +111,9 @@ export function UserMenu({ currentUser, onLogout, onRoleChange }: UserMenuProps)
             className={`text-xs flex items-center gap-1 hover:bg-gray-100 px-1 -mx-1 rounded transition ${currentRoleInfo.color}`}
           >
             <RoleIcon className="w-3 h-3" />
-            <span>{isUpdating ? "Updating..." : currentUser?.Role || "Guest"}</span>
+            <span>
+              {isUpdating ? "Updating..." : currentUser?.Role || "Guest"}
+            </span>
             <ChevronDown className="w-3 h-3" />
           </button>
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { DATE_FIELDS, DateFieldKey } from "../utils/queryFilters";
+import { BUCKETS } from "../config/sheet-constants";
 import {
   Drawer,
   DrawerClose,
@@ -35,11 +36,21 @@ interface CollapsibleFilterBarProps {
   // Detail View toggle (1-row vs 2-row per query card)
   detailView?: boolean;
   onDetailViewChange?: (detail: boolean) => void;
+  // Group By toggle (User View only: type vs bucket)
+  groupBy?: "type" | "bucket";
+  onGroupByChange?: (mode: "type" | "bucket") => void;
   // Save View button
   hasPendingChanges?: boolean;
   onSaveView?: () => void;
   // User role for hiding User View from Juniors
   currentUserRole?: string;
+  // Hidden Buckets/Users filters
+  hiddenBuckets?: string[];
+  onHiddenBucketsChange?: (buckets: string[]) => void;
+  hiddenUsers?: string[];
+  onHiddenUsersChange?: (users: string[]) => void;
+  // All users for the user filter dropdown
+  allUsers?: Array<{ email: string; name: string }>;
 }
 
 export function CollapsibleFilterBar({
@@ -65,13 +76,24 @@ export function CollapsibleFilterBar({
   onShowDateOnCardsChange,
   detailView = false,
   onDetailViewChange,
+  groupBy = "bucket",
+  onGroupByChange,
   hasPendingChanges = false,
   onSaveView,
   currentUserRole = "",
+  hiddenBuckets = [],
+  onHiddenBucketsChange,
+  hiddenUsers = [],
+  onHiddenUsersChange,
+  allUsers = [],
 }: CollapsibleFilterBarProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [bucketDropdownOpen, setBucketDropdownOpen] = useState(false);
+  const [hiddenBucketDropdownOpen, setHiddenBucketDropdownOpen] =
+    useState(false);
+  const [hiddenUserDropdownOpen, setHiddenUserDropdownOpen] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
 
   // Check if user is Junior (cannot access User View)
   const isJunior = currentUserRole.toLowerCase() === "junior";
@@ -148,7 +170,7 @@ export function CollapsibleFilterBar({
           <button
             key={count}
             onClick={() => setColumnCount(count as 2 | 3 | 4)}
-            className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${columnCount === count ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+            className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${columnCount === count ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           >
             {count}
           </button>
@@ -165,14 +187,14 @@ export function CollapsibleFilterBar({
       <div className="flex bg-gray-100 rounded-lg p-0.5">
         <button
           onClick={() => setBucketViewMode("default")}
-          className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${bucketViewMode === "default" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${bucketViewMode === "default" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Independent scroll per bucket"
         >
           Default
         </button>
         <button
           onClick={() => setBucketViewMode("linear")}
-          className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${bucketViewMode === "linear" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${bucketViewMode === "linear" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Synchronized row scrolling"
         >
           Linear
@@ -189,14 +211,14 @@ export function CollapsibleFilterBar({
       <div className="flex bg-gray-100 rounded-lg p-0.5">
         <button
           onClick={() => onDetailViewChange?.(false)}
-          className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${!detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${!detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Single row per card (compact)"
         >
           Compact
         </button>
         <button
           onClick={() => onDetailViewChange?.(true)}
-          className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Two rows per card with all dates"
         >
           Detail
@@ -205,15 +227,38 @@ export function CollapsibleFilterBar({
     </div>
   );
 
-  const SortFilter = () => (
+  const GroupByFilter = () => (
     <div className="flex items-center gap-1.5">
       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-        Sort:
+        Group:
       </span>
+      <div className="flex bg-gray-100 rounded-lg p-0.5">
+        <button
+          onClick={() => onGroupByChange?.("bucket")}
+          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${groupBy === "bucket" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          title="Group by workflow stage (bucket)"
+        >
+          Bucket
+        </button>
+        <button
+          onClick={() => onGroupByChange?.("type")}
+          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${groupBy === "type" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          title="Group by query type"
+        >
+          Type
+        </button>
+      </div>
+    </div>
+  );
+
+  const SortFilter = () => (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] font-medium text-gray-600">SORT:</span>
       <select
-        value={sortField}
+        value={sortField || ""}
         onChange={(e) => onSortFieldChange?.(e.target.value as DateFieldKey)}
-        className="px-2 py-1 text-[10px] font-medium rounded-md bg-gray-100 text-gray-700 border-0 focus:ring-1 focus:ring-blue-500"
+        className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-700 border-0 focus:ring-1 focus:ring-blue-500"
+        title="Sort by date field"
       >
         {DATE_FIELDS.map((f) => (
           <option key={f.value} value={f.value}>
@@ -221,26 +266,146 @@ export function CollapsibleFilterBar({
           </option>
         ))}
       </select>
-      <button
-        onClick={() => onSortAscendingChange?.(!sortAscending)}
-        className="px-2 py-1 text-[10px] font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-        title={sortAscending ? "Oldest first" : "Newest first"}
-      >
-        {sortAscending ? "↑ Oldest" : "↓ Newest"}
-      </button>
-      {/* Bucket Multi-Select Dropdown */}
+      {sortField && (
+        <button
+          onClick={() => onSortAscendingChange?.(!sortAscending)}
+          className="w-5 h-5 text-sm font-bold rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition flex items-center justify-center"
+          title={
+            sortAscending
+              ? "Oldest first (click for Newest)"
+              : "Newest first (click for Oldest)"
+          }
+        >
+          {sortAscending ? "↑" : "↓"}
+        </button>
+      )}
+      {/* Bucket Multi-Select Dropdown - Only show when custom sort is active */}
+      {sortField && (
+        <div className="relative">
+          <button
+            onClick={() => setBucketDropdownOpen(!bucketDropdownOpen)}
+            className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition flex items-center gap-1"
+            title="Select buckets to apply custom sort"
+          >
+            <span>{allBucketsSelected ? "All" : `${selectedCount}`}</span>
+            <svg
+              className="w-2.5 h-2.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+          {/* Dropdown Menu */}
+          {bucketDropdownOpen && (
+            <>
+              {/* Backdrop to close dropdown */}
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setBucketDropdownOpen(false)}
+              />
+              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]">
+                <div className="p-2 space-y-1">
+                  <label className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={allBucketsSelected}
+                      onChange={() => toggleBucket("ALL")}
+                      className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-[10px] font-medium text-gray-700">
+                      All Buckets
+                    </span>
+                  </label>
+                  <div className="border-t border-gray-100 my-1"></div>
+                  {AVAILABLE_BUCKETS.map((bucket) => {
+                    const bucketConfig = BUCKETS[bucket];
+                    const bucketLabel = bucketConfig.name.split(") ");
+                    return (
+                      <label
+                        key={bucket}
+                        className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            allBucketsSelected || sortBuckets.includes(bucket)
+                          }
+                          onChange={() => toggleBucket(bucket)}
+                          className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-[10px] font-medium text-gray-700">
+                          {bucketLabel[0]}) {bucketLabel[1]}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      {onClearSort && sortField && (
+        <button
+          onClick={onClearSort}
+          className="w-5 h-5 text-sm font-bold rounded bg-red-100 text-red-700 hover:bg-red-200 transition flex items-center justify-center"
+          title="Reset to default bucket sorting"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+
+  // Toggle hidden bucket selection
+  const toggleHiddenBucket = (bucket: string) => {
+    if (!onHiddenBucketsChange) return;
+    if (hiddenBuckets.includes(bucket)) {
+      onHiddenBucketsChange(hiddenBuckets.filter((b) => b !== bucket));
+    } else {
+      onHiddenBucketsChange([...hiddenBuckets, bucket]);
+    }
+  };
+
+  // Toggle hidden user selection
+  const toggleHiddenUser = (email: string) => {
+    if (!onHiddenUsersChange) return;
+    if (hiddenUsers.includes(email)) {
+      onHiddenUsersChange(hiddenUsers.filter((u) => u !== email));
+    } else {
+      onHiddenUsersChange([...hiddenUsers, email]);
+    }
+  };
+
+  // Filtered users based on search query
+  const filteredUsers = allUsers.filter(
+    (u) =>
+      u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+      u.email.toLowerCase().includes(userSearchQuery.toLowerCase()),
+  );
+
+  // Hidden Buckets Filter (for Bucket View)
+  const HiddenBucketsFilter = () => (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+        Show:
+      </span>
       <div className="relative">
         <button
-          onClick={() => setBucketDropdownOpen(!bucketDropdownOpen)}
-          className="px-2 py-1 text-[10px] font-medium rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition flex items-center gap-1"
-          title="Select buckets to apply custom sort"
+          onClick={() => setHiddenBucketDropdownOpen(!hiddenBucketDropdownOpen)}
+          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition flex items-center gap-1 ${hiddenBuckets.length > 0 ? "bg-orange-100 text-orange-700 hover:bg-orange-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+          title="Toggle which buckets to show"
         >
-          <span>
-            Apply to:{" "}
-            {allBucketsSelected
-              ? "All"
-              : `${selectedCount} ${selectedCount === 1 ? "bucket" : "buckets"}`}
-          </span>
+          {hiddenBuckets.length > 0
+            ? `${8 - hiddenBuckets.length}/8 Buckets`
+            : "All Buckets"}
           <svg
             className="w-3 h-3"
             fill="none"
@@ -255,67 +420,170 @@ export function CollapsibleFilterBar({
             />
           </svg>
         </button>
-        {/* Dropdown Menu */}
-        {bucketDropdownOpen && (
+        {hiddenBucketDropdownOpen && (
           <>
-            {/* Backdrop to close dropdown */}
             <div
               className="fixed inset-0 z-40"
-              onClick={() => setBucketDropdownOpen(false)}
+              onClick={() => setHiddenBucketDropdownOpen(false)}
             />
             <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]">
               <div className="p-2 space-y-1">
-                <label className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={allBucketsSelected}
-                    onChange={() => toggleBucket("ALL")}
-                    className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-[10px] font-medium text-gray-700">
-                    All Buckets
-                  </span>
-                </label>
-                <div className="border-t border-gray-100 my-1"></div>
-                {AVAILABLE_BUCKETS.map((bucket) => (
-                  <label
-                    key={bucket}
-                    className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer"
+                {/* Hide All / Show All buttons */}
+                <div className="flex gap-1 mb-1">
+                  <button
+                    onClick={() => onHiddenBucketsChange?.(AVAILABLE_BUCKETS)}
+                    className="flex-1 px-2 py-1 text-[10px] text-center text-red-600 hover:bg-red-50 rounded border border-red-200"
                   >
-                    <input
-                      type="checkbox"
-                      checked={
-                        allBucketsSelected || sortBuckets.includes(bucket)
-                      }
-                      onChange={() => toggleBucket(bucket)}
-                      className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-[10px] font-medium text-gray-700">
-                      Bucket {bucket}
-                    </span>
-                  </label>
-                ))}
+                    Hide All
+                  </button>
+                  <button
+                    onClick={() => onHiddenBucketsChange?.([])}
+                    className="flex-1 px-2 py-1 text-[10px] text-center text-blue-600 hover:bg-blue-50 rounded border border-blue-200"
+                  >
+                    Show All
+                  </button>
+                </div>
+                <div className="border-t border-gray-100 my-1" />
+                {AVAILABLE_BUCKETS.map((bucket) => {
+                  const bucketConfig = BUCKETS[bucket];
+                  const isHidden = hiddenBuckets.includes(bucket);
+                  return (
+                    <label
+                      key={bucket}
+                      className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!isHidden}
+                        onChange={() => toggleHiddenBucket(bucket)}
+                        className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span
+                        className="w-4 h-4 rounded text-[9px] flex items-center justify-center text-white font-bold"
+                        style={{ backgroundColor: bucketConfig.color }}
+                      >
+                        {bucket}
+                      </span>
+                      <span
+                        className={`text-[10px] font-medium ${isHidden ? "text-gray-400 line-through" : "text-gray-700"}`}
+                      >
+                        {bucketConfig.name.split(") ")[1]?.split(" - ")[0] ||
+                          bucketConfig.name}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </>
         )}
       </div>
-      {onClearSort && (
+    </div>
+  );
+
+  // Hidden Users Filter (for User View)
+  const HiddenUsersFilter = () => (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+        Show:
+      </span>
+      <div className="relative">
         <button
-          onClick={onClearSort}
-          className="px-2 py-1 text-[10px] font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition"
-          title="Reset to default bucket sorting"
+          onClick={() => setHiddenUserDropdownOpen(!hiddenUserDropdownOpen)}
+          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition flex items-center gap-1 ${hiddenUsers.length > 0 ? "bg-orange-100 text-orange-700 hover:bg-orange-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+          title="Toggle which users to show"
         >
-          ✕ Reset
+          {hiddenUsers.length > 0
+            ? `${allUsers.length - hiddenUsers.length}/${allUsers.length} Users`
+            : "All Users"}
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
         </button>
-      )}
+        {hiddenUserDropdownOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setHiddenUserDropdownOpen(false)}
+            />
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[220px] max-h-[300px] flex flex-col">
+              {/* Search input */}
+              <div className="p-2 border-b border-gray-100">
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:border-blue-400 focus:outline-none"
+                />
+              </div>
+              <div className="p-2 space-y-1 overflow-y-auto flex-1">
+                {/* Hide All / Show All buttons */}
+                <div className="flex gap-1 mb-1">
+                  <button
+                    onClick={() =>
+                      onHiddenUsersChange?.(allUsers.map((u) => u.email))
+                    }
+                    className="flex-1 px-2 py-1 text-[10px] text-center text-red-600 hover:bg-red-50 rounded border border-red-200"
+                  >
+                    Hide All
+                  </button>
+                  <button
+                    onClick={() => onHiddenUsersChange?.([])}
+                    className="flex-1 px-2 py-1 text-[10px] text-center text-blue-600 hover:bg-blue-50 rounded border border-blue-200"
+                  >
+                    Show All
+                  </button>
+                </div>
+                <div className="border-t border-gray-100 my-1" />
+                {filteredUsers.map((user) => {
+                  const isHidden = hiddenUsers.includes(user.email);
+                  return (
+                    <label
+                      key={user.email}
+                      className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!isHidden}
+                        onChange={() => toggleHiddenUser(user.email)}
+                        className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span
+                        className={`text-[10px] font-medium truncate ${isHidden ? "text-gray-400 line-through" : "text-gray-700"}`}
+                      >
+                        {user.name}
+                      </span>
+                    </label>
+                  );
+                })}
+                {filteredUsers.length === 0 && (
+                  <p className="text-[10px] text-gray-400 text-center py-2">
+                    No users found
+                  </p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 
   // SearchInput is inlined to prevent focus loss on re-render
 
   return (
-    <div className="bg-white border-b border-gray-100 transition-all">
+    <div className="bg-white border-b border-gray-100 transition-all sticky top-[40px] sm:top-[48px] z-40">
       {/* Toggle Handle */}
       <div
         className="flex items-center justify-center -mb-2 relative z-10 cursor-pointer group"
@@ -340,7 +608,7 @@ export function CollapsibleFilterBar({
       </div>
 
       {isExpanded && (
-        <div className="max-w-full mx-auto px-3 sm:px-4 lg:px-6 py-2">
+        <div className="max-w-full mx-auto px-3 sm:px-4 lg:px-6 py-1">
           <div className="flex flex-wrap items-center gap-2">
             {/* View Toggles - Always visible (User tab hidden for Juniors) */}
             <div className="flex items-center gap-1.5">
@@ -350,14 +618,14 @@ export function CollapsibleFilterBar({
               <div className="flex bg-gray-100 rounded-lg p-0.5">
                 <button
                   onClick={() => setViewMode("bucket")}
-                  className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${viewMode === "bucket" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                  className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${viewMode === "bucket" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
                 >
                   Bucket
                 </button>
                 {!isJunior && (
                   <button
                     onClick={() => setViewMode("user")}
-                    className={`px-2 py-1 text-[10px] font-medium rounded-md transition ${viewMode === "user" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                    className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${viewMode === "user" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
                   >
                     User
                   </button>
@@ -379,6 +647,24 @@ export function CollapsibleFilterBar({
                     <CardViewFilter />
                   </div>
                 )}
+                {/* Group By toggle - Only visible in User View */}
+                {viewMode === "user" && onGroupByChange && (
+                  <div className="hidden lg:flex">
+                    <GroupByFilter />
+                  </div>
+                )}
+                {/* Hidden Buckets Filter - Only visible in Bucket View */}
+                {viewMode === "bucket" && onHiddenBucketsChange && (
+                  <div className="hidden lg:flex">
+                    <HiddenBucketsFilter />
+                  </div>
+                )}
+                {/* Hidden Users Filter - Only visible in User View */}
+                {viewMode === "user" && onHiddenUsersChange && (
+                  <div className="hidden lg:flex">
+                    <HiddenUsersFilter />
+                  </div>
+                )}
               </>
             )}
 
@@ -395,7 +681,7 @@ export function CollapsibleFilterBar({
               {hasPendingChanges && onSaveView && (
                 <button
                   onClick={onSaveView}
-                  className="px-3 py-1.5 text-[10px] font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition flex items-center gap-1 shadow-sm"
+                  className="w-5 h-5 text-sm font-bold rounded bg-green-600 text-white hover:bg-green-700 transition flex items-center justify-center shadow-sm"
                   title="Save your current view preferences"
                 >
                   <svg
@@ -411,10 +697,9 @@ export function CollapsibleFilterBar({
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  Save View
                 </button>
               )}
-              <div className="relative w-48">
+              <div className="relative w-36">
                 <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                   <svg
                     className="h-3 w-3 text-gray-400"
@@ -434,8 +719,8 @@ export function CollapsibleFilterBar({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => onSearchChange?.(e.target.value)}
-                  className="block w-full pl-7 pr-2 py-1.5 border border-gray-200 rounded-md text-[10px] bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition"
-                  placeholder="Search ID or description..."
+                  className="block w-full pl-6 pr-2 py-1 border border-gray-200 rounded text-[10px] bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition"
+                  placeholder="Search Description"
                 />
                 {searchQuery && (
                   <button
@@ -500,7 +785,7 @@ export function CollapsibleFilterBar({
                           value={searchQuery}
                           onChange={(e) => onSearchChange?.(e.target.value)}
                           className="block w-full pl-7 pr-2 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition"
-                          placeholder="Search ID or description..."
+                          placeholder="Search Description"
                         />
                         {searchQuery && (
                           <button
@@ -563,6 +848,29 @@ export function CollapsibleFilterBar({
                             className={`px-4 py-2 text-sm font-medium rounded-md transition ${bucketViewMode === "linear" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
                           >
                             Linear
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Group By - Only in User View */}
+                    {viewMode === "user" && onGroupByChange && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-gray-600 uppercase">
+                          Group By
+                        </label>
+                        <div className="flex bg-gray-100 rounded-lg p-0.5 w-fit">
+                          <button
+                            onClick={() => onGroupByChange("bucket")}
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition ${groupBy === "bucket" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                          >
+                            Bucket
+                          </button>
+                          <button
+                            onClick={() => onGroupByChange("type")}
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition ${groupBy === "type" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                          >
+                            Type
                           </button>
                         </div>
                       </div>

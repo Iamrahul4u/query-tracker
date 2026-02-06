@@ -61,7 +61,6 @@ export async function GET(request: NextRequest) {
       userEmail,
     });
   } catch (error: any) {
-    console.error("API Error:", error);
     // Google API errors can be objects, not strings
     const errorMessage =
       typeof error.message === "string"
@@ -121,7 +120,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
   } catch (error: any) {
-    console.error("API POST Error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to process request" },
       { status: 500 },
@@ -223,7 +221,6 @@ async function findRowIndex(
   // Check cache first
   const cached = rowIndexCache.get(queryId);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log(`✓ Row index cache hit for ${queryId}`);
     return cached.rowIndex;
   }
 
@@ -233,7 +230,6 @@ async function findRowIndex(
   }
 
   // Cache miss - fetch from API
-  console.log(`⟳ Row index cache miss for ${queryId}, fetching...`);
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: "Queries!A:A", // Only fetch IDs
@@ -341,16 +337,9 @@ async function handleUpdateStatus(
   queryId: string,
   data: { newStatus: string; fields?: any },
 ) {
-  console.log("🔧 API handleUpdateStatus called");
-  console.log("  Query ID:", queryId);
-  console.log("  New Status:", data.newStatus);
-  console.log("  Fields:", JSON.stringify(data.fields, null, 2));
-
   const rowIndex = await findRowIndex(sheets, queryId);
-  console.log("  Row index found:", rowIndex);
 
   if (!rowIndex) {
-    console.error("❌ Query not found in sheet");
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
   }
 
@@ -374,10 +363,6 @@ async function handleUpdateStatus(
   const newIndex = bucketOrder.indexOf(data.newStatus);
 
   if (newIndex >= 0 && oldIndex >= 0 && newIndex < oldIndex) {
-    console.log(
-      `  ⬅️ Backward transition detected: ${currentStatus} → ${data.newStatus}`,
-    );
-
     // Moving to A: Clear ALL fields except Query Description, Type, Added By/Date
     if (data.newStatus === "A") {
       updates["Assigned To"] = "";
@@ -439,10 +424,7 @@ async function handleUpdateStatus(
     }
   }
 
-  console.log("  Updates to apply:", JSON.stringify(updates, null, 2));
-
   await updateRowCells(sheets, rowIndex, updates);
-  console.log("✅ Row updated successfully");
 
   return NextResponse.json({ success: true });
 }
@@ -466,22 +448,15 @@ async function handleEdit(sheets: any, queryId: string, data: any) {
 }
 
 async function handleAdd(sheets: any, data: Query) {
-  console.log("🔧 API handleAdd called");
-  console.log("  Incoming data:", JSON.stringify(data, null, 2));
-
   // Generate unique ID with timestamp + random component to prevent collisions
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 9);
   const realId = `Q-${timestamp}-${random}`;
 
-  console.log("  Generated real ID:", realId);
-
   // Construct row in correct order (Columns A-Z)
   const keysInOrder = Object.entries(COL_MAP)
     .sort(([, a], [, b]) => a.localeCompare(b))
     .map(([key]) => key);
-
-  console.log("  Keys in column order:", keysInOrder);
 
   const newRow: string[] = [];
   keysInOrder.forEach((key) => {
@@ -491,9 +466,6 @@ async function handleAdd(sheets: any, data: Query) {
       newRow.push(data[key as keyof Query] || "");
     }
   });
-
-  console.log("  New row to append:", newRow);
-  console.log("  Row length:", newRow.length);
 
   try {
     const appendResult = await sheets.spreadsheets.values.append({
@@ -506,19 +478,11 @@ async function handleAdd(sheets: any, data: Query) {
       },
     });
 
-    console.log(
-      "✅ Append result:",
-      JSON.stringify(appendResult.data, null, 2),
-    );
-
     // Invalidate entire cache since row indices have shifted
-    console.log("⚠ Clearing row index cache (new row added)");
     rowIndexCache.clear();
 
     return NextResponse.json({ success: true, queryId: realId });
   } catch (error: any) {
-    console.error("❌ Failed to append row:", error);
-    console.error("  Error details:", JSON.stringify(error, null, 2));
     throw error;
   }
 }
@@ -570,7 +534,6 @@ async function handleDelete(
 
       return NextResponse.json({ success: true, permanent: true });
     } catch (error: any) {
-      console.error("Failed to delete row:", error);
       return NextResponse.json(
         { error: "Failed to permanently delete query" },
         { status: 500 },
@@ -600,7 +563,8 @@ async function handleDelete(
 }
 
 /**
- * Approve a pending deletion (Admin only) - sets approval then removes the row
+ * Approve a pending deletion (Admin only) - moves query to H bucket (soft delete)
+ * The query stays in the sheet but with Status = H for audit trail
  */
 async function handleApproveDelete(
   sheets: any,
@@ -613,52 +577,26 @@ async function handleApproveDelete(
 
   const now = getISTDateTime();
 
-  // First, record who approved (for audit trail before deletion)
-  // Note: In future, could keep approved records for evaporation period
-  if (approvedBy) {
-    await updateRowCells(sheets, rowIndex, {
-      "Delete Approved By": approvedBy,
-      "Delete Approved Date Time": now,
-    });
-  }
+  // Update to H status with approval info - query stays in sheet for audit trail
+  const updates: Record<string, string> = {
+    Status: "H", // Move to deleted bucket
+    "Delete Approved By": approvedBy || "",
+    "Delete Approved Date Time": now,
+    "Last Activity Date Time": now,
+  };
 
   try {
-    const spreadsheet = await sheets.spreadsheets.get({
-      spreadsheetId: SPREADSHEET_ID,
-    });
-    const queriesSheet = spreadsheet.data.sheets?.find(
-      (s: any) => s.properties?.title === "Queries",
-    );
-    const sheetId = queriesSheet?.properties?.sheetId || 0;
-
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: SPREADSHEET_ID,
-      requestBody: {
-        requests: [
-          {
-            deleteDimension: {
-              range: {
-                sheetId,
-                dimension: "ROWS",
-                startIndex: rowIndex - 1,
-                endIndex: rowIndex,
-              },
-            },
-          },
-        ],
-      },
-    });
-
+    await updateRowCells(sheets, rowIndex, updates);
     rowIndexCache.clear();
-    return NextResponse.json({ success: true, approved: true });
+    return NextResponse.json({ success: true, approved: true, status: "H" });
   } catch (error: any) {
-    console.error("Failed to approve delete:", error);
     return NextResponse.json(
       { error: "Failed to approve deletion" },
       { status: 500 },
     );
   }
 }
+
 
 /**
  * Reject a pending deletion (Admin only) - returns to previous status with Del-Rej flag

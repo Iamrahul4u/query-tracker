@@ -97,6 +97,10 @@
     --bucket-e: #1a73e8;
     --bucket-f: #673ab7;
     --bucket-g: #9e9e9e;
+
+    /* Bucket Height - Conditional based on filter bar visibility */
+    --bucket-height-expanded: 85vh;
+    --bucket-height-collapsed: 90vh;
   }
 }
 
@@ -106,26 +110,51 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    /* Scale down entire UI so 100% zoom looks like 90% zoom */
+    /* This ensures 4 columns are visible and lower buckets are pushed off-screen */
   }
-  /* Hide scrollbars globally for cleaner look */
+  /* Thin scrollbars globally - 50% of default width but still visible */
   * {
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: thin; /* Firefox - thin scrollbar */
+    scrollbar-color: rgba(156, 163, 175, 0.4) transparent; /* Firefox colors */
   }
+  /* Webkit browsers (Chrome, Safari, Edge) - thin scrollbars */
   *::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
+    width: 4px; /* 50% of typical 8px */
+    height: 4px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.4);
+    border-radius: 2px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 114, 128, 0.6);
   }
 }
 
 @layer utilities {
-  .scrollbar-hide,
-  .hide-scrollbar {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+  /* Thin scrollbar class - for explicit use */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
   }
-  .scrollbar-hide::-webkit-scrollbar,
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: rgba(243, 244, 246, 0.3);
+    border-radius: 2px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.5);
+    border-radius: 2px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 114, 128, 0.7);
   }
 
   /* Custom Checkbox Styles */
@@ -306,24 +335,25 @@
   animation: slide-in-right 0.3s ease-out;
 }
 
-/* Scrollbar Styles - Always Visible */
+/* Scrollbar Styles - Thin but Visible (50% of default) */
 .scrollbar-visible {
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
 }
 
 .scrollbar-visible::-webkit-scrollbar {
-  width: 8px;
+  width: 4px;
+  height: 4px;
 }
 
 .scrollbar-visible::-webkit-scrollbar-track {
-  background: rgba(243, 244, 246, 0.5);
-  border-radius: 4px;
+  background: rgba(243, 244, 246, 0.3);
+  border-radius: 2px;
 }
 
 .scrollbar-visible::-webkit-scrollbar-thumb {
   background: rgba(156, 163, 175, 0.5);
-  border-radius: 4px;
+  border-radius: 2px;
 }
 
 .scrollbar-visible::-webkit-scrollbar-thumb:hover {

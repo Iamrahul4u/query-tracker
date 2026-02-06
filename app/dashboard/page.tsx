@@ -14,10 +14,11 @@ import { UserView } from "../components/UserView";
 import { QueryDetailModal } from "../components/QueryDetailModal";
 import { AddQueryModal } from "../components/AddQueryModal";
 import { EditQueryModal } from "../components/EditQueryModal";
+import { AllQueriesModal } from "../components/AllQueriesModal";
 import { LoadingScreen } from "../components/LoadingScreen";
-import { GlobalTooltip } from "../components/GlobalTooltip";
 import { ToastContainer } from "../components/Toast";
 import { PendingDeletions } from "../components/PendingDeletions";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   getVisibleQueries,
   groupQueriesByBucket,
@@ -43,6 +44,7 @@ function DashboardContent() {
     sortField,
     sortAscending,
     sortBuckets,
+    groupBy,
     hasPendingChanges,
     updateViewMode,
     updateBucketViewMode,
@@ -52,6 +54,7 @@ function DashboardContent() {
     updateSortField,
     updateSortAscending,
     updateSortBuckets,
+    updateGroupBy,
     clearSort,
     saveView,
   } = useDashboardPreferences();
@@ -85,6 +88,11 @@ function DashboardContent() {
   const [extendedDays, setExtendedDays] = useState<Record<string, number>>({});
   // Loading state for Load +7 Days button
   const [loadingBuckets, setLoadingBuckets] = useState<Set<string>>(new Set());
+  // Hidden buckets/users for view filtering (session-only, not persisted)
+  const [hiddenBuckets, setHiddenBuckets] = useState<string[]>([]);
+  const [hiddenUsers, setHiddenUsers] = useState<string[]>([]);
+  // All Queries Modal (for Total click in header)
+  const [isAllQueriesModalOpen, setIsAllQueriesModalOpen] = useState(false);
 
   // Keep selectedQuery in sync with store updates (for optimistic updates)
   // Use a ref to track the selected query ID to avoid infinite loops
@@ -200,6 +208,7 @@ function DashboardContent() {
         stats={stats}
         onAddQuery={() => setIsAddModalOpen(true)}
         onLogout={logout}
+        onTotalClick={() => setIsAllQueriesModalOpen(true)}
       />
 
       {/* Filter Bar */}
@@ -226,9 +235,16 @@ function DashboardContent() {
         onShowDateOnCardsChange={setShowDateOnCards}
         detailView={detailView}
         onDetailViewChange={updateDetailView}
+        groupBy={groupBy}
+        onGroupByChange={updateGroupBy}
         hasPendingChanges={hasPendingChanges}
         onSaveView={saveView}
         currentUserRole={currentUser?.Role || ""}
+        hiddenBuckets={hiddenBuckets}
+        onHiddenBucketsChange={setHiddenBuckets}
+        hiddenUsers={hiddenUsers}
+        onHiddenUsersChange={setHiddenUsers}
+        allUsers={users.map((u) => ({ email: u.Email, name: u.Name }))}
       />
 
       {/* Pending Deletions (Admin only) */}
@@ -241,7 +257,7 @@ function DashboardContent() {
       </div>
 
       {/* Main Content */}
-      <main className="w-full px-4 py-6">
+      <main className="w-full px-4 py-2">
         {/* Bucket View - Also shown for Junior when viewMode is "user" (they can't access User View) */}
         {(viewMode === "bucket" ||
           (viewMode === "user" &&
@@ -265,6 +281,7 @@ function DashboardContent() {
             currentUserRole={currentUser?.Role || ""}
             currentUserEmail={currentUser?.Email || ""}
             detailView={detailView}
+            hiddenBuckets={hiddenBuckets}
           />
         )}
 
@@ -280,10 +297,14 @@ function DashboardContent() {
               onSelectQuery={setSelectedQuery}
               onAssignQuery={handleAssignQuery}
               onEditQuery={setQueryToEdit}
+              onApproveDelete={handleApproveDelete}
+              onRejectDelete={handleRejectDelete}
               isFilterExpanded={isFilterExpanded}
               showDateOnCards={showDateOnCards}
               dateField={sortField}
               detailView={detailView}
+              groupBy={groupBy}
+              hiddenUsers={hiddenUsers}
             />
           )}
       </main>
@@ -313,8 +334,26 @@ function DashboardContent() {
         />
       )}
 
-      {/* Global Tooltip - Renders centrally */}
-      <GlobalTooltip />
+      {isAllQueriesModalOpen && (
+        <AllQueriesModal
+          queries={historyFilteredQueries}
+          users={users}
+          onClose={() => setIsAllQueriesModalOpen(false)}
+          onSelectQuery={(query) => {
+            // Don't close modal - keep it open for browsing
+            setSelectedQuery(query);
+          }}
+          onAssign={handleAssignQuery}
+          onEdit={setQueryToEdit}
+          onApproveDelete={handleApproveDelete}
+          onRejectDelete={handleRejectDelete}
+          showDate={showDateOnCards}
+          dateField={sortField}
+          currentUserRole={currentUser?.Role || ""}
+          currentUserEmail={currentUser?.Email || ""}
+          detailView={detailView}
+        />
+      )}
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={hideToast} />
@@ -325,7 +364,9 @@ function DashboardContent() {
 export default function Dashboard() {
   return (
     <AuthProvider>
-      <DashboardContent />
+      <TooltipProvider delayDuration={500}>
+        <DashboardContent />
+      </TooltipProvider>
     </AuthProvider>
   );
 }

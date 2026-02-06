@@ -85,32 +85,33 @@ export function PendingDeletions({
   if (pendingDeletions.length === 0) return null;
 
   return (
-    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+      <div className="flex items-center gap-2 mb-2">
         <Trash2 className="w-4 h-4 text-red-600" />
         <h3 className="text-sm font-semibold text-red-800">
           Pending Deletions ({pendingDeletions.length})
         </h3>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {pendingDeletions.map((query) => (
           <div
             key={query["Query ID"]}
-            className="flex items-center justify-between bg-white rounded-md px-3 py-2 border border-red-100"
+            className="flex items-center justify-between bg-white rounded-md px-2.5 py-1.5 border border-red-100 gap-3"
           >
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
+            <div className="flex-1 min-w-0 flex items-center gap-2">
+              <p className="text-xs font-medium text-gray-900 truncate">
                 {query["Query Description"]}
               </p>
-              <p className="text-xs text-gray-500">
+              <span className="text-xs text-gray-400">•</span>
+              <p className="text-xs text-gray-500 whitespace-nowrap">
                 Requested by{" "}
                 {getDisplayName(query["Delete Requested By"], users)} on{" "}
                 {formatDate(query["Delete Requested Date Time"])}
               </p>
             </div>
 
-            <div className="flex gap-2 ml-3">
+            <div className="flex gap-1.5 flex-shrink-0">
               <button
                 onClick={() => approveDeleteOptimistic(query["Query ID"])}
                 className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition"

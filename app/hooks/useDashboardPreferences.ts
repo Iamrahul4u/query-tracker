@@ -31,6 +31,7 @@ export function useDashboardPreferences() {
   );
   const [sortAscending, setSortAscending] = useState<boolean>(true);
   const [sortBuckets, setSortBuckets] = useState<string[]>(["ALL"]);
+  const [groupBy, setGroupBy] = useState<"type" | "bucket">("bucket");
 
   // Track if there are unsaved changes
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
@@ -41,10 +42,6 @@ export function useDashboardPreferences() {
 
   // Load preferences from localStorage ONLY (ignore backend until save)
   useEffect(() => {
-    console.log(
-      "[useDashboardPreferences] Loading preferences from localStorage...",
-    );
-
     // Always start with defaults
     const defaultPrefs: Preferences = {
       preferredView: "bucket",
@@ -55,6 +52,7 @@ export function useDashboardPreferences() {
         sortField: "",
         sortAscending: true,
         sortBuckets: "ALL",
+        groupBy: "bucket",
       },
       userViewPrefs: {
         layout: "default",
@@ -63,6 +61,7 @@ export function useDashboardPreferences() {
         sortField: "",
         sortAscending: true,
         sortBuckets: "ALL",
+        groupBy: "bucket",
       },
     };
 
@@ -84,20 +83,9 @@ export function useDashboardPreferences() {
             ...parsed.userViewPrefs,
           },
         };
-        console.log(
-          "[useDashboardPreferences] ✓ Loaded from localStorage:",
-          prefs,
-        );
       } catch (e) {
-        console.error(
-          "[useDashboardPreferences] Error parsing localStorage:",
-          e,
-        );
+        // Use defaults on error
       }
-    } else {
-      console.log(
-        "[useDashboardPreferences] No localStorage found, using defaults",
-      );
     }
 
     // Apply preferences to state
@@ -114,6 +102,7 @@ export function useDashboardPreferences() {
     setDetailView(viewPrefs.detailView || false);
     setSortField(viewPrefs.sortField || undefined);
     setSortAscending(viewPrefs.sortAscending !== false);
+    setGroupBy((viewPrefs.groupBy || "bucket") as "type" | "bucket");
 
     // Parse sortBuckets
     if (viewPrefs.sortBuckets === "ALL" || !viewPrefs.sortBuckets) {
@@ -121,12 +110,6 @@ export function useDashboardPreferences() {
     } else {
       setSortBuckets(viewPrefs.sortBuckets.split(",").map((b) => b.trim()));
     }
-
-    console.log("[useDashboardPreferences] ✓ Applied to UI:", {
-      viewMode: prefs.preferredView,
-      layout: viewPrefs.layout,
-      columns: viewPrefs.columns,
-    });
   }, [localStorageKey]); // ONLY depend on localStorageKey, NOT backend preferences
 
   // Switch view and load its preferences
@@ -147,6 +130,7 @@ export function useDashboardPreferences() {
           setDetailView(viewPrefs.detailView || false);
           setSortField(viewPrefs.sortField || undefined);
           setSortAscending(viewPrefs.sortAscending !== false);
+          setGroupBy((viewPrefs.groupBy || "bucket") as "type" | "bucket");
 
           if (viewPrefs.sortBuckets === "ALL" || !viewPrefs.sortBuckets) {
             setSortBuckets(["ALL"]);
@@ -157,7 +141,6 @@ export function useDashboardPreferences() {
           }
         }
       } catch (e) {
-        console.error("Error loading view preferences:", e);
         // Use defaults on error
         setBucketViewMode("default");
         setColumnCount(4);
@@ -165,6 +148,7 @@ export function useDashboardPreferences() {
         setSortField(undefined);
         setSortAscending(true);
         setSortBuckets(["ALL"]);
+        setGroupBy("bucket");
       }
     }
 
@@ -208,6 +192,11 @@ export function useDashboardPreferences() {
     setHasPendingChanges(true);
   };
 
+  const updateGroupBy = (mode: "type" | "bucket") => {
+    setGroupBy(mode);
+    setHasPendingChanges(true);
+  };
+
   const clearSort = () => {
     setSortField(undefined);
     setSortAscending(true);
@@ -228,6 +217,7 @@ export function useDashboardPreferences() {
         sortBuckets.includes("ALL") || sortBuckets.length === 0
           ? "ALL"
           : sortBuckets.join(","),
+      groupBy, // Include groupBy in saved preferences
     };
 
     // Load existing preferences from localStorage
@@ -237,7 +227,7 @@ export function useDashboardPreferences() {
       try {
         existingPrefs = JSON.parse(cached);
       } catch (e) {
-        console.error("Error parsing existing preferences:", e);
+        // Ignore parse errors
       }
     }
 
@@ -257,9 +247,8 @@ export function useDashboardPreferences() {
     // 1. Save to localStorage FIRST (instant)
     try {
       localStorage.setItem(localStorageKey, JSON.stringify(prefsToSave));
-      console.log("✓ Saved to localStorage");
     } catch (e) {
-      console.error("Failed to save to localStorage:", e);
+      // Ignore storage errors
     }
 
     // 2. Save to backend (async)
@@ -273,6 +262,7 @@ export function useDashboardPreferences() {
     sortField,
     sortAscending,
     sortBuckets,
+    groupBy,
     savePreferences,
     localStorageKey,
   ]);
@@ -286,6 +276,7 @@ export function useDashboardPreferences() {
     sortField,
     sortAscending,
     sortBuckets,
+    groupBy,
     hasPendingChanges,
     updateViewMode,
     updateBucketViewMode,
@@ -295,6 +286,7 @@ export function useDashboardPreferences() {
     updateSortField,
     updateSortAscending,
     updateSortBuckets,
+    updateGroupBy,
     clearSort,
     saveView,
   };

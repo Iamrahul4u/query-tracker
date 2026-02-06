@@ -25,6 +25,7 @@ interface BucketViewProps {
   currentUserRole?: string;
   currentUserEmail?: string;
   detailView?: boolean;
+  hiddenBuckets?: string[];
 }
 
 export function BucketView({
@@ -46,14 +47,17 @@ export function BucketView({
   currentUserRole = "",
   currentUserEmail = "",
   detailView = false,
+  hiddenBuckets = [],
 }: BucketViewProps) {
-  const [activeTab, setActiveTab] = useState<string>("A");
+  // Filter visible buckets
+  const visibleBuckets = BUCKET_ORDER.filter((b) => !hiddenBuckets.includes(b));
+  const [activeTab, setActiveTab] = useState<string>(visibleBuckets[0] || "A");
 
   return (
     <>
       {/* Mobile Tab Navigation */}
       <div className="md:hidden overflow-x-auto pb-2 mb-2 -mx-4 px-4 flex gap-1.5 no-scrollbar">
-        {BUCKET_ORDER.map((bucketKey) => (
+        {visibleBuckets.map((bucketKey) => (
           <button
             key={bucketKey}
             onClick={() => setActiveTab(bucketKey)}
@@ -91,6 +95,7 @@ export function BucketView({
             currentUserRole={currentUserRole}
             currentUserEmail={currentUserEmail}
             detailView={detailView}
+            hiddenBuckets={hiddenBuckets}
           />
         ) : (
           <BucketViewLinear
@@ -102,11 +107,16 @@ export function BucketView({
             onEditQuery={onEditQuery}
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
+            onLoadMore={onLoadMore}
+            extendedDays={extendedDays}
+            loadingBuckets={loadingBuckets}
+            isFilterExpanded={isFilterExpanded}
             showDateOnCards={showDateOnCards}
             dateField={dateField}
             currentUserRole={currentUserRole}
             currentUserEmail={currentUserEmail}
             detailView={detailView}
+            hiddenBuckets={hiddenBuckets}
           />
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import {
   UserPlus,
   UserCheck,
@@ -9,8 +9,14 @@ import {
   X,
 } from "lucide-react";
 import { Query, User } from "../utils/sheets";
-import { useTooltipStore } from "../hooks/useTooltip";
 import { DateFieldKey } from "../utils/queryFilters";
+import { AssignDropdown } from "./AssignDropdown";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { AuditTooltipContent } from "./AuditTooltipContent";
 
 export function QueryCardCompact({
   query,
@@ -42,177 +48,8 @@ export function QueryCardCompact({
   detailView?: boolean;
 }) {
   const [showAssignDropdown, setShowAssignDropdown] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(""); // Search filter for assign dropdown
   const cardRef = useRef<HTMLDivElement>(null);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Unique Instance ID for this specific card render
-  // Using query ID + random string to ensure Uniqueness even with duplicate data
-  const [instanceId] = useState(
-    () => `${query["Query ID"]}_${Math.random().toString(36).substring(2, 11)}`,
-  );
-
-  const { activeInstanceId, showTooltip, hideTooltip } = useTooltipStore();
-  const isThisCardActive = activeInstanceId === instanceId;
-
-  // Calculate tooltip position relative to the card element
-  const updateTooltipPosition = () => {
-    if (cardRef.current) {
-      const rect = cardRef.current.getBoundingClientRect();
-      const tooltipHeight = 180;
-      const tooltipWidth = 256;
-
-      // Check if there's enough space below
-      const spaceBelow = window.innerHeight - rect.bottom;
-
-      // Calculate left position (ensure it doesn't go off screen)
-      let leftPos = rect.left + 40;
-      if (leftPos + tooltipWidth > window.innerWidth) {
-        leftPos = window.innerWidth - tooltipWidth - 16;
-      }
-
-      let top: number;
-      let placement: "top" | "bottom";
-
-      // Prefer BOTTOM placement
-      // If there is enough space below (180px+), show below.
-      // Otherwise, show above.
-      if (spaceBelow > tooltipHeight) {
-        // Position below the card (Anchor: Bottom edge of card)
-        top = rect.bottom + 4;
-        placement = "bottom";
-      } else {
-        // Position above the card (Anchor: Top edge of card)
-        top = rect.top - 4;
-        placement = "top";
-      }
-
-      return {
-        top,
-        left: Math.max(16, leftPos),
-        placement,
-      };
-    }
-    return { top: 0, left: 0, placement: "top" as const };
-  };
-
-  // Handle mouse enter with 500ms delay
-  const handleMouseEnter = () => {
-    // Clear any existing timeout
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-
-    // Set new timeout for 500ms delay
-    hoverTimeoutRef.current = setTimeout(() => {
-      // Only show tooltip if dropdown not open
-      if (!showAssignDropdown) {
-        const { top, left, placement } = updateTooltipPosition();
-        showTooltip(instanceId, query, users, { top, left }, placement);
-      }
-    }, 500);
-  };
-
-  // Handle mouse leave - cancel tooltip
-  const handleMouseLeave = () => {
-    // Clear timeout if user leaves before 500ms
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-
-    // Hide tooltip for this card
-    if (isThisCardActive) {
-      hideTooltip();
-    }
-  };
-
-  // Hide tooltip when dropdown opens
-  useEffect(() => {
-    if (showAssignDropdown && isThisCardActive) {
-      hideTooltip();
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-        hoverTimeoutRef.current = null;
-      }
-    }
-  }, [showAssignDropdown, isThisCardActive, hideTooltip]);
-
-  // Update tooltip position when scrolling (only if this card is active)
-  useEffect(() => {
-    if (!isThisCardActive) return;
-
-    const handleScroll = () => {
-      requestAnimationFrame(() => {
-        if (!isThisCardActive) return; // Double check inside RAF
-        const { top, left, placement } = updateTooltipPosition();
-        showTooltip(instanceId, query, users, { top, left }, placement);
-      });
-    };
-
-    window.addEventListener("scroll", handleScroll, true);
-    return () => window.removeEventListener("scroll", handleScroll, true);
-  }, [isThisCardActive, query, showTooltip, instanceId]);
-
-  // Close dropdown when scrolling
-  useEffect(() => {
-    if (!showAssignDropdown) return;
-
-    const handleScroll = () => {
-      setShowAssignDropdown(false);
-    };
-
-    // Listen to scroll on window and all scrollable parents with capture phase
-    // This ensures we catch scroll events from any scrollable container
-    window.addEventListener("scroll", handleScroll, {
-      capture: true,
-      passive: true,
-    });
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll, {
-        capture: true,
-        passive: true,
-      });
-    };
-  }, [showAssignDropdown]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    if (!showAssignDropdown) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      // Check if click is outside the dropdown and assign button
-      if (
-        !target.closest('[title*="ssign"]') &&
-        !target.closest(".bg-white.border")
-      ) {
-        setShowAssignDropdown(false);
-      }
-    };
-
-    // Small delay to prevent immediate closing when opening
-    const timeoutId = setTimeout(() => {
-      document.addEventListener("mousedown", handleClickOutside);
-    }, 0);
-
-    return () => {
-      clearTimeout(timeoutId);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showAssignDropdown]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
-      if (isThisCardActive) {
-        hideTooltip();
-      }
-    };
-  }, [isThisCardActive, hideTooltip]);
 
   // Role-based variables (used in multiple places)
   const roleLC = currentUserRole.toLowerCase();
@@ -230,7 +67,10 @@ export function QueryCardCompact({
       return;
     }
 
-    // Senior/Admin: Show dropdown
+    // Senior/Admin: Show dropdown, reset search when opening
+    if (!showAssignDropdown) {
+      setSearchQuery("");
+    }
     setShowAssignDropdown(!showAssignDropdown);
   };
 
@@ -238,6 +78,7 @@ export function QueryCardCompact({
     e.stopPropagation();
     if (onAssign) onAssign(query, user);
     setShowAssignDropdown(false);
+    setSearchQuery("");
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -313,9 +154,8 @@ export function QueryCardCompact({
     return `${day}/${month}/${year}`;
   };
 
-  // Get date value for display (single date mode)
+  // Get date value for display (single date mode) - always show in compact mode
   const getDateDisplay = () => {
-    if (!showDate) return null;
     return formatDateDisplay(query[dateField]);
   };
 
@@ -434,75 +274,184 @@ export function QueryCardCompact({
   // Senior/Admin: Can edit any query
   const showEditButton = !isJunior || (bucketStatus !== "A" && isOwnQuery);
 
-  return (
-    <div
-      ref={cardRef}
-      data-query-id={query["Query ID"]}
-      className={`
-        group relative px-2 py-1 bg-white border-l-4 cursor-pointer transition-all
-        ${isPending ? "opacity-70 border-dashed" : "border-solid shadow-sm"}
-        ${isDeleted ? "opacity-50 line-through" : ""}
-        ${isDeletePending ? "bg-red-50" : ""}
-        ${isThisCardActive ? "bg-blue-50" : !isDeletePending ? "hover:bg-blue-50" : "hover:bg-red-100"}
-      `}
-      style={{ borderLeftColor: bucketColor, minHeight: "40px" }}
-      onClick={onClick}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      {/* Container for single line or two-row layout */}
+  // Dropdown content for AssignDropdown
+  const renderDropdownContent = (includeAssignToMe: boolean) => (
+    <div className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-[240px]">
+      {/* Search Input */}
+      <div className="p-2 border-b border-gray-100">
+        <input
+          type="text"
+          placeholder="Search users..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          autoFocus
+        />
+      </div>
       <div
-        className={`flex ${detailView ? "flex-col" : "items-center justify-between"} gap-2`}
+        className="p-1 max-h-48 overflow-y-auto"
+        style={{ overscrollBehavior: "contain" }}
       >
-        {/* Row 1: Description + Display Name + Date (compact) OR Description + Display Name (detail) */}
-        <div className="flex items-center justify-between gap-2 w-full min-w-0">
-          {/* Left: Description + Badges + Display Name + Date (all inline in compact mode) */}
-          <div className="flex items-center gap-1 min-w-0 flex-1">
-            {/* GM Indicator Icon */}
-            {query.GmIndicator === "TRUE" && (
-              <Mail className="w-3 h-3 flex-shrink-0 text-[#ea4335]" />
-            )}
-
-            {/* Description */}
-            <p
-              className="text-sm font-normal text-gray-800 truncate"
-              title={query["Query Description"]}
-            >
-              {query["Query Description"] || "No description"}
-            </p>
-
-            {/* Pending indicator */}
-            {isPending && (
-              <span
-                className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse flex-shrink-0"
-                title="Syncing..."
-              ></span>
-            )}
-
-            {/* P.A. indicator for Bucket H */}
-            {isInBucketH && (
-              <span
-                className="px-1.5 py-0.5 text-[8px] font-semibold bg-amber-100 text-amber-700 rounded flex-shrink-0"
-                title={`Pending Approval - Delete requested by ${query["Delete Requested By"]}`}
-              >
-                P.A.
-              </span>
-            )}
-
-            {/* Del-Rej indicator */}
-            {wasDeleteRejected && !isInBucketH && (
-              <span
-                className="px-1.5 py-0.5 text-[8px] font-semibold bg-orange-100 text-orange-700 rounded flex-shrink-0"
-                title="Delete request was rejected"
-              >
-                Del-Rej
-              </span>
-            )}
-
-            {/* Compact mode: Display Name + Date inline with description */}
-            {!detailView && (
+        {/* Assign to Me button - conditionally visible at top */}
+        {includeAssignToMe &&
+          currentUserEmail &&
+          (() => {
+            const currentUser = users.find(
+              (u) => u.Email.toLowerCase() === currentUserEmail.toLowerCase(),
+            );
+            const isCurrentlyAssigned =
+              query["Assigned To"]?.toLowerCase() ===
+              currentUserEmail.toLowerCase();
+            return currentUser ? (
               <>
-                {assignedUser && (
+                <button
+                  onClick={(e) => handleAssign(e, currentUserEmail)}
+                  className={`
+                    flex items-center justify-between w-full text-left px-3 py-2 text-xs hover:bg-blue-100 rounded font-medium
+                    ${isCurrentlyAssigned ? "bg-blue-50 text-blue-700" : "text-blue-600"}
+                  `}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <UserCheck className="w-3 h-3" />
+                    Assign to Me
+                  </span>
+                  {isCurrentlyAssigned && (
+                    <span className="text-blue-600 ml-2 flex-shrink-0">✓</span>
+                  )}
+                </button>
+                <div className="border-t border-gray-200 my-1" />
+              </>
+            ) : null;
+          })()}
+        {users
+          .filter(
+            (user) =>
+              user.Email.toLowerCase() !== currentUserEmail?.toLowerCase(),
+          )
+          .filter((user) => {
+            if (!searchQuery.trim()) return true;
+            const search = searchQuery.toLowerCase();
+            const displayName = (user["Display Name"] || "").toLowerCase();
+            const name = (user.Name || "").toLowerCase();
+            const email = user.Email.toLowerCase();
+            return (
+              displayName.includes(search) ||
+              name.includes(search) ||
+              email.includes(search)
+            );
+          })
+          .map((user) => {
+            const isCurrentlyAssigned = query["Assigned To"] === user.Email;
+            return (
+              <button
+                key={user.Email}
+                onClick={(e) => handleAssign(e, user.Email)}
+                className={`
+                  flex items-center justify-between w-full text-left px-3 py-2 text-xs hover:bg-gray-100 rounded
+                  ${isCurrentlyAssigned ? "bg-blue-50" : ""}
+                `}
+              >
+                <span className="truncate">
+                  {user["Display Name"] ||
+                    user.Name ||
+                    user.Email.split("@")[0]}
+                </span>
+                {isCurrentlyAssigned && (
+                  <span className="text-blue-600 ml-2 flex-shrink-0">✓</span>
+                )}
+              </button>
+            );
+          })}
+        {users
+          .filter(
+            (user) =>
+              user.Email.toLowerCase() !== currentUserEmail?.toLowerCase(),
+          )
+          .filter((user) => {
+            if (!searchQuery.trim()) return true;
+            const search = searchQuery.toLowerCase();
+            return (
+              (user["Display Name"] || "").toLowerCase().includes(search) ||
+              (user.Name || "").toLowerCase().includes(search) ||
+              user.Email.toLowerCase().includes(search)
+            );
+          }).length === 0 && (
+          <div className="px-3 py-2 text-xs text-gray-400 text-center">
+            No users found
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <Tooltip delayDuration={500}>
+      <TooltipTrigger asChild>
+        <div
+          ref={cardRef}
+          data-query-id={query["Query ID"]}
+          className={`
+            group relative px-1.5 py-px bg-white border-l-4 cursor-pointer transition-all
+            ${isPending ? "opacity-70 border-dashed" : "border-solid shadow-sm"}
+            ${isDeleted ? "opacity-50 line-through" : ""}
+            ${isDeletePending ? "bg-red-50" : ""}
+            ${!isDeletePending ? "hover:bg-blue-50" : "hover:bg-red-100"}
+          `}
+          style={{ borderLeftColor: bucketColor, minHeight: "26px" }}
+          onClick={onClick}
+        >
+          {/* Container for single line or two-row layout */}
+          <div
+            className={`flex ${detailView ? "flex-col" : "items-center justify-between"} gap-1`}
+          >
+            {/* Row 1: Description + Display Name + Date (compact) OR Description + Display Name (detail) */}
+            <div className="flex items-center justify-between gap-2 w-full min-w-0">
+              {/* Left: Description + Badges + Display Name + Date (all inline in compact mode) */}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                {/* GM Indicator Icon */}
+                {query.GmIndicator === "TRUE" && (
+                  <Mail className="w-3 h-3 flex-shrink-0 text-[#ea4335]" />
+                )}
+
+                {/* Description */}
+                <p
+                  className="text-sm font-normal text-gray-800 truncate"
+                  title={query["Query Description"]}
+                >
+                  {query["Query Description"] || "No description"}
+                </p>
+
+                {/* Pending indicator */}
+                {isPending && (
+                  <span
+                    className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse flex-shrink-0"
+                    title="Syncing..."
+                  ></span>
+                )}
+
+                {/* P.A. indicator for Bucket H */}
+                {isInBucketH && (
+                  <span
+                    className="px-1.5 py-0.5 text-[8px] font-semibold bg-amber-100 text-amber-700 rounded flex-shrink-0"
+                    title={`Pending Approval - Delete requested by ${query["Delete Requested By"]}`}
+                  >
+                    P.A.
+                  </span>
+                )}
+
+                {/* Del-Rej indicator */}
+                {wasDeleteRejected && !isInBucketH && (
+                  <span
+                    className="px-1.5 py-0.5 text-[8px] font-semibold bg-orange-100 text-orange-700 rounded flex-shrink-0"
+                    title="Delete request was rejected"
+                  >
+                    Del-Rej
+                  </span>
+                )}
+
+                {/* Compact mode: Display Name inline with description */}
+                {!detailView && assignedUser && (
                   <span className="text-[10px] text-gray-500 flex items-center gap-0.5 flex-shrink-0">
                     <UserCheck className="w-3 h-3" />
                     <span>
@@ -512,297 +461,175 @@ export function QueryCardCompact({
                     </span>
                   </span>
                 )}
-                {showDate && getDateDisplay() && (
-                  <span className="text-[10px] text-blue-600 flex-shrink-0">
-                    {getDateDisplay()}
+
+                {/* Detail mode: Display Name inline */}
+                {detailView && assignedUser && (
+                  <span className="text-[10px] text-gray-500 flex items-center gap-1 flex-shrink-0">
+                    <UserCheck className="w-3 h-3" />
+                    <span>
+                      {assignedUser["Display Name"] ||
+                        assignedUser.Name?.substring(0, 6) ||
+                        assignedUser.Email.split("@")[0]}
+                    </span>
                   </span>
                 )}
-              </>
-            )}
+              </div>
 
-            {/* Detail mode: Display Name below description */}
-            {detailView && assignedUser && (
-              <span className="text-[10px] text-gray-500 flex items-center gap-1 flex-shrink-0">
-                <UserCheck className="w-3 h-3" />
-                <span>
-                  {assignedUser["Display Name"] ||
-                    assignedUser.Name?.substring(0, 6) ||
-                    assignedUser.Email.split("@")[0]}
-                </span>
-              </span>
-            )}
-          </div>
+              {/* Right: Date (always visible) + Actions (overlay on hover) */}
+              <div className="relative flex items-center flex-shrink-0">
+                {/* Date - Always visible in compact mode, hidden on hover when actions show */}
+                {!detailView &&
+                  (() => {
+                    const applicableDates = getApplicableDates();
+                    const dateDisplay = getDateDisplay() || "—";
 
-          {/* Right: Actions (Assign/Edit Icons) */}
-          <div className="flex items-center gap-1.5 flex-shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-            {/* Senior/Admin in Bucket A: Show TWO buttons */}
-            {showAssignButton &&
-              !isJunior &&
-              bucketStatus === "A" &&
-              !isAssigned && (
-                <>
-                  {/* Self Assign Button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onAssign && currentUserEmail) {
-                        onAssign(query, currentUserEmail);
-                      }
-                    }}
-                    className="w-7 h-7 rounded-full flex items-center justify-center bg-green-100 hover:bg-green-200 text-green-700 transition-colors"
-                    title="Assign to yourself"
-                  >
-                    <UserCheck className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Assign Button (opens dropdown) */}
-                  <div className="relative">
-                    <button
-                      onClick={handleAssignClick}
-                      className="w-7 h-7 rounded-full flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors"
-                      title="Assign to someone"
-                    >
-                      <UserPlus className="w-3.5 h-3.5" />
-                    </button>
-
-                    {showAssignDropdown &&
-                      (() => {
-                        const buttonRect = cardRef.current
-                          ?.querySelector('[title*="Assign"]')
-                          ?.getBoundingClientRect();
-                        const dropdownStyle = buttonRect
-                          ? {
-                              position: "fixed" as const,
-                              top: buttonRect.bottom + 4,
-                              right: window.innerWidth - buttonRect.right,
-                            }
-                          : {};
-
-                        return (
-                          <div
-                            className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-[180px]"
-                            style={{ ...dropdownStyle, zIndex: 99999 }}
-                          >
-                            <div className="p-1 max-h-48 overflow-y-auto">
-                              {users
-                                .filter(
-                                  (user) =>
-                                    user.Email.toLowerCase() !==
-                                    currentUserEmail?.toLowerCase(),
-                                )
-                                .map((user) => {
-                                  const isCurrentlyAssigned =
-                                    query["Assigned To"] === user.Email;
-                                  return (
-                                    <button
-                                      key={user.Email}
-                                      onClick={(e) =>
-                                        handleAssign(e, user.Email)
-                                      }
-                                      className={`
-                                flex items-center justify-between w-full text-left px-3 py-2 text-xs hover:bg-gray-100 rounded
-                                ${isCurrentlyAssigned ? "bg-blue-50" : ""}
-                              `}
-                                    >
-                                      <span className="truncate">
-                                        {user["Display Name"] ||
-                                          user.Name ||
-                                          user.Email.split("@")[0]}
-                                      </span>
-                                      {isCurrentlyAssigned && (
-                                        <span className="text-blue-600 ml-2 flex-shrink-0">
-                                          ✓
-                                        </span>
-                                      )}
-                                    </button>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                  </div>
-                </>
-              )}
-
-            {/* Junior in Bucket A OR Already Assigned OR Other buckets: Single button */}
-            {showAssignButton &&
-              (isJunior || isAssigned || bucketStatus !== "A") && (
-                <div className="relative">
-                  <button
-                    onClick={handleAssignClick}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                      isAssigned
-                        ? "bg-green-100 hover:bg-green-200 text-green-700"
-                        : "bg-blue-100 hover:bg-blue-200 text-blue-700"
-                    }`}
-                    title={
-                      isJunior && bucketStatus === "A"
-                        ? "Self-assign"
-                        : isAssigned
-                          ? "Reassign"
-                          : "Assign"
-                    }
-                  >
-                    {isAssigned ? (
-                      <UserCheck className="w-3.5 h-3.5" />
-                    ) : (
-                      <UserPlus className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-
-                  {showAssignDropdown &&
-                    (() => {
-                      const buttonRect = cardRef.current
-                        ?.querySelector('[title*="ssign"]')
-                        ?.getBoundingClientRect();
-                      const dropdownStyle = buttonRect
-                        ? {
-                            position: "fixed" as const,
-                            top: buttonRect.bottom + 4,
-                            right: window.innerWidth - buttonRect.right,
-                          }
-                        : {};
-
+                    // If no dates, just show the date without tooltip
+                    if (applicableDates.length === 0) {
                       return (
-                        <div
-                          className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-[180px]"
-                          style={{ ...dropdownStyle, zIndex: 99999 }}
-                        >
-                          <div className="p-1 max-h-48 overflow-y-auto">
-                            {currentUserEmail &&
-                              (() => {
-                                const currentUser = users.find(
-                                  (u) =>
-                                    u.Email.toLowerCase() ===
-                                    currentUserEmail.toLowerCase(),
-                                );
-                                const isCurrentlyAssigned =
-                                  query["Assigned To"]?.toLowerCase() ===
-                                  currentUserEmail.toLowerCase();
-                                return currentUser ? (
-                                  <>
-                                    <button
-                                      onClick={(e) =>
-                                        handleAssign(e, currentUserEmail)
-                                      }
-                                      className={`
-                              flex items-center justify-between w-full text-left px-3 py-2 text-xs hover:bg-blue-100 rounded font-medium
-                              ${isCurrentlyAssigned ? "bg-blue-50 text-blue-700" : "text-blue-600"}
-                            `}
-                                    >
-                                      <span className="flex items-center gap-1.5">
-                                        <UserCheck className="w-3 h-3" />
-                                        Assign to Me
-                                      </span>
-                                      {isCurrentlyAssigned && (
-                                        <span className="text-blue-600 ml-2 flex-shrink-0">
-                                          ✓
-                                        </span>
-                                      )}
-                                    </button>
-                                    <div className="border-t border-gray-200 my-1" />
-                                  </>
-                                ) : null;
-                              })()}
-                            {users
-                              .filter(
-                                (user) =>
-                                  user.Email.toLowerCase() !==
-                                  currentUserEmail?.toLowerCase(),
-                              )
-                              .map((user) => {
-                                const isCurrentlyAssigned =
-                                  query["Assigned To"] === user.Email;
-                                return (
-                                  <button
-                                    key={user.Email}
-                                    onClick={(e) => handleAssign(e, user.Email)}
-                                    className={`
-                              flex items-center justify-between w-full text-left px-3 py-2 text-xs hover:bg-gray-100 rounded
-                              ${isCurrentlyAssigned ? "bg-blue-50" : ""}
-                            `}
-                                  >
-                                    <span className="truncate">
-                                      {user["Display Name"] ||
-                                        user.Name ||
-                                        user.Email.split("@")[0]}
-                                    </span>
-                                    {isCurrentlyAssigned && (
-                                      <span className="text-blue-600 ml-2 flex-shrink-0">
-                                        ✓
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })}
-                          </div>
-                        </div>
+                        <span className="text-[12px] text-blue-600 flex-shrink-0 group-hover:opacity-0 transition-opacity px-1">
+                          {dateDisplay}
+                        </span>
                       );
-                    })()}
+                    }
+
+                    // Show tooltip with all dates
+                    return (
+                      <Tooltip delayDuration={300}>
+                        <TooltipTrigger asChild>
+                          <span className="text-[12px] text-blue-600 flex-shrink-0 group-hover:opacity-0 transition-opacity px-1">
+                            {dateDisplay}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs">
+                          <div className="text-xs space-y-1">
+                            <p className="font-semibold border-b pb-1 mb-1">
+                              All Dates
+                            </p>
+                            {applicableDates.map((dateInfo, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2"
+                              >
+                                <span
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: dateInfo.color }}
+                                />
+                                <span className="font-medium">
+                                  {dateInfo.label}:
+                                </span>
+                                <span>{dateInfo.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })()}
+
+                {/* Actions - Overlay on hover with matching blue background */}
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-blue-50 pl-1 pr-0.5 opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  {/* Assign/Reassign Button */}
+                  {showAssignButton && (
+                    <AssignDropdown
+                      isOpen={showAssignDropdown}
+                      onOpenChange={setShowAssignDropdown}
+                      trigger={
+                        <button
+                          onClick={handleAssignClick}
+                          className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+                            isAssigned
+                              ? "bg-green-100 hover:bg-green-200 text-green-700"
+                              : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                          }`}
+                          title={
+                            isJunior && bucketStatus === "A"
+                              ? "Self-assign"
+                              : isAssigned
+                                ? "Reassign"
+                                : "Assign"
+                          }
+                        >
+                          {isAssigned ? (
+                            <UserCheck className="w-3 h-3" />
+                          ) : (
+                            <UserPlus className="w-3 h-3" />
+                          )}
+                        </button>
+                      }
+                    >
+                      {renderDropdownContent(true)}
+                    </AssignDropdown>
+                  )}
+
+                  {/* Approve/Reject buttons for Bucket H */}
+                  {canApproveDelete && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onApproveDelete) onApproveDelete(query);
+                        }}
+                        className="w-6 h-6 rounded-full bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-700 transition-colors"
+                        title="Approve Deletion"
+                      >
+                        <Check className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onRejectDelete) onRejectDelete(query);
+                        }}
+                        className="w-6 h-6 rounded-full bg-red-100 hover:bg-red-200 flex items-center justify-center text-red-700 transition-colors"
+                        title="Reject Deletion (Return to Previous Status)"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </>
+                  )}
+
+                  {/* Edit Button */}
+                  {showEditButton && !isInBucketH && (
+                    <button
+                      onClick={handleEditClick}
+                      className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors"
+                      title="Edit"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
+            </div>
 
-            {/* Approve/Reject buttons for Bucket H */}
-            {canApproveDelete && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onApproveDelete) onApproveDelete(query);
-                  }}
-                  className="w-7 h-7 rounded-full bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-700 transition-colors"
-                  title="Approve Deletion"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onRejectDelete) onRejectDelete(query);
-                  }}
-                  className="w-7 h-7 rounded-full bg-red-100 hover:bg-red-200 flex items-center justify-center text-red-700 transition-colors"
-                  title="Reject Deletion (Return to Previous Status)"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </>
-            )}
-
-            {/* Edit Button */}
-            {showEditButton && !isInBucketH && (
-              <button
-                onClick={handleEditClick}
-                className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors"
-                title="Edit"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
+            {/* Row 2: All Applicable Dates (Detail View Only) - Compact format */}
+            {detailView && (
+              <div className="flex items-center gap-1 flex-wrap">
+                {getApplicableDates().map((dateInfo, idx) => (
+                  <span
+                    key={idx}
+                    className="px-1 py-0.5 rounded text-[8px] font-medium"
+                    style={{
+                      backgroundColor: `${dateInfo.color}15`,
+                      color: dateInfo.color,
+                    }}
+                    title={`${dateInfo.label}: ${dateInfo.value}`}
+                  >
+                    {dateInfo.value}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         </div>
-
-        {/* Row 2: All Applicable Dates (Detail View Only) */}
-        {detailView && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {getApplicableDates().map((dateInfo, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium"
-                style={{
-                  backgroundColor: `${dateInfo.color}15`,
-                  color: dateInfo.color,
-                  border: `1px solid ${dateInfo.color}30`,
-                }}
-                title={`${dateInfo.label}: ${dateInfo.value}`}
-              >
-                <span>{dateInfo.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+      </TooltipTrigger>
+      <TooltipContent
+        side="bottom"
+        sideOffset={8}
+        className="max-w-xs bg-gray-800 text-white border-gray-700"
+      >
+        <AuditTooltipContent query={query} users={users} />
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

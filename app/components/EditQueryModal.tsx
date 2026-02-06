@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQueryStore } from "../stores/queryStore";
 import { QUERY_TYPE_ORDER, BUCKETS } from "../config/sheet-constants";
 import { Query } from "../utils/sheets";
+import { UserSearchDropdown } from "./UserSearchDropdown";
 
 interface EditQueryModalProps {
   query: Query;
@@ -13,6 +14,7 @@ interface EditQueryModalProps {
 export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   const {
     currentUser,
+    users,
     updateStatusOptimistic,
     editQueryOptimistic,
     deleteQueryOptimistic,
@@ -21,6 +23,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   // Local state for all fields
   const [formData, setFormData] = useState<Partial<Query>>({ ...query });
   const [status, setStatus] = useState(query.Status);
+  const [assignedTo, setAssignedTo] = useState(query["Assigned To"] || "");
   const [error, setError] = useState("");
 
   // Ref for scrollable content area
@@ -127,14 +130,6 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     (query["Assigned To"] || "").toLowerCase() ===
     (currentUser?.Email || "").toLowerCase();
 
-  // Debug: Log role detection
-  console.log("🔍 EditQueryModal Role Detection:", {
-    currentUserRole: currentUser?.Role,
-    roleLowercase: role,
-    isAdminOrSenior,
-    isAssignedToMe,
-  });
-
   // Permission Check
   // Junior: Can change own queries only (Plan 5.7)
   // Senior/Admin: Can change any
@@ -146,38 +141,26 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     // Clear previous error
     setError("");
 
-    // Validation?
-    // Plan 5.6: D requires Whats Pending. E/F requires Event stuff?
-    // Let's add basic validation.
-    if (["E", "F"].includes(status)) {
-      if (!formData["Event ID in SF"] || !formData["Event Title in SF"]) {
-        setError("Event ID in SF and Title are required for this status.");
-        // Scroll to error message
-        setTimeout(() => {
-          errorRef.current?.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
-        }, 100);
-        return;
-      }
+    // Validation: Block status change from A to other buckets without assignment
+    if (status !== "A" && !assignedTo) {
+      setError("Please assign a user before moving to next status");
+      setTimeout(() => {
+        errorRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 100);
+      return;
     }
+
+    // Note: Event ID and Title are optional for E/F per Feb 5th meeting
+    // (Previous validation requiring these fields has been removed)
 
     if (status !== query.Status) {
       // Status Changed -> Use updateStatusOptimistic
-      console.log("📝 Status changed:", query.Status, "→", status);
-      console.log("📝 Query ID:", query["Query ID"]);
-      console.log("📝 Current status state:", status);
-      console.log("📝 FormData.Status:", formData.Status);
-      console.log("📝 Full form data:", formData);
-
-      // Pass the status explicitly, not from formData (they should match but be explicit)
       updateStatusOptimistic(query["Query ID"], status, formData);
     } else {
       // Only fields changed -> Use editQueryOptimistic
-      console.log("📝 Fields changed (no status change)");
-      console.log("📝 Query ID:", query["Query ID"]);
-      console.log("📝 Form data:", formData);
       editQueryOptimistic(query["Query ID"], formData);
     }
     onClose();
@@ -261,7 +244,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110]"
       onClick={onClose}
     >
       <div
@@ -294,6 +277,33 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           {/* Read-Only Info */}
           <div className="text-xs text-gray-400 mb-2 flex gap-4">
             <span>ID: {query["Query ID"]}</span>
+          </div>
+
+          {/* Assign To Section */}
+          <div className="mb-4">
+            <UserSearchDropdown
+              users={users}
+              value={assignedTo}
+              onChange={(newAssignee) => {
+                setAssignedTo(newAssignee);
+                setFormData((prev) => ({
+                  ...prev,
+                  "Assigned To": newAssignee,
+                }));
+                // Auto-select Bucket B when assigning from A
+                if (newAssignee && status === "A") {
+                  setStatus("B");
+                  setFormData((prev) => ({ ...prev, Status: "B" }));
+                }
+              }}
+              label={assignedTo ? "Assigned To" : "Assign To"}
+              placeholder="-- Select User --"
+            />
+            {!assignedTo && status !== "A" && (
+              <p className="text-xs text-orange-600 mt-1">
+                ⚠️ Query must be assigned before moving to next status
+              </p>
+            )}
           </div>
 
           {/* Editable Date Fields Section */}

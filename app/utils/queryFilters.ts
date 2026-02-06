@@ -120,26 +120,25 @@ export function filterByHistoryDays(
 }
 
 /**
- * Robust date parsing (DD/MM/YYYY or MM/DD/YYYY)
+ * Robust date parsing - handles DD/MM/YYYY format (from Google Sheets)
  */
 function parseDateRobust(dateStr: string): Date | null {
   if (!dateStr) return null;
 
-  // Try DD/MM/YYYY (Standard)
-  const parts = dateStr.split(",")[0].split("/");
-  if (parts.length === 3) {
-    // Check if DD/MM/YYYY
-    const d1 = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
-    if (!isNaN(d1.getTime())) return d1;
+  // Normalize: handle both "DD/MM/YYYY, HH:MM:SS" and "DD/MM/YYYY HH:MM:SS"
+  const normalized = dateStr.replace(", ", " ");
+  const parts = normalized.split(" ")[0].split("/");
 
-    // Try MM/DD/YYYY (US)
-    const d2 = new Date(`${parts[0]}/${parts[1]}/${parts[2]}`);
-    if (!isNaN(d2.getTime())) return d2;
+  if (parts.length === 3) {
+    // Parse as DD/MM/YYYY
+    const [day, month, year] = parts.map((p) => parseInt(p, 10));
+    const date = new Date(year, month - 1, day);
+    if (!isNaN(date.getTime())) return date;
   }
 
   // Fallback to standard parse
-  const d3 = new Date(dateStr);
-  return !isNaN(d3.getTime()) ? d3 : null;
+  const fallback = new Date(dateStr);
+  return !isNaN(fallback.getTime()) ? fallback : null;
 }
 
 /**
@@ -200,17 +199,19 @@ export const DATE_FIELDS = [
 export type DateFieldKey = (typeof DATE_FIELDS)[number]["value"];
 
 /**
- * Parse date string in DD/MM/YYYY, HH:MM:SS format
+ * Parse date string in MM/DD/YYYY, HH:MM:SS format (US format from Google Sheets)
  */
 function parseDate(dateStr: string | undefined): Date | null {
   if (!dateStr) return null;
 
   try {
-    // Format: "DD/MM/YYYY, HH:MM:SS"
-    const parts = dateStr.split(",")[0].split("/");
+    // Format: "MM/DD/YYYY, HH:MM:SS" or "MM/DD/YYYY HH:MM:SS"
+    const normalized = dateStr.replace(", ", " ");
+    const parts = normalized.split(" ")[0].split("/");
+
     if (parts.length === 3) {
-      const [day, month, year] = parts.map((p) => parseInt(p, 10));
-      const timePart = dateStr.split(",")[1]?.trim() || "00:00:00";
+      const [month, day, year] = parts.map((p) => parseInt(p, 10));
+      const timePart = normalized.split(" ")[1] || "00:00:00";
       const [hours, minutes] = timePart.split(":").map((t) => parseInt(t, 10));
       return new Date(year, month - 1, day, hours || 0, minutes || 0);
     }

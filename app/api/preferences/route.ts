@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
           userViewPrefs: row[3] ? JSON.parse(row[3]) : { ...defaultViewPrefs },
         };
       } catch (e) {
-        console.error("Error parsing existing preferences:", e);
+        // Ignore parse errors
       }
     }
 
@@ -108,7 +108,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Preferences API Error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to save preferences" },
       { status: 500 },

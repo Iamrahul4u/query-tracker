@@ -4,6 +4,7 @@ import { BucketConfig, QUERY_TYPE_ORDER } from "../config/sheet-constants";
 import { Query, User } from "../utils/sheets";
 import { QueryCardCompact } from "./QueryCardCompact";
 import { DateFieldKey } from "../utils/queryFilters";
+import { ExpandedBucketModal } from "./ExpandedBucketModal";
 
 export function BucketColumn({
   bucketKey,
@@ -48,6 +49,7 @@ export function BucketColumn({
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [collapsedTypes, setCollapsedTypes] = useState<Set<string>>(new Set());
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleTypeCollapse = (typeName: string) => {
     setCollapsedTypes((prev) => {
@@ -103,37 +105,45 @@ export function BucketColumn({
     >
       {/* Bucket Header */}
       <div
-        className="px-4 py-3 text-white flex items-center justify-between cursor-pointer hover:brightness-95 transition select-none flex-shrink-0"
+        className="px-3 py-2 text-white flex items-center justify-between cursor-pointer hover:brightness-95 transition select-none flex-shrink-0"
         style={{ backgroundColor: config.color }}
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         <div className="flex items-center gap-2 min-w-0">
           {isCollapsed ? (
-            <ChevronRight className="w-4 h-4 flex-shrink-0" />
+            <ChevronRight className="w-5 h-5 flex-shrink-0" />
           ) : (
-            <ChevronDown className="w-4 h-4 flex-shrink-0" />
+            <ChevronDown className="w-5 h-5 flex-shrink-0" />
           )}
-          {/* Bold 2xl Typography as requested */}
-          <span className="font-bold text-2xl truncate">
+          {/* Bold 3xl Typography - 20% bigger */}
+          <span className="font-bold text-3xl truncate">
             {config.name.split(") ")[0]})
           </span>
-          <span className="font-medium text-sm text-white/90 truncate ml-1 pt-1.5">
+          <span className="font-medium text-base text-white/90 truncate ml-1 pt-2">
             {config.name.split(") ")[1]}
           </span>
         </div>
-        <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-sm font-bold ml-2 flex-shrink-0">
+        {/* Clickable count badge to open expanded view */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // Don't trigger collapse
+            setIsExpanded(true);
+          }}
+          className="bg-white/20 px-3 py-1 rounded-full text-base font-bold ml-2 flex-shrink-0 hover:bg-white/40 hover:scale-110 transition-all cursor-pointer"
+          title="Click to expand view"
+        >
           {queries.length}
-        </span>
+        </button>
       </div>
 
       {/* Content Area */}
       <div
-        className={`flex-1 transition-all duration-200 bg-gray-50 flex flex-col ${isCollapsed ? "max-h-0 overflow-hidden" : ""} ${!disableScroll ? "overflow-y-auto" : ""}`}
+        className={`flex-1 transition-all duration-200 bg-gray-50 flex flex-col ${isCollapsed ? "max-h-0 overflow-hidden" : ""} ${!disableScroll ? "overflow-y-auto scrollbar-thin" : ""}`}
       >
         {queries.length === 0 ? (
           <p className="p-4 text-gray-400 text-sm text-center">No queries</p>
         ) : (
-          <div className="p-2 space-y-3">
+          <div className="p-1.5 space-y-2">
             {/* Group by Query Type: SEO Query -> New -> Ongoing (per FRD) */}
             {["SEO Query", "New", "Ongoing"].map((groupName) => {
               const typeQueries = queries.filter((q) => {
@@ -152,23 +162,23 @@ export function BucketColumn({
                 >
                   {/* Type Header - Collapsible */}
                   <div
-                    className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:brightness-95 transition ${colors.bg}`}
+                    className={`flex items-center justify-between px-2 py-1 cursor-pointer hover:brightness-95 transition ${colors.bg}`}
                     onClick={() => toggleTypeCollapse(groupName)}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       {isTypeCollapsed ? (
                         <ChevronRight className={`w-3 h-3 ${colors.text}`} />
                       ) : (
                         <ChevronDown className={`w-3 h-3 ${colors.text}`} />
                       )}
                       <h4
-                        className={`text-xs font-bold ${colors.text} uppercase tracking-wider`}
+                        className={`text-[10px] font-bold ${colors.text} uppercase tracking-wider`}
                       >
                         {groupName}
                       </h4>
                     </div>
                     <span
-                      className={`${colors.text} text-xs font-bold px-2 py-0.5 rounded-full bg-white/50`}
+                      className={`${colors.text} text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/50`}
                     >
                       {typeQueries.length}
                     </span>
@@ -176,7 +186,7 @@ export function BucketColumn({
 
                   {/* Type Content */}
                   {!isTypeCollapsed && (
-                    <div className="p-2 space-y-1 bg-white">
+                    <div className="p-1 space-y-0.5 bg-white">
                       {typeQueries.map((query, idx) => (
                         <QueryCardCompact
                           key={`${bucketKey}-${groupName}-${query["Query ID"]}-${idx}`}
@@ -211,10 +221,10 @@ export function BucketColumn({
               >
                 {/* Type Header - Collapsible */}
                 <div
-                  className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:brightness-95 transition ${typeColors.Other.bg}`}
+                  className={`flex items-center justify-between px-2 py-1 cursor-pointer hover:brightness-95 transition ${typeColors.Other.bg}`}
                   onClick={() => toggleTypeCollapse("Other")}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     {collapsedTypes.has("Other") ? (
                       <ChevronRight
                         className={`w-3 h-3 ${typeColors.Other.text}`}
@@ -225,13 +235,13 @@ export function BucketColumn({
                       />
                     )}
                     <h4
-                      className={`text-xs font-bold ${typeColors.Other.text} uppercase tracking-wider`}
+                      className={`text-[10px] font-bold ${typeColors.Other.text} uppercase tracking-wider`}
                     >
                       Other
                     </h4>
                   </div>
                   <span
-                    className={`${typeColors.Other.text} text-xs font-bold px-2 py-0.5 rounded-full bg-white/50`}
+                    className={`${typeColors.Other.text} text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/50`}
                   >
                     {
                       queries.filter((q) => {
@@ -244,7 +254,7 @@ export function BucketColumn({
 
                 {/* Type Content */}
                 {!collapsedTypes.has("Other") && (
-                  <div className="p-2 space-y-1 bg-white">
+                  <div className="p-1 space-y-0.5 bg-white">
                     {queries
                       .filter((q) => {
                         const qType = (q["Query Type"] || "").trim();
@@ -320,6 +330,27 @@ export function BucketColumn({
           </div>
         )}
       </div>
+
+      {/* Expanded Bucket Modal */}
+      <ExpandedBucketModal
+        isOpen={isExpanded}
+        onClose={() => setIsExpanded(false)}
+        bucketKey={bucketKey}
+        config={config}
+        queries={queries}
+        users={users}
+        onSelectQuery={(q) => {
+          setIsExpanded(false);
+          onSelectQuery(q);
+        }}
+        onAssignQuery={onAssignQuery}
+        onEditQuery={onEditQuery}
+        onApproveDelete={onApproveDelete}
+        onRejectDelete={onRejectDelete}
+        currentUserRole={currentUserRole}
+        currentUserEmail={currentUserEmail}
+        detailView={detailView}
+      />
     </div>
   );
 }

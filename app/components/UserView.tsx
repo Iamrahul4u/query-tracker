@@ -21,10 +21,14 @@ interface UserViewProps {
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
+  onApproveDelete?: (query: Query) => void;
+  onRejectDelete?: (query: Query) => void;
   isFilterExpanded?: boolean;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
   detailView?: boolean;
+  groupBy?: "type" | "bucket";
+  hiddenUsers?: string[];
 }
 
 export function UserView({
@@ -36,10 +40,14 @@ export function UserView({
   onSelectQuery,
   onAssignQuery,
   onEditQuery,
+  onApproveDelete,
+  onRejectDelete,
   isFilterExpanded = true,
   showDateOnCards = false,
   dateField = "Added Date Time",
   detailView = false,
+  groupBy = "bucket",
+  hiddenUsers = [],
 }: UserViewProps) {
   const currentEmail = currentUser?.Email?.toLowerCase();
   const [activeTab, setActiveTab] = useState<string>("");
@@ -102,13 +110,18 @@ export function UserView({
     return a.name.localeCompare(b.name);
   });
 
-  // Set default active tab for mobile
-  if (!activeTab && sortedUsers.length > 0) {
-    setActiveTab(sortedUsers[0].email);
+  // Filter out hidden users from sortedUsers
+  const visibleUsers = sortedUsers.filter(
+    (u) => !hiddenUsers.includes(u.email),
+  );
+
+  // Set default active tab for mobile (from visible users)
+  if (!activeTab && visibleUsers.length > 0) {
+    setActiveTab(visibleUsers[0].email);
   }
 
   // If no users to display, show a message
-  if (sortedUsers.length === 0) {
+  if (visibleUsers.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
         <p className="text-lg">No assigned queries to display</p>
@@ -123,7 +136,7 @@ export function UserView({
     <>
       {/* Mobile Tab Navigation */}
       <div className="md:hidden overflow-x-auto pb-2 mb-2 -mx-4 px-4 flex gap-1.5 no-scrollbar">
-        {sortedUsers.map((displayUser) => (
+        {visibleUsers.map((displayUser) => (
           <button
             key={displayUser.email}
             onClick={() => setActiveTab(displayUser.email)}
@@ -143,43 +156,49 @@ export function UserView({
       <div className="hidden md:block">
         {viewMode === "default" ? (
           <UserViewDefault
-            sortedUsers={sortedUsers}
+            sortedUsers={visibleUsers}
             groupedQueries={groupedQueries}
             users={users}
             columnCount={columnCount}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
             onEditQuery={onEditQuery}
+            onApproveDelete={onApproveDelete}
+            onRejectDelete={onRejectDelete}
             isFilterExpanded={isFilterExpanded}
             showDateOnCards={showDateOnCards}
             dateField={dateField}
             currentUserRole={currentUser?.Role || ""}
             currentUserEmail={currentUser?.Email || ""}
             detailView={detailView}
+            groupBy={groupBy}
           />
         ) : (
           <UserViewLinear
-            sortedUsers={sortedUsers}
+            sortedUsers={visibleUsers}
             groupedQueries={groupedQueries}
             users={users}
             columnCount={columnCount}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
             onEditQuery={onEditQuery}
+            onApproveDelete={onApproveDelete}
+            onRejectDelete={onRejectDelete}
             showDateOnCards={showDateOnCards}
             dateField={dateField}
             currentUserRole={currentUser?.Role || ""}
             currentUserEmail={currentUser?.Email || ""}
             detailView={detailView}
+            groupBy={groupBy}
           />
         )}
       </div>
 
       {/* Mobile Single Column View */}
       <div className="md:hidden space-y-4">
-        {activeTab && sortedUsers.find((u) => u.email === activeTab) && (
+        {activeTab && visibleUsers.find((u) => u.email === activeTab) && (
           <MobileUserColumn
-            displayUser={sortedUsers.find((u) => u.email === activeTab)!}
+            displayUser={visibleUsers.find((u) => u.email === activeTab)!}
             queries={groupedQueries[activeTab] || []}
             users={users}
             currentUser={currentUser}
@@ -189,6 +208,7 @@ export function UserView({
             showDateOnCards={showDateOnCards}
             dateField={dateField}
             detailView={detailView}
+            groupBy={groupBy}
           />
         )}
       </div>
@@ -221,6 +241,7 @@ function MobileUserColumn({
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
   detailView?: boolean;
+  groupBy?: "type" | "bucket";
 }) {
   const sortedQueries = [...queries].sort((a, b) => {
     const typeA = (a["Query Type"] || "").trim();

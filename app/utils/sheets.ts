@@ -45,6 +45,7 @@ export interface ViewPreferences {
   sortField: string;
   sortAscending: boolean;
   sortBuckets: string; // "ALL" or comma-separated like "A,B,C"
+  groupBy?: "type" | "bucket"; // User View only: group by Query Type or Bucket/Status
 }
 
 export interface Preferences {
@@ -92,6 +93,7 @@ export function parsePreferences(
     sortField: "",
     sortAscending: true,
     sortBuckets: "ALL",
+    groupBy: "bucket", // Default to bucket grouping
   };
 
   const defaultPreferences: Preferences = {
@@ -100,11 +102,7 @@ export function parsePreferences(
     userViewPrefs: { ...defaultViewPrefs },
   };
 
-  console.log("[parsePreferences] Parsing for user:", currentUserEmail);
-  console.log("[parsePreferences] Total rows:", rows?.length);
-
   if (!rows || rows.length <= 1) {
-    console.log("[parsePreferences] No data rows, returning defaults");
     return defaultPreferences;
   }
 
@@ -113,11 +111,8 @@ export function parsePreferences(
   const userRow = rows.find((row) => row[0] === currentUserEmail);
 
   if (!userRow) {
-    console.log("[parsePreferences] No row found for user, returning defaults");
     return defaultPreferences;
   }
-
-  console.log("[parsePreferences] Found user row:", userRow);
 
   try {
     const preferredView = (userRow[1] || "bucket") as "bucket" | "user";
@@ -128,15 +123,9 @@ export function parsePreferences(
       try {
         const parsed = JSON.parse(userRow[2]);
         bucketViewPrefs = { ...defaultViewPrefs, ...parsed };
-        console.log("[parsePreferences] Parsed bucket prefs:", bucketViewPrefs);
       } catch (e) {
-        console.warn(
-          "[parsePreferences] Failed to parse bucket prefs, using defaults:",
-          e,
-        );
+        // Use defaults on parse error
       }
-    } else {
-      console.log("[parsePreferences] No bucket prefs data, using defaults");
     }
 
     // Parse User View Preferences from column D
@@ -145,15 +134,9 @@ export function parsePreferences(
       try {
         const parsed = JSON.parse(userRow[3]);
         userViewPrefs = { ...defaultViewPrefs, ...parsed };
-        console.log("[parsePreferences] Parsed user prefs:", userViewPrefs);
       } catch (e) {
-        console.warn(
-          "[parsePreferences] Failed to parse user prefs, using defaults:",
-          e,
-        );
+        // Use defaults on parse error
       }
-    } else {
-      console.log("[parsePreferences] No user prefs data, using defaults");
     }
 
     const result = {
@@ -162,13 +145,8 @@ export function parsePreferences(
       userViewPrefs,
     };
 
-    console.log("[parsePreferences] Final result:", result);
     return result;
   } catch (e) {
-    console.error(
-      "[parsePreferences] Unexpected error, returning defaults:",
-      e,
-    );
     return defaultPreferences;
   }
 }

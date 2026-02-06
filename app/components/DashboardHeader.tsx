@@ -8,6 +8,7 @@ interface DashboardHeaderProps {
   stats: Record<string, number>;
   onAddQuery: () => void;
   onLogout: () => void;
+  onTotalClick?: () => void;
 }
 
 export function DashboardHeader({
@@ -15,11 +16,12 @@ export function DashboardHeader({
   stats,
   onAddQuery,
   onLogout,
+  onTotalClick,
 }: DashboardHeaderProps) {
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
-      <div className="w-full px-3 py-2 sm:px-4">
-        <div className="flex items-center justify-between h-10 sm:h-12">
+      <div className="w-full px-2 py-1 sm:px-3">
+        <div className="flex items-center justify-between h-8 sm:h-10">
           {/* Logo & Title - Compact for Mobile */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -32,7 +34,7 @@ export function DashboardHeader({
 
           {/* Stats - Hidden on mobile, shows all 7 buckets */}
           <div className="hidden lg:block">
-            <DashboardStats stats={stats} />
+            <DashboardStats stats={stats} onTotalClick={onTotalClick} />
           </div>
 
           {/* Actions - Compact */}

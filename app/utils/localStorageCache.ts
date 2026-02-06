@@ -38,7 +38,6 @@ export class LocalStorageCache {
 
       return parsed.version === CACHE_VERSION && age < CACHE_DURATION;
     } catch (error) {
-      console.error("Cache validation error:", error);
       return false;
     }
   }
@@ -55,7 +54,6 @@ export class LocalStorageCache {
       };
       localStorage.setItem(CACHE_KEY_PREFIX + key, JSON.stringify(entry));
     } catch (error) {
-      console.error("Cache save error:", error);
       // If localStorage is full, clear old entries and retry
       if (
         error instanceof DOMException &&
@@ -70,7 +68,7 @@ export class LocalStorageCache {
           };
           localStorage.setItem(CACHE_KEY_PREFIX + key, JSON.stringify(entry));
         } catch (retryError) {
-          console.error("Cache save retry failed:", retryError);
+          // Silent failure
         }
       }
     }
@@ -103,7 +101,6 @@ export class LocalStorageCache {
 
       return parsed.data;
     } catch (error) {
-      console.error("Cache load error:", error);
       // Remove corrupted entry
       try {
         localStorage.removeItem(CACHE_KEY_PREFIX + key);
@@ -123,7 +120,7 @@ export class LocalStorageCache {
         .filter((key) => key.startsWith(CACHE_KEY_PREFIX))
         .forEach((key) => localStorage.removeItem(key));
     } catch (error) {
-      console.error("Cache clear error:", error);
+      // Silent failure
     }
   }
 
@@ -151,7 +148,7 @@ export class LocalStorageCache {
           }
         });
     } catch (error) {
-      console.error("Clear old entries error:", error);
+      // Silent failure
     }
   }
 
