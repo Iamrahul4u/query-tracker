@@ -603,7 +603,7 @@ export class SyncManager {
   }
 
   /**
-   * Approve a pending deletion (Admin only) - REMOVES query from list (permanent delete)
+   * Approve a pending deletion (Admin only) - keeps query in H bucket with approval info
    */
   async approveDeleteOptimistic(
     queryId: string,
@@ -613,10 +613,21 @@ export class SyncManager {
   ): Promise<SyncResult> {
     const now = getISTDateTime();
 
-    // Optimistically REMOVE the query from the list (permanent delete)
-    const optimisticQueries = currentQueries.filter(
-      (q) => q["Query ID"] !== queryId,
-    );
+    // Optimistically update the query to show approval (stays in H bucket)
+    const optimisticQueries = currentQueries.map((q) => {
+      if (q["Query ID"] === queryId) {
+        return {
+          ...q,
+          Status: "H" as const,
+          "Delete Approved By": approvedBy || "",
+          "Delete Approved Date Time": now,
+          "Delete Requested By": "", // Clear pending request
+          "Delete Requested Date Time": "",
+          "Last Activity Date Time": now,
+        };
+      }
+      return q;
+    });
 
     updateStore(optimisticQueries);
 
@@ -648,10 +659,10 @@ export class SyncManager {
 
       return {
         success: true,
-        data: { message: "Deletion approved - query removed" },
+        data: { message: "Deletion approved - query moved to Deleted bucket" },
       };
     } catch (error: any) {
-      // Rollback - restore the query
+      // Rollback - restore the query to pending state
       updateStore(currentQueries);
 
       return {
