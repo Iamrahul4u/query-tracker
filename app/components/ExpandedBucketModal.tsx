@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import { X } from "lucide-react";
 import { BucketConfig } from "../config/sheet-constants";
 import { Query, User } from "../utils/sheets";
@@ -48,6 +50,34 @@ export function ExpandedBucketModal({
   currentUserEmail = "",
   detailView = false,
 }: ExpandedBucketModalProps) {
+  // Ref for horizontal scroll container
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // ESC key to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [isOpen, onClose]);
+
+  // Convert vertical scroll to horizontal scroll inside modal
+  useEffect(() => {
+    if (!isOpen) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      container.scrollLeft += e.deltaY;
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleWheel);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   // Group by Query Type within this bucket
@@ -127,7 +157,10 @@ export function ExpandedBucketModal({
         </div>
 
         {/* Content Area - Newspaper column layout */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden p-2 bg-gray-50">
+        <div 
+          ref={scrollContainerRef}
+          className="flex-1 overflow-x-auto overflow-y-hidden p-2 bg-gray-50"
+        >
           {queries.length === 0 ? (
             <div className="flex items-center justify-center h-64">
               <p className="text-gray-400 text-lg">No queries in this bucket</p>

@@ -4,6 +4,8 @@ import { BUCKETS, BUCKET_ORDER } from "../config/sheet-constants";
 interface DashboardStatsProps {
   stats: Record<string, number>;
   onTotalClick?: () => void;
+  onBucketClick?: (bucket: string) => void;
+  currentViewMode?: "bucket" | "user";
 }
 
 // Short names for compact display
@@ -18,7 +20,12 @@ const BUCKET_SHORT_NAMES: Record<string, string> = {
   H: "Deleted",
 };
 
-export function DashboardStats({ stats, onTotalClick }: DashboardStatsProps) {
+export function DashboardStats({
+  stats,
+  onTotalClick,
+  onBucketClick,
+  currentViewMode = "bucket",
+}: DashboardStatsProps) {
   // Calculate total (A+B+C+D+E+F, excluding G and H)
   const total =
     (stats.A || 0) +
@@ -38,8 +45,16 @@ export function DashboardStats({ stats, onTotalClick }: DashboardStatsProps) {
         return (
           <Fragment key={bucket}>
             <div
-              className="text-center px-2 py-1 rounded-lg"
+              className={`text-center px-2 py-1 rounded-lg ${
+                onBucketClick
+                  ? "cursor-pointer hover:opacity-80 hover:scale-105 transition-all"
+                  : ""
+              }`}
               style={{ backgroundColor: `${config.color}15` }}
+              onClick={() => onBucketClick?.(bucket)}
+              title={
+                onBucketClick ? `Click to view ${shortName} queries` : undefined
+              }
             >
               <div
                 className="text-lg lg:text-xl font-bold"
@@ -59,7 +74,9 @@ export function DashboardStats({ stats, onTotalClick }: DashboardStatsProps) {
             {bucket === "F" && (
               <div
                 className={`text-center px-2 py-1 rounded-lg bg-gray-100 border-2 border-gray-300 ${
-                  onTotalClick ? "cursor-pointer hover:bg-gray-200 hover:border-blue-400 transition-colors" : ""
+                  onTotalClick
+                    ? "cursor-pointer hover:bg-gray-200 hover:border-blue-400 hover:scale-105 transition-all"
+                    : ""
                 }`}
                 onClick={onTotalClick}
                 title={onTotalClick ? "Click to view all queries" : undefined}

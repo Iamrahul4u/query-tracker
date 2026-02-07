@@ -9,6 +9,8 @@ interface DashboardHeaderProps {
   onAddQuery: () => void;
   onLogout: () => void;
   onTotalClick?: () => void;
+  onBucketClick?: (bucket: string) => void;
+  currentViewMode?: "bucket" | "user";
 }
 
 export function DashboardHeader({
@@ -17,6 +19,8 @@ export function DashboardHeader({
   onAddQuery,
   onLogout,
   onTotalClick,
+  onBucketClick,
+  currentViewMode = "bucket",
 }: DashboardHeaderProps) {
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
@@ -34,7 +38,12 @@ export function DashboardHeader({
 
           {/* Stats - Hidden on mobile, shows all 7 buckets */}
           <div className="hidden lg:block">
-            <DashboardStats stats={stats} onTotalClick={onTotalClick} />
+            <DashboardStats
+              stats={stats}
+              onTotalClick={onTotalClick}
+              onBucketClick={onBucketClick}
+              currentViewMode={currentViewMode}
+            />
           </div>
 
           {/* Actions - Compact */}

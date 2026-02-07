@@ -384,12 +384,18 @@ export function CollapsibleFilterBar({
     }
   };
 
-  // Filtered users based on search query
-  const filteredUsers = allUsers.filter(
-    (u) =>
-      u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(userSearchQuery.toLowerCase()),
-  );
+  // Filtered users based on search query (first name only)
+  const filteredUsers = allUsers.filter((u) => {
+    const search = userSearchQuery.toLowerCase();
+    if (!search) return true;
+
+    // Extract first name (first word before space)
+    const firstName = u.name.split(" ")[0].toLowerCase();
+
+    return (
+      firstName.startsWith(search) || u.email.toLowerCase().includes(search)
+    );
+  });
 
   // Hidden Buckets Filter (for Bucket View)
   const HiddenBucketsFilter = () => (
@@ -524,6 +530,9 @@ export function CollapsibleFilterBar({
                   placeholder="Search users..."
                   value={userSearchQuery}
                   onChange={(e) => setUserSearchQuery(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  autoFocus
                   className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:border-blue-400 focus:outline-none"
                 />
               </div>

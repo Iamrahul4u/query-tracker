@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { Query, User } from "../utils/sheets";
 
@@ -89,6 +89,15 @@ export function QueryDetailModal({
   onClose,
   onEdit,
 }: QueryDetailModalProps) {
+  // ESC key to close modal
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
   // Audit trail expanded by default (client requirement)
   const [showAuditTrail, setShowAuditTrail] = useState(true);
 
@@ -371,6 +380,24 @@ export function QueryDetailModal({
                     </span>
                     <span className="text-gray-400 text-right">
                       {formatAuditDate(query["Delete Requested Date Time"])}
+                    </span>
+                  </div>
+                )}
+
+                {/* Delete Rejected (for rejected deletions) */}
+                {query["Delete Rejected By"] && (
+                  <div className="flex justify-between items-center bg-orange-50 -mx-2 px-2 py-1 rounded">
+                    <span>
+                      <span className="text-orange-600 font-medium">
+                        Delete rejected
+                      </span>{" "}
+                      by{" "}
+                      <span className="font-medium text-gray-700">
+                        {displayName(query["Delete Rejected By"])}
+                      </span>
+                    </span>
+                    <span className="text-gray-400 text-right">
+                      {formatAuditDate(query["Delete Rejected Date Time"])}
                     </span>
                   </div>
                 )}

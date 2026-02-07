@@ -37,7 +37,7 @@ interface QueryState {
   setQueries: (queries: Query[]) => void;
   setUsers: (users: User[]) => void;
   setCurrentUser: (user: User | null) => void;
-  addQueryOptimistic: (query: Partial<Query>) => Promise<string>; // Returns temp ID
+  addQueryOptimistic: (query: Partial<Query>, silent?: boolean) => Promise<string>; // Returns temp ID, silent skips toast
   assignQueryOptimistic: (
     queryId: string,
     assignee: string,
@@ -219,7 +219,7 @@ export const useQueryStore = create<QueryState>()(
       // ═══════════════════════════════════════════════════════════════
       // OPTIMISTIC ADD QUERY (Using SyncManager)
       // ═══════════════════════════════════════════════════════════════
-      addQueryOptimistic: async (queryData) => {
+      addQueryOptimistic: async (queryData, silent = false) => {
         const syncManager = SyncManager.getInstance();
         const currentQueries = get().queries;
         const currentUser = get().currentUser;
@@ -251,7 +251,9 @@ export const useQueryStore = create<QueryState>()(
         });
 
         if (result.success) {
-          useToast.getState().showToast("Query added successfully", "success");
+          if (!silent) {
+            useToast.getState().showToast("Query added successfully", "success");
+          }
           return result.tempId || "";
         } else {
           useToast

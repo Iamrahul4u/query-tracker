@@ -103,6 +103,7 @@ export function UserViewLinear({
           onRejectDelete={onRejectDelete}
           currentUserRole={currentUserRole}
           currentUserEmail={currentUserEmail}
+          groupBy={groupBy}
         />
       )}
     </>

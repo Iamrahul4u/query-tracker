@@ -93,6 +93,10 @@ function DashboardContent() {
   const [hiddenUsers, setHiddenUsers] = useState<string[]>([]);
   // All Queries Modal (for Total click in header)
   const [isAllQueriesModalOpen, setIsAllQueriesModalOpen] = useState(false);
+  // Selected bucket filter for All Queries Modal
+  const [selectedBucketFilter, setSelectedBucketFilter] = useState<
+    string | undefined
+  >(undefined);
 
   // Keep selectedQuery in sync with store updates (for optimistic updates)
   // Use a ref to track the selected query ID to avoid infinite loops
@@ -208,7 +212,15 @@ function DashboardContent() {
         stats={stats}
         onAddQuery={() => setIsAddModalOpen(true)}
         onLogout={logout}
-        onTotalClick={() => setIsAllQueriesModalOpen(true)}
+        onTotalClick={() => {
+          setSelectedBucketFilter(undefined);
+          setIsAllQueriesModalOpen(true);
+        }}
+        onBucketClick={(bucket) => {
+          setSelectedBucketFilter(bucket);
+          setIsAllQueriesModalOpen(true);
+        }}
+        currentViewMode={viewMode}
       />
 
       {/* Filter Bar */}
@@ -338,7 +350,10 @@ function DashboardContent() {
         <AllQueriesModal
           queries={historyFilteredQueries}
           users={users}
-          onClose={() => setIsAllQueriesModalOpen(false)}
+          onClose={() => {
+            setIsAllQueriesModalOpen(false);
+            setSelectedBucketFilter(undefined);
+          }}
           onSelectQuery={(query) => {
             // Don't close modal - keep it open for browsing
             setSelectedQuery(query);
@@ -352,6 +367,9 @@ function DashboardContent() {
           currentUserRole={currentUser?.Role || ""}
           currentUserEmail={currentUser?.Email || ""}
           detailView={detailView}
+          groupBy={groupBy}
+          filterBucket={selectedBucketFilter}
+          currentViewMode={viewMode}
         />
       )}
 

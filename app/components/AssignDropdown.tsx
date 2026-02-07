@@ -12,22 +12,27 @@ import {
   useInteractions,
   FloatingPortal,
   FloatingFocusManager,
+  Placement,
 } from "@floating-ui/react";
 
 interface AssignDropdownProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  children: React.ReactNode;
+  children: React.ReactNode | ((placement: Placement) => React.ReactNode);
 }
 
+/**
+ * Dropdown wrapper with smart positioning using floating-ui.
+ * Exposes placement via render prop for children to position content accordingly.
+ */
 export function AssignDropdown({
   isOpen,
   onOpenChange,
   trigger,
   children,
 }: AssignDropdownProps) {
-  const { refs, floatingStyles, context } = useFloating({
+  const { refs, floatingStyles, context, placement } = useFloating({
     open: isOpen,
     onOpenChange,
     placement: "bottom-start",
@@ -68,7 +73,8 @@ export function AssignDropdown({
               {...getFloatingProps()}
               className="z-[99999]"
             >
-              {children}
+              {/* Support both static children and render prop */}
+              {typeof children === "function" ? children(placement) : children}
             </div>
           </FloatingFocusManager>
         </FloatingPortal>

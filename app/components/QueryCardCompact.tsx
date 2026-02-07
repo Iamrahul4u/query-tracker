@@ -16,7 +16,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AuditTooltipContent } from "./AuditTooltipContent";
 
 export function QueryCardCompact({
   query,
@@ -274,11 +273,18 @@ export function QueryCardCompact({
   // Senior/Admin: Can edit any query
   const showEditButton = !isJunior || (bucketStatus !== "A" && isOwnQuery);
 
-  // Dropdown content for AssignDropdown
-  const renderDropdownContent = (includeAssignToMe: boolean) => (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-[240px]">
-      {/* Search Input */}
-      <div className="p-2 border-b border-gray-100">
+  // Dropdown content for AssignDropdown - search box stays close to trigger
+  const renderDropdownContent = (
+    includeAssignToMe: boolean,
+    placement?: string,
+  ) => {
+    const opensUp = placement?.startsWith("top");
+
+    // Search box component
+    const SearchBox = () => (
+      <div
+        className={`p-2 ${opensUp ? "border-t" : "border-b"} border-gray-100`}
+      >
         <input
           type="text"
           placeholder="Search users..."
@@ -289,6 +295,10 @@ export function QueryCardCompact({
           autoFocus
         />
       </div>
+    );
+
+    // User list content
+    const UserList = () => (
       <div
         className="p-1 max-h-48 overflow-y-auto"
         style={{ overscrollBehavior: "contain" }}
@@ -332,13 +342,14 @@ export function QueryCardCompact({
           .filter((user) => {
             if (!searchQuery.trim()) return true;
             const search = searchQuery.toLowerCase();
-            const displayName = (user["Display Name"] || "").toLowerCase();
-            const name = (user.Name || "").toLowerCase();
-            const email = user.Email.toLowerCase();
+
+            // Extract first name from Display Name or Name
+            const displayName = user["Display Name"] || user.Name || "";
+            const firstName = displayName.split(" ")[0].toLowerCase();
+
             return (
-              displayName.includes(search) ||
-              name.includes(search) ||
-              email.includes(search)
+              firstName.startsWith(search) ||
+              user.Email.toLowerCase().includes(search)
             );
           })
           .map((user) => {
@@ -371,9 +382,13 @@ export function QueryCardCompact({
           .filter((user) => {
             if (!searchQuery.trim()) return true;
             const search = searchQuery.toLowerCase();
+
+            // Extract first name from Display Name or Name
+            const displayName = user["Display Name"] || user.Name || "";
+            const firstName = displayName.split(" ")[0].toLowerCase();
+
             return (
-              (user["Display Name"] || "").toLowerCase().includes(search) ||
-              (user.Name || "").toLowerCase().includes(search) ||
+              firstName.startsWith(search) ||
               user.Email.toLowerCase().includes(search)
             );
           }).length === 0 && (
@@ -382,254 +397,252 @@ export function QueryCardCompact({
           </div>
         )}
       </div>
-    </div>
-  );
+    );
+
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-[240px]">
+        {/* Search at TOP when opening DOWN (close to trigger) */}
+        {!opensUp && <SearchBox />}
+
+        <UserList />
+
+        {/* Search at BOTTOM when opening UP (close to trigger) */}
+        {opensUp && <SearchBox />}
+      </div>
+    );
+  };
 
   return (
-    <Tooltip delayDuration={500}>
-      <TooltipTrigger asChild>
-        <div
-          ref={cardRef}
-          data-query-id={query["Query ID"]}
-          className={`
-            group relative px-1.5 py-px bg-white border-l-4 cursor-pointer transition-all
-            ${isPending ? "opacity-70 border-dashed" : "border-solid shadow-sm"}
-            ${isDeleted ? "opacity-50 line-through" : ""}
+    <div
+      ref={cardRef}
+      data-query-id={query["Query ID"]}
+      className={`
+        group relative px-1.5 py-px bg-white border-l-4 cursor-pointer transition-all
+        ${isPending ? "opacity-70 border-dashed" : "border-solid shadow-sm"}
+        ${isDeleted ? "opacity-50 line-through" : ""}
             ${isDeletePending ? "bg-red-50" : ""}
             ${!isDeletePending ? "hover:bg-blue-50" : "hover:bg-red-100"}
           `}
-          style={{ borderLeftColor: bucketColor, minHeight: "26px" }}
-          onClick={onClick}
-        >
-          {/* Container for single line or two-row layout */}
-          <div
-            className={`flex ${detailView ? "flex-col" : "items-center justify-between"} gap-1`}
-          >
-            {/* Row 1: Description + Display Name + Date (compact) OR Description + Display Name (detail) */}
-            <div className="flex items-center justify-between gap-2 w-full min-w-0">
-              {/* Left: Description + Badges + Display Name + Date (all inline in compact mode) */}
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                {/* GM Indicator Icon */}
-                {query.GmIndicator === "TRUE" && (
-                  <Mail className="w-3 h-3 flex-shrink-0 text-[#ea4335]" />
-                )}
+      style={{ borderLeftColor: bucketColor, minHeight: "26px" }}
+      onClick={onClick}
+    >
+      {/* Container for single line or two-row layout */}
+      <div
+        className={`flex ${detailView ? "flex-col" : "items-center justify-between"} gap-1`}
+      >
+        {/* Row 1: Description + Display Name + Date (compact) OR Description + Display Name (detail) */}
+        <div className="flex items-center justify-between gap-2 w-full min-w-0">
+          {/* Left: Description + Badges + Display Name + Date (all inline in compact mode) */}
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {/* GM Indicator Icon */}
+            {query.GmIndicator === "TRUE" && (
+              <Mail className="w-3 h-3 flex-shrink-0 text-[#ea4335]" />
+            )}
 
-                {/* Description */}
-                <p
-                  className="text-sm font-normal text-gray-800 truncate"
-                  title={query["Query Description"]}
-                >
-                  {query["Query Description"] || "No description"}
-                </p>
+            {/* Description */}
+            <p
+              className="text-sm font-normal text-gray-800 truncate"
+              title={query["Query Description"]}
+            >
+              {query["Query Description"] || "No description"}
+            </p>
 
-                {/* Pending indicator */}
-                {isPending && (
-                  <span
-                    className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse flex-shrink-0"
-                    title="Syncing..."
-                  ></span>
-                )}
+            {/* Pending indicator */}
+            {isPending && (
+              <span
+                className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse flex-shrink-0"
+                title="Syncing..."
+              ></span>
+            )}
 
-                {/* P.A. indicator for Bucket H */}
-                {isInBucketH && (
-                  <span
-                    className="px-1.5 py-0.5 text-[8px] font-semibold bg-amber-100 text-amber-700 rounded flex-shrink-0"
-                    title={`Pending Approval - Delete requested by ${query["Delete Requested By"]}`}
-                  >
-                    P.A.
-                  </span>
-                )}
+            {/* P.A. indicator for Bucket H */}
+            {isInBucketH && (
+              <span
+                className="px-1.5 py-0.5 text-[8px] font-semibold bg-amber-100 text-amber-700 rounded flex-shrink-0"
+                title={`Pending Approval - Delete requested by ${query["Delete Requested By"]}`}
+              >
+                P.A.
+              </span>
+            )}
 
-                {/* Del-Rej indicator */}
-                {wasDeleteRejected && !isInBucketH && (
-                  <span
-                    className="px-1.5 py-0.5 text-[8px] font-semibold bg-orange-100 text-orange-700 rounded flex-shrink-0"
-                    title="Delete request was rejected"
-                  >
-                    Del-Rej
-                  </span>
-                )}
+            {/* Del-Rej indicator */}
+            {wasDeleteRejected && !isInBucketH && (
+              <span
+                className="px-1.5 py-0.5 text-[8px] font-semibold bg-orange-100 text-orange-700 rounded flex-shrink-0"
+                title="Delete request was rejected"
+              >
+                Del-Rej
+              </span>
+            )}
 
-                {/* Compact mode: Display Name inline with description */}
-                {!detailView && assignedUser && (
-                  <span className="text-[10px] text-gray-500 flex items-center gap-0.5 flex-shrink-0">
-                    <UserCheck className="w-3 h-3" />
-                    <span>
-                      {assignedUser["Display Name"] ||
-                        assignedUser.Name?.substring(0, 6) ||
-                        assignedUser.Email.split("@")[0]}
-                    </span>
-                  </span>
-                )}
+            {/* Compact mode: Display Name inline with description */}
+            {!detailView && assignedUser && (
+              <span className="text-[10px] text-gray-500 flex items-center gap-0.5 flex-shrink-0">
+                <UserCheck className="w-3 h-3" />
+                <span>
+                  {assignedUser["Display Name"] ||
+                    assignedUser.Name?.substring(0, 6) ||
+                    assignedUser.Email.split("@")[0]}
+                </span>
+              </span>
+            )}
 
-                {/* Detail mode: Display Name inline */}
-                {detailView && assignedUser && (
-                  <span className="text-[10px] text-gray-500 flex items-center gap-1 flex-shrink-0">
-                    <UserCheck className="w-3 h-3" />
-                    <span>
-                      {assignedUser["Display Name"] ||
-                        assignedUser.Name?.substring(0, 6) ||
-                        assignedUser.Email.split("@")[0]}
-                    </span>
-                  </span>
-                )}
-              </div>
-
-              {/* Right: Date (always visible) + Actions (overlay on hover) */}
-              <div className="relative flex items-center flex-shrink-0">
-                {/* Date - Always visible in compact mode, hidden on hover when actions show */}
-                {!detailView &&
-                  (() => {
-                    const applicableDates = getApplicableDates();
-                    const dateDisplay = getDateDisplay() || "—";
-
-                    // If no dates, just show the date without tooltip
-                    if (applicableDates.length === 0) {
-                      return (
-                        <span className="text-[12px] text-blue-600 flex-shrink-0 group-hover:opacity-0 transition-opacity px-1">
-                          {dateDisplay}
-                        </span>
-                      );
-                    }
-
-                    // Show tooltip with all dates
-                    return (
-                      <Tooltip delayDuration={300}>
-                        <TooltipTrigger asChild>
-                          <span className="text-[12px] text-blue-600 flex-shrink-0 group-hover:opacity-0 transition-opacity px-1">
-                            {dateDisplay}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="left" className="max-w-xs">
-                          <div className="text-xs space-y-1">
-                            <p className="font-semibold border-b pb-1 mb-1">
-                              All Dates
-                            </p>
-                            {applicableDates.map((dateInfo, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center gap-2"
-                              >
-                                <span
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: dateInfo.color }}
-                                />
-                                <span className="font-medium">
-                                  {dateInfo.label}:
-                                </span>
-                                <span>{dateInfo.value}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })()}
-
-                {/* Actions - Overlay on hover with matching blue background */}
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-blue-50 pl-1 pr-0.5 opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                  {/* Assign/Reassign Button */}
-                  {showAssignButton && (
-                    <AssignDropdown
-                      isOpen={showAssignDropdown}
-                      onOpenChange={setShowAssignDropdown}
-                      trigger={
-                        <button
-                          onClick={handleAssignClick}
-                          className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
-                            isAssigned
-                              ? "bg-green-100 hover:bg-green-200 text-green-700"
-                              : "bg-blue-100 hover:bg-blue-200 text-blue-700"
-                          }`}
-                          title={
-                            isJunior && bucketStatus === "A"
-                              ? "Self-assign"
-                              : isAssigned
-                                ? "Reassign"
-                                : "Assign"
-                          }
-                        >
-                          {isAssigned ? (
-                            <UserCheck className="w-3 h-3" />
-                          ) : (
-                            <UserPlus className="w-3 h-3" />
-                          )}
-                        </button>
-                      }
-                    >
-                      {renderDropdownContent(true)}
-                    </AssignDropdown>
-                  )}
-
-                  {/* Approve/Reject buttons for Bucket H */}
-                  {canApproveDelete && (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onApproveDelete) onApproveDelete(query);
-                        }}
-                        className="w-6 h-6 rounded-full bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-700 transition-colors"
-                        title="Approve Deletion"
-                      >
-                        <Check className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onRejectDelete) onRejectDelete(query);
-                        }}
-                        className="w-6 h-6 rounded-full bg-red-100 hover:bg-red-200 flex items-center justify-center text-red-700 transition-colors"
-                        title="Reject Deletion (Return to Previous Status)"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </>
-                  )}
-
-                  {/* Edit Button */}
-                  {showEditButton && !isInBucketH && (
-                    <button
-                      onClick={handleEditClick}
-                      className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors"
-                      title="Edit"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Row 2: All Applicable Dates (Detail View Only) - Compact format */}
-            {detailView && (
-              <div className="flex items-center gap-1 flex-wrap">
-                {getApplicableDates().map((dateInfo, idx) => (
-                  <span
-                    key={idx}
-                    className="px-1 py-0.5 rounded text-[8px] font-medium"
-                    style={{
-                      backgroundColor: `${dateInfo.color}15`,
-                      color: dateInfo.color,
-                    }}
-                    title={`${dateInfo.label}: ${dateInfo.value}`}
-                  >
-                    {dateInfo.value}
-                  </span>
-                ))}
-              </div>
+            {/* Detail mode: Display Name inline */}
+            {detailView && assignedUser && (
+              <span className="text-[10px] text-gray-500 flex items-center gap-1 flex-shrink-0">
+                <UserCheck className="w-3 h-3" />
+                <span>
+                  {assignedUser["Display Name"] ||
+                    assignedUser.Name?.substring(0, 6) ||
+                    assignedUser.Email.split("@")[0]}
+                </span>
+              </span>
             )}
           </div>
+
+          {/* Right: Date (always visible) + Actions (overlay on hover) */}
+          <div className="relative flex items-center flex-shrink-0">
+            {/* Date - Always visible in compact mode, hidden on hover when actions show */}
+            {!detailView &&
+              (() => {
+                const applicableDates = getApplicableDates();
+                const dateDisplay = getDateDisplay() || "—";
+
+                // If no dates, just show the date without tooltip
+                if (applicableDates.length === 0) {
+                  return (
+                    <span className="text-[12px] text-blue-600 flex-shrink-0 group-hover:opacity-0 transition-opacity px-1">
+                      {dateDisplay}
+                    </span>
+                  );
+                }
+
+                // Show tooltip with all dates
+                return (
+                  <Tooltip delayDuration={300}>
+                    <TooltipTrigger asChild>
+                      <span className="text-[12px] text-blue-600 flex-shrink-0 group-hover:opacity-0 transition-opacity px-1">
+                        {dateDisplay}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      <div className="text-xs space-y-1">
+                        <p className="font-semibold border-b pb-1 mb-1">
+                          All Dates
+                        </p>
+                        {applicableDates.map((dateInfo, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: dateInfo.color }}
+                            />
+                            <span className="font-medium">
+                              {dateInfo.label}:
+                            </span>
+                            <span>{dateInfo.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })()}
+
+            {/* Actions - Overlay on hover with matching blue background */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-blue-50 pl-1 pr-0.5 opacity-0 sm:group-hover:opacity-100 transition-opacity">
+              {/* Assign/Reassign Button */}
+              {showAssignButton && (
+                <AssignDropdown
+                  isOpen={showAssignDropdown}
+                  onOpenChange={setShowAssignDropdown}
+                  trigger={
+                    <button
+                      onClick={handleAssignClick}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+                        isAssigned
+                          ? "bg-green-100 hover:bg-green-200 text-green-700"
+                          : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                      }`}
+                      title={
+                        isJunior && bucketStatus === "A"
+                          ? "Self-assign"
+                          : isAssigned
+                            ? "Reassign"
+                            : "Assign"
+                      }
+                    >
+                      {isAssigned ? (
+                        <UserCheck className="w-3 h-3" />
+                      ) : (
+                        <UserPlus className="w-3 h-3" />
+                      )}
+                    </button>
+                  }
+                >
+                  {(placement) => renderDropdownContent(true, placement)}
+                </AssignDropdown>
+              )}
+
+              {/* Approve/Reject buttons for Bucket H */}
+              {canApproveDelete && (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onApproveDelete) onApproveDelete(query);
+                    }}
+                    className="w-6 h-6 rounded-full bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-700 transition-colors"
+                    title="Approve Deletion"
+                  >
+                    <Check className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onRejectDelete) onRejectDelete(query);
+                    }}
+                    className="w-6 h-6 rounded-full bg-red-100 hover:bg-red-200 flex items-center justify-center text-red-700 transition-colors"
+                    title="Reject Deletion (Return to Previous Status)"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </>
+              )}
+
+              {/* Edit Button */}
+              {showEditButton && !isInBucketH && (
+                <button
+                  onClick={handleEditClick}
+                  className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors"
+                  title="Edit"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-      </TooltipTrigger>
-      <TooltipContent
-        side="bottom"
-        sideOffset={8}
-        className="max-w-xs bg-gray-800 text-white border-gray-700"
-      >
-        <AuditTooltipContent query={query} users={users} />
-      </TooltipContent>
-    </Tooltip>
+
+        {/* Row 2: All Applicable Dates (Detail View Only) - Compact format */}
+        {detailView && (
+          <div className="flex items-center gap-1 flex-wrap">
+            {getApplicableDates().map((dateInfo, idx) => (
+              <span
+                key={idx}
+                className="px-1 py-0.5 rounded text-[8px] font-medium"
+                style={{
+                  backgroundColor: `${dateInfo.color}15`,
+                  color: dateInfo.color,
+                }}
+                title={`${dateInfo.label}: ${dateInfo.value}`}
+              >
+                {dateInfo.value}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

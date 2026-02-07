@@ -119,6 +119,7 @@ export function UserViewDefault({
           onRejectDelete={onRejectDelete}
           currentUserRole={currentUserRole}
           currentUserEmail={currentUserEmail}
+          groupBy={groupBy}
         />
       )}
     </>

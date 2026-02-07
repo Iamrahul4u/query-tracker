@@ -221,8 +221,21 @@ export function useAuth() {
     syncManager.stopBackgroundRefresh();
     syncManager.clearCache();
 
-    localStorage.clear();
+    // Clear auth-related localStorage only (preserve drafts)
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("token_expiry");
+    localStorage.removeItem("user_email");
 
+    // Clear cached data
+    localStorage.removeItem("cached_queries");
+    localStorage.removeItem("cached_users");
+    localStorage.removeItem("cached_preferences");
+    localStorage.removeItem("cache_timestamp");
+
+    // Preserve: queryDrafts, queryDraftsBackup, lastSelectedUser, dashboard preferences
+
+    // Redirect to login page
     router.push("/");
   };
 

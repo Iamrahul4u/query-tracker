@@ -4,7 +4,18 @@ import { useState, useEffect, useRef } from "react";
 import { useQueryStore } from "../stores/queryStore";
 import { QUERY_TYPE_ORDER } from "../config/sheet-constants";
 import { Query, User } from "../utils/sheets";
-import { Plus, X, Save, RotateCcw, Loader2, Check } from "lucide-react";
+import {
+  Plus,
+  X,
+  Save,
+  RotateCcw,
+  Loader2,
+  Check,
+  ChevronDown,
+  Search,
+} from "lucide-react";
+import { AssignDropdown } from "./AssignDropdown";
+import { useToast } from "../hooks/useToast";
 
 interface AddQueryModalProps {
   onClose: () => void;
@@ -74,11 +85,17 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showSavedNotification, setShowSavedNotification] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [openDropdownRowId, setOpenDropdownRowId] = useState<string | null>(
+    null,
+  );
+  const [userSearchQuery, setUserSearchQuery] = useState("");
 
   // Ref for auto-save interval
   const autoSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedContentRef = useRef<string>("");
   const savedNotificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref map for input elements to focus new rows
+  const inputRefsMap = useRef<Map<string, HTMLInputElement>>(new Map());
 
   // Check if drafts were restored on mount
   useEffect(() => {
@@ -230,6 +247,13 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
         assignedTo: getLastSelectedUser(),
       },
     ]);
+    // Focus new row's input after render
+    setTimeout(() => {
+      const input = inputRefsMap.current.get(newId);
+      if (input) {
+        input.focus();
+      }
+    }, 0);
   };
 
   const removeRow = (id: string) => {
@@ -256,14 +280,17 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
     // Prevent double-submit
     if (isSubmitting) return;
 
-    // Validate
-    const emptyRows = queryRows.filter((row) => !row.description.trim());
-    if (emptyRows.length > 0) {
-      setError("All descriptions must be filled");
+    // Filter out empty rows (ignore them instead of showing error)
+    const validRows = queryRows.filter((row) => row.description.trim());
+
+    // If no valid rows, just close
+    if (validRows.length === 0) {
+      onClose();
       return;
     }
 
-    const tooLongRows = queryRows.filter(
+    // Validate character limit
+    const tooLongRows = validRows.filter(
       (row) => row.description.length > MAX_CHARS,
     );
     if (tooLongRows.length > 0) {
@@ -290,8 +317,8 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
     });
 
     try {
-      // Add all queries
-      for (const row of queryRows) {
+      // Add all valid queries with silent=true to prevent individual toasts
+      for (const row of validRows) {
         const newQueryData: Partial<Query> = {
           "Query Description": row.description,
           "Query Type": row.queryType,
@@ -305,8 +332,19 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
           newQueryData["Assignment Date Time"] = now;
         }
 
-        await addQueryOptimistic(newQueryData);
+        await addQueryOptimistic(newQueryData, true); // silent=true for batch
       }
+
+      // Show single batch toast
+      const count = validRows.length;
+      useToast
+        .getState()
+        .showToast(
+          count === 1
+            ? "Query added successfully"
+            : `${count} queries added successfully`,
+          "success",
+        );
 
       // Clear drafts AND backup on successful submit
       if (typeof window !== "undefined") {
@@ -376,11 +414,22 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
 
                   {/* Description - flexible width with subtle border */}
                   <input
+                    ref={(el) => {
+                      if (el) {
+                        inputRefsMap.current.set(row.id, el);
+                      }
+                    }}
                     type="text"
                     value={row.description}
                     onChange={(e) =>
                       updateRow(row.id, "description", e.target.value)
                     }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        addNewRow();
+                      }
+                    }}
                     maxLength={MAX_CHARS}
                     className="flex-1 min-w-0 border border-gray-200 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:border-blue-400"
                     placeholder="Enter query description..."
@@ -404,25 +453,128 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                     ))}
                   </div>
 
-                  {/* User Dropdown - compact with border */}
+                  {/* User Dropdown - Same AssignDropdown as QueryCardCompact */}
                   {canAllocate && (
-                    <select
-                      value={row.assignedTo}
-                      onChange={(e) =>
-                        updateRow(row.id, "assignedTo", e.target.value)
+                    <AssignDropdown
+                      isOpen={openDropdownRowId === row.id}
+                      onOpenChange={(open) => {
+                        setOpenDropdownRowId(open ? row.id : null);
+                        if (!open) setUserSearchQuery("");
+                      }}
+                      trigger={
+                        <button
+                          type="button"
+                          className="flex items-center justify-between gap-1 border border-gray-200 bg-white rounded px-1.5 py-1 text-xs text-gray-600 w-24 hover:border-gray-300 focus:outline-none focus:border-blue-400"
+                        >
+                          <span className="truncate">
+                            {row.assignedTo
+                              ? activeUsers
+                                  .find((u) => u.Email === row.assignedTo)
+                                  ?.["Display Name"]?.split(" ")[0] ||
+                                activeUsers
+                                  .find((u) => u.Email === row.assignedTo)
+                                  ?.Name?.split(" ")[0] ||
+                                row.assignedTo.split("@")[0]
+                              : "Unassigned"}
+                          </span>
+                          <ChevronDown
+                            className={`w-3 h-3 flex-shrink-0 transition-transform ${openDropdownRowId === row.id ? "rotate-180" : ""}`}
+                          />
+                        </button>
                       }
-                      className="border border-gray-200 bg-white rounded px-1.5 py-1 text-xs text-gray-600 w-24 flex-shrink-0 focus:outline-none focus:border-blue-400"
-                      title="Assign to user"
                     >
-                      <option value="">Unassigned</option>
-                      {activeUsers.map((user: User) => (
-                        <option key={user.Email} value={user.Email}>
-                          {user["Display Name"]?.split(" ")[0] ||
-                            user.Name?.split(" ")[0] ||
-                            user.Email.split("@")[0]}
-                        </option>
-                      ))}
-                    </select>
+                      {(placement) => {
+                        const opensUp = placement?.startsWith("top");
+                        const filteredUsers = activeUsers.filter((user) => {
+                          if (!userSearchQuery.trim()) return true;
+                          const search = userSearchQuery.toLowerCase();
+
+                          // Extract first name from Display Name or Name
+                          const displayName =
+                            user["Display Name"] || user.Name || "";
+                          const firstName = displayName
+                            .split(" ")[0]
+                            .toLowerCase();
+
+                          return (
+                            firstName.startsWith(search) ||
+                            user.Email.toLowerCase().includes(search)
+                          );
+                        });
+
+                        const SearchBox = () => (
+                          <div
+                            className={`p-2 ${opensUp ? "border-t" : "border-b"} border-gray-100`}
+                          >
+                            <div className="relative">
+                              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                              <input
+                                type="text"
+                                placeholder="Search users..."
+                                value={userSearchQuery}
+                                onChange={(e) =>
+                                  setUserSearchQuery(e.target.value)
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:outline-none"
+                                autoFocus
+                              />
+                            </div>
+                          </div>
+                        );
+
+                        return (
+                          <div className="bg-white border border-gray-200 rounded-lg shadow-xl min-w-[180px] max-h-[240px] flex flex-col overflow-hidden">
+                            {!opensUp && <SearchBox />}
+                            <div className="overflow-y-auto flex-1 p-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateRow(row.id, "assignedTo", "");
+                                  setOpenDropdownRowId(null);
+                                  setUserSearchQuery("");
+                                }}
+                                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 rounded ${
+                                  !row.assignedTo
+                                    ? "bg-blue-50 text-blue-600 font-medium"
+                                    : "text-gray-700"
+                                }`}
+                              >
+                                Unassigned
+                              </button>
+                              {filteredUsers.map((user) => (
+                                <button
+                                  key={user.Email}
+                                  type="button"
+                                  onClick={() => {
+                                    updateRow(row.id, "assignedTo", user.Email);
+                                    setOpenDropdownRowId(null);
+                                    setUserSearchQuery("");
+                                  }}
+                                  className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 rounded ${
+                                    row.assignedTo === user.Email
+                                      ? "bg-blue-50 text-blue-600 font-medium"
+                                      : "text-gray-700"
+                                  }`}
+                                >
+                                  {user["Display Name"] ||
+                                    user.Name ||
+                                    user.Email.split("@")[0]}
+                                </button>
+                              ))}
+                              {filteredUsers.length === 0 &&
+                                userSearchQuery && (
+                                  <div className="px-3 py-2 text-sm text-gray-400 text-center">
+                                    No users found
+                                  </div>
+                                )}
+                            </div>
+                            {opensUp && <SearchBox />}
+                          </div>
+                        );
+                      }}
+                    </AssignDropdown>
                   )}
 
                   {/* Action buttons - minimal */}
@@ -510,6 +662,24 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
               >
                 <RotateCcw className="w-3 h-3" />
                 Clear
+              </button>
+
+              {/* Remove All Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    confirm("Remove all queries? This will clear all drafts.")
+                  ) {
+                    clearDrafts();
+                  }
+                }}
+                disabled={isSubmitting}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+                title="Remove all queries and clear drafts"
+              >
+                <X className="w-3 h-3" />
+                Remove All
               </button>
             </div>
             <div className="flex gap-2">

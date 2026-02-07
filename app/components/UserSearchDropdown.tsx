@@ -33,13 +33,17 @@ export function UserSearchDropdown({
       selectedUser.Email.split("@")[0]
     : placeholder;
 
-  // Filter users based on search query
+  // Filter users based on search query (first name only)
   const filteredUsers = users.filter((user) => {
     const displayName =
       user["Display Name"] || user.Name || user.Email.split("@")[0];
     const searchLower = searchQuery.toLowerCase();
+
+    // Extract first name (first word before space)
+    const firstName = displayName.split(" ")[0].toLowerCase();
+
     return (
-      displayName.toLowerCase().includes(searchLower) ||
+      firstName.startsWith(searchLower) ||
       user.Email.toLowerCase().includes(searchLower)
     );
   });

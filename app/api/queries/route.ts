@@ -582,6 +582,8 @@ async function handleApproveDelete(
     Status: "H", // Move to deleted bucket
     "Delete Approved By": approvedBy || "",
     "Delete Approved Date Time": now,
+    "Delete Requested By": "", // Clear pending request
+    "Delete Requested Date Time": "", // Clear pending request timestamp
     "Last Activity Date Time": now,
   };
 
@@ -597,14 +599,13 @@ async function handleApproveDelete(
   }
 }
 
-
 /**
  * Reject a pending deletion (Admin only) - returns to previous status with Del-Rej flag
  */
 async function handleRejectDelete(
   sheets: any,
   queryId: string,
-  approvedBy?: string,
+  rejectedBy?: string,
 ) {
   const rowIndex = await findRowIndex(sheets, queryId);
   if (!rowIndex)
@@ -625,6 +626,8 @@ async function handleRejectDelete(
     "Delete Requested Date Time": "", // Clear delete request
     "Delete Requested By": "",
     "Delete Rejected": "true", // Mark as rejected (shows "Del-Rej" indicator)
+    "Delete Rejected By": rejectedBy || "", // For audit trail
+    "Delete Rejected Date Time": now, // For audit trail
     "Last Activity Date Time": now,
   };
 

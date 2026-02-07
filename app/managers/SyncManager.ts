@@ -703,6 +703,8 @@ export class SyncManager {
             "Delete Requested By": "",
             "Delete Requested Date Time": "",
             "Delete Rejected": "true", // Shows "Del-Rej" indicator
+            "Delete Rejected By": rejectedBy || "", // For audit trail
+            "Delete Rejected Date Time": now, // For audit trail
             "Last Activity Date Time": now,
           }
         : q,
