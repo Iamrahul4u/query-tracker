@@ -165,8 +165,9 @@ function DashboardContent() {
     ]),
   );
 
-  // Stats calculated from visible queries (before search filter) to show total counts
-  const stats = calculateStats(visibleQueries);
+  // Stats calculated from historyFilteredQueries (only visible queries on screen)
+  // This ensures counts match what users actually see, including when they load +7 days
+  const stats = calculateStats(historyFilteredQueries);
 
   // Handlers
   const handleAssignQuery = (query: Query, assignee: string) => {

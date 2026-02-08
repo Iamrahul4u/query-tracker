@@ -26,10 +26,10 @@ interface QueryState {
   // UI State
   isLoading: boolean;
   lastSyncedAt: Date | null;
-  
+
   // Expanded Modal State (centralized to prevent conflicts)
   expandedModal: {
-    type: 'bucket' | 'user';
+    type: "bucket" | "user";
     id: string; // bucketKey or userEmail
   } | null;
 
@@ -43,7 +43,10 @@ interface QueryState {
   setQueries: (queries: Query[]) => void;
   setUsers: (users: User[]) => void;
   setCurrentUser: (user: User | null) => void;
-  addQueryOptimistic: (query: Partial<Query>, silent?: boolean) => Promise<string>; // Returns temp ID, silent skips toast
+  addQueryOptimistic: (
+    query: Partial<Query>,
+    silent?: boolean,
+  ) => Promise<string>; // Returns temp ID, silent skips toast
   assignQueryOptimistic: (
     queryId: string,
     assignee: string,
@@ -74,9 +77,9 @@ interface QueryState {
 
   // Rollback
   rollbackAction: (actionId: string) => void;
-  
+
   // Expanded Modal Actions
-  openExpandedModal: (type: 'bucket' | 'user', id: string) => void;
+  openExpandedModal: (type: "bucket" | "user", id: string) => void;
   closeExpandedModal: () => void;
 }
 
@@ -263,7 +266,9 @@ export const useQueryStore = create<QueryState>()(
 
         if (result.success) {
           if (!silent) {
-            useToast.getState().showToast("Query added successfully", "success");
+            useToast
+              .getState()
+              .showToast("Query added successfully", "success");
           }
           return result.tempId || "";
         } else {
@@ -455,7 +460,7 @@ export const useQueryStore = create<QueryState>()(
             .getState()
             .showToast(
               isAdmin
-                ? "Query moved to Deleted bucket"
+                ? "Query deleted and moved to Bucket H"
                 : "Delete request submitted",
               "success",
             );
@@ -574,7 +579,7 @@ export const useQueryStore = create<QueryState>()(
       // ═══════════════════════════════════════════════════════════════
       // EXPANDED MODAL ACTIONS
       // ═══════════════════════════════════════════════════════════════
-      openExpandedModal: (type: 'bucket' | 'user', id: string) => {
+      openExpandedModal: (type: "bucket" | "user", id: string) => {
         set((state) => {
           state.expandedModal = { type, id };
         });

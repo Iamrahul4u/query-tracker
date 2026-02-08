@@ -410,8 +410,8 @@ function BucketColumnWithSync({
           <p className="p-4 text-gray-400 text-sm text-center">No queries</p>
         ) : (
           <div className="p-1.5 space-y-2 flex-1">
-            {/* Group by Query Type: SEO Query -> New -> Ongoing */}
-            {["SEO Query", "New", "Ongoing"].map((groupName) => {
+            {/* Group by Query Type: SEO Query -> New -> Ongoing -> On Hold */}
+            {QUERY_TYPE_ORDER.map((groupName) => {
               const typeQueries = queries.filter((q) => {
                 const qType = (q["Query Type"] || "").trim();
                 return qType === groupName;
@@ -469,7 +469,7 @@ function BucketColumnWithSync({
             {/* Other types (fallback for any unknown types) */}
             {queries.filter((q) => {
               const qType = (q["Query Type"] || "").trim();
-              return !["SEO Query", "New", "Ongoing"].includes(qType);
+              return !QUERY_TYPE_ORDER.includes(qType);
             }).length > 0 && (
               <div
                 className={`rounded-lg border ${typeColors.Other.border} ${typeColors.Other.bg} overflow-hidden`}
@@ -489,7 +489,7 @@ function BucketColumnWithSync({
                     {
                       queries.filter((q) => {
                         const qType = (q["Query Type"] || "").trim();
-                        return !["SEO Query", "New", "Ongoing"].includes(qType);
+                        return !QUERY_TYPE_ORDER.includes(qType);
                       }).length
                     }
                   </span>
@@ -500,7 +500,7 @@ function BucketColumnWithSync({
                   {queries
                     .filter((q) => {
                       const qType = (q["Query Type"] || "").trim();
-                      return !["SEO Query", "New", "Ongoing"].includes(qType);
+                      return !QUERY_TYPE_ORDER.includes(qType);
                     })
                     .map((query, idx) => (
                       <QueryCardCompact

@@ -225,6 +225,19 @@ export function QueryDetailModal({
             </div>
           )}
 
+          {/* Deleted From (for Bucket H only) */}
+          {query["Status"] === "H" && query["Previous Status"] && (
+            <div className="mb-6 p-3 bg-red-50 rounded-lg">
+              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+                Deleted From
+              </p>
+              <p className="font-medium text-gray-800">
+                {query["Previous Status"]}){" "}
+                {BUCKET_NAMES[query["Previous Status"]] || "Unknown"}
+              </p>
+            </div>
+          )}
+
           {/* Event Info (for E/F) */}
           {(query["Event ID in SF"] || query["Event Title in SF"]) && (
             <div className="mb-6 p-3 bg-purple-50 rounded-lg">

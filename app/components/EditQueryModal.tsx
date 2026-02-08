@@ -167,25 +167,19 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   };
 
   const handleDelete = () => {
-    const isAdmin = ["admin", "pseudo admin"].includes(role.toLowerCase());
+    // Check if user is Admin or Pseudo Admin (ONLY these two get auto-approval)
+    const isAdminOrPseudoAdmin = ["admin", "pseudo admin"].includes(role);
 
-    if (isAdmin) {
-      // Admin can delete directly - permanent deletion
-      if (
-        confirm(
-          "Are you sure you want to permanently delete this query? This action cannot be undone.",
-        )
-      ) {
-        deleteQueryOptimistic(
-          query["Query ID"],
-          currentUser?.Email || "",
-          true,
-        );
-        onClose();
-      }
-    } else {
-      // Non-admin: Delete query (pending admin approval) - no extra confirm needed
-      deleteQueryOptimistic(query["Query ID"], currentUser?.Email || "", false);
+    const confirmMessage = isAdminOrPseudoAdmin
+      ? "Are you sure you want to delete this query? It will move to Bucket H (Deleted) and be automatically approved."
+      : "Are you sure you want to request deletion of this query? It will move to Bucket H (Deleted) and require admin approval.";
+
+    if (confirm(confirmMessage)) {
+      deleteQueryOptimistic(
+        query["Query ID"],
+        currentUser?.Email || "",
+        isAdminOrPseudoAdmin, // Admin/Pseudo Admin = auto-approve, Senior/Junior = pending approval
+      );
       onClose();
     }
   };

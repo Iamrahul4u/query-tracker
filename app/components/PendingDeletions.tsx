@@ -73,11 +73,11 @@ export function PendingDeletions({
 }: PendingDeletionsProps) {
   const { approveDeleteOptimistic, rejectDeleteOptimistic } = useQueryStore();
 
-  // Only show for Admin, Pseudo Admin, or Senior
-  const isAdmin = ["admin", "pseudo admin", "senior"].includes(
+  // Only show for Admin and Pseudo Admin (NOT Senior or Junior)
+  const isAdminOrPseudoAdmin = ["admin", "pseudo admin"].includes(
     currentUserRole.toLowerCase(),
   );
-  if (!isAdmin) return null;
+  if (!isAdminOrPseudoAdmin) return null;
 
   // Filter queries with pending deletion requests (not yet approved or rejected)
   const pendingDeletions = queries.filter(
