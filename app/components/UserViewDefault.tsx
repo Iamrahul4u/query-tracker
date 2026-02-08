@@ -68,8 +68,8 @@ export function UserViewDefault({
     gridClass = "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
   }
 
-  // Dynamic max height based on filter bar state - match linear view
-  const maxHeight = isFilterExpanded ? "85vh" : "90vh";
+  // Always use 90vh height for all views
+  const maxHeight = "90vh";
 
   return (
     <>

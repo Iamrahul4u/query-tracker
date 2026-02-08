@@ -1,6 +1,10 @@
 import { useRef, useEffect, useState } from "react";
 import { Query, User } from "../utils/sheets";
-import { BUCKETS, BUCKET_ORDER } from "../config/sheet-constants";
+import {
+  BUCKETS,
+  BUCKET_ORDER,
+  QUERY_TYPE_ORDER,
+} from "../config/sheet-constants";
 import { QueryCardCompact } from "./QueryCardCompact";
 import { DateFieldKey } from "../utils/queryFilters";
 import { ExpandedBucketModal } from "./ExpandedBucketModal";
@@ -368,8 +372,8 @@ function BucketColumnWithSync({
     },
   };
 
-  // Conditional height based on filter bar visibility
-  const bucketHeight = isFilterExpanded ? "h-[85vh]" : "h-[90vh]";
+  // Always use 90vh height
+  const bucketHeight = "h-[90vh]";
 
   return (
     <div

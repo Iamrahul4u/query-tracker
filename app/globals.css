@@ -98,8 +98,8 @@
     --bucket-f: #673ab7;
     --bucket-g: #9e9e9e;
 
-    /* Bucket Height - Conditional based on filter bar visibility */
-    --bucket-height-expanded: 85vh;
+    /* Bucket Height - Always 90vh for all views */
+    --bucket-height-expanded: 90vh;
     --bucket-height-collapsed: 90vh;
   }
 }
