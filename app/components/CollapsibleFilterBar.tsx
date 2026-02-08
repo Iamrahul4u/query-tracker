@@ -598,10 +598,8 @@ export function CollapsibleFilterBar({
     <div className="bg-white border-b border-gray-100 transition-all sticky top-[40px] sm:top-[48px] z-40">
       {/* Toggle Handle */}
       {/* Toggle Handle */}
-      <div
-        className="flex items-center justify-center -mb-2 relative z-10 pointer-events-none"
-      >
-        <div 
+      <div className="flex items-center justify-center -mb-2 relative z-10 pointer-events-none">
+        <div
           className="bg-white border border-gray-100 border-t-0 rounded-b-lg px-2 py-0.5 shadow-sm text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-1 cursor-pointer pointer-events-auto"
           onClick={toggleExpanded}
         >
@@ -691,16 +689,16 @@ export function CollapsibleFilterBar({
               )}
 
             {/* Search + Save View - Hidden on mobile - INLINED to prevent focus loss */}
-            <div className="hidden lg:flex items-center gap-1.5 ml-auto">
+            <div className="hidden lg:flex items-center gap-2 ml-auto">
               {/* Undo Button - visible for 10 seconds after reset */}
               {showUndo && onUndoReset && (
                 <button
                   onClick={onUndoReset}
-                  className="w-5 h-5 text-sm font-bold rounded bg-blue-600 text-white hover:bg-blue-700 transition flex items-center justify-center shadow-sm animate-pulse"
+                  className="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition flex items-center gap-1.5 shadow-sm"
                   title="Undo reset"
                 >
                   <svg
-                    className="w-3 h-3"
+                    className="w-3.5 h-3.5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -712,17 +710,18 @@ export function CollapsibleFilterBar({
                       d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
                     />
                   </svg>
+                  Undo
                 </button>
               )}
               {/* Save View Button - visible when there are pending changes */}
               {hasPendingChanges && onSaveView && (
                 <button
                   onClick={onSaveView}
-                  className="w-5 h-5 text-sm font-bold rounded bg-green-600 text-white hover:bg-green-700 transition flex items-center justify-center shadow-sm"
+                  className="px-3 py-1.5 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 transition flex items-center gap-1.5 shadow-sm"
                   title="Save your current view preferences"
                 >
                   <svg
-                    className="w-3 h-3"
+                    className="w-3.5 h-3.5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -734,6 +733,7 @@ export function CollapsibleFilterBar({
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
+                  Save
                 </button>
               )}
               <div className="relative w-36">
@@ -1032,7 +1032,7 @@ export function CollapsibleFilterBar({
                           onUndoReset();
                           setDrawerOpen(false); // Close drawer after undo
                         }}
-                        className="w-full px-4 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm animate-pulse"
+                        className="w-full px-4 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm"
                         title="Undo reset"
                       >
                         <svg
