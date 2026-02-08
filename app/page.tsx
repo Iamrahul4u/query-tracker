@@ -106,6 +106,7 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
     // Helper function to attempt token refresh
     const attemptRefresh = async () => {
       if (!refreshToken) {
+        console.warn("⚠️ [LOGIN-PAGE] No refresh token available");
         setStatus("Sign in to access Query Tracker");
         setIsLoading(false);
         return;
@@ -118,9 +119,10 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refresh_token: refreshToken }),
         });
-        const data = await res.json();
 
-        if (data.access_token) {
+        if (res.ok) {
+          const data = await res.json();
+          console.log("✅ [LOGIN-PAGE] Token refreshed successfully");
           localStorage.setItem("auth_token", data.access_token);
           localStorage.setItem(
             "token_expiry",
@@ -129,15 +131,35 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
           setStatus("Redirecting to dashboard...");
           router.push("/dashboard");
         } else {
-          // Refresh failed, need re-login
-          localStorage.clear();
-          setStatus("Session expired. Please sign in again.");
+          const error = await res.json();
+
+          // Only clear refresh token if it's actually invalid (401/revoked)
+          if (error.requireReauth || res.status === 401) {
+            console.error(
+              "❌ [LOGIN-PAGE] Refresh token invalid/revoked, clearing all auth",
+            );
+            localStorage.removeItem("auth_token");
+            localStorage.removeItem("refresh_token");
+            localStorage.removeItem("token_expiry");
+            localStorage.removeItem("user_email");
+            setStatus("Session expired. Please sign in again.");
+          } else {
+            // Other errors (500, etc.) - keep refresh token, just show error
+            console.error(
+              "⚠️ [LOGIN-PAGE] Refresh failed but refresh token may still be valid",
+            );
+            setStatus(
+              "Unable to refresh session. Please try again or sign in.",
+            );
+          }
           setIsLoading(false);
         }
-      } catch {
-        localStorage.clear();
-        setStatus("Session expired. Please sign in again.");
+      } catch (error) {
+        // Network error - KEEP refresh token, user can retry
+        console.error("❌ [LOGIN-PAGE] Network error during refresh:", error);
+        setStatus("Network error. Please check your connection and try again.");
         setIsLoading(false);
+        // Don't clear anything - user can retry when network is back
       }
     };
 
@@ -205,6 +227,15 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
 
             const data = await tokenRes.json();
 
+            console.log("🔐 [LOGIN] Token exchange response:");
+            console.log(`  - access_token: ${data.access_token ? "✅" : "❌"}`);
+            console.log(
+              `  - refresh_token: ${data.refresh_token ? "✅" : "❌"}`,
+            );
+            console.log(`  - has_refresh_token: ${data.has_refresh_token}`);
+            console.log(`  - expires_in: ${data.expires_in}s`);
+            console.log(`  - email: ${data.email}`);
+
             // Store tokens
             localStorage.setItem("auth_token", data.access_token);
             localStorage.setItem("user_email", data.email);
@@ -213,11 +244,19 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
             // Store refresh token for silent refresh
             if (data.refresh_token) {
               localStorage.setItem("refresh_token", data.refresh_token);
+              console.log("✅ [LOGIN] Refresh token stored in localStorage");
+            } else {
+              console.warn(
+                "⚠️ [LOGIN] No refresh token received - session will expire after 1 hour",
+              );
             }
 
             // Store expiry time
             const expiryTime = Date.now() + data.expires_in * 1000;
             localStorage.setItem("token_expiry", String(expiryTime));
+            console.log(
+              `🔐 [LOGIN] Token expires at: ${new Date(expiryTime).toLocaleTimeString()}`,
+            );
 
             setStatus("Redirecting to dashboard...");
             router.push("/dashboard");

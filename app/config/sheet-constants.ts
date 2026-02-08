@@ -3,7 +3,7 @@ export const SPREADSHEET_ID = "1Itpin1gPmJIy0KK6kBDklfhgOnNapvqywgypZ0h2bqA";
 // In previous view of route.ts, SPREADSHEET_ID was hardcoded or imported. Let's check route.ts first to be safe, but for now I will define the ranges.
 
 export const SHEET_RANGES = {
-  QUERIES: "Queries!A:Z",
+  QUERIES: "Queries!A:AD", // Extended to AD to include rejection and remark audit fields (AA-AD)
   USERS: "Users!A:F",
   PREFERENCES: "Preferences!A:D", // Updated: A=Email, B=PreferredView, C=BucketViewPrefs (JSON), D=UserViewPrefs (JSON)
 };
@@ -128,11 +128,11 @@ export const BUCKETS: Record<string, BucketConfig> = {
       "Delete Requested By",
       "Previous Status",
     ],
-    // H does NOT evaporate - queries stay visible until approved/rejected by Admin
+    evaporateAfterDays: 3, // Only applies to approved deletions, pending deletions always visible
     // After approval: permanently deleted. After rejection: returns to previous bucket.
   },
 };
 
 export const BUCKET_ORDER = Object.keys(BUCKETS);
 
-export const QUERY_TYPE_ORDER = ["SEO Query", "New", "Ongoing"];
+export const QUERY_TYPE_ORDER = ["SEO Query", "New", "Ongoing", "On Hold"];

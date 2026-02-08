@@ -32,9 +32,17 @@ export function useDashboardPreferences() {
   const [sortAscending, setSortAscending] = useState<boolean>(true);
   const [sortBuckets, setSortBuckets] = useState<string[]>(["ALL"]);
   const [groupBy, setGroupBy] = useState<"type" | "bucket">("bucket");
+  const [hiddenBuckets, setHiddenBuckets] = useState<string[]>([]);
+  const [hiddenUsers, setHiddenUsers] = useState<string[]>([]);
 
   // Track if there are unsaved changes
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
+
+  // Undo mechanism - snapshot before reset
+  const [previousPreferences, setPreviousPreferences] =
+    useState<Preferences | null>(null);
+  const [showUndo, setShowUndo] = useState(false);
+  const [undoTimer, setUndoTimer] = useState<NodeJS.Timeout | null>(null);
 
   // Get current user email for localStorage key
   const userEmail = localStorage.getItem("user_email") || "default";
@@ -53,6 +61,8 @@ export function useDashboardPreferences() {
         sortAscending: true,
         sortBuckets: "ALL",
         groupBy: "bucket",
+        hiddenBuckets: "",
+        hiddenUsers: "",
       },
       userViewPrefs: {
         layout: "default",
@@ -62,6 +72,8 @@ export function useDashboardPreferences() {
         sortAscending: true,
         sortBuckets: "ALL",
         groupBy: "bucket",
+        hiddenBuckets: "",
+        hiddenUsers: "",
       },
     };
 
@@ -109,6 +121,20 @@ export function useDashboardPreferences() {
       setSortBuckets(["ALL"]);
     } else {
       setSortBuckets(viewPrefs.sortBuckets.split(",").map((b) => b.trim()));
+    }
+
+    // Parse hiddenBuckets
+    if (viewPrefs.hiddenBuckets) {
+      setHiddenBuckets(viewPrefs.hiddenBuckets.split(",").map((b) => b.trim()));
+    } else {
+      setHiddenBuckets([]);
+    }
+
+    // Parse hiddenUsers
+    if (viewPrefs.hiddenUsers) {
+      setHiddenUsers(viewPrefs.hiddenUsers.split(",").map((u) => u.trim()));
+    } else {
+      setHiddenUsers([]);
     }
   }, [localStorageKey]); // ONLY depend on localStorageKey, NOT backend preferences
 
@@ -197,12 +223,165 @@ export function useDashboardPreferences() {
     setHasPendingChanges(true);
   };
 
-  const clearSort = () => {
+  const updateHiddenBuckets = (buckets: string[]) => {
+    setHiddenBuckets(buckets);
+    setHasPendingChanges(true);
+  };
+
+  const updateHiddenUsers = (users: string[]) => {
+    setHiddenUsers(users);
+    setHasPendingChanges(true);
+  };
+
+  // Reset to defaults - clears all preferences with undo support
+  const resetToDefaults = useCallback(async () => {
+    // Clear any existing undo timer
+    if (undoTimer) {
+      clearTimeout(undoTimer);
+    }
+
+    // Snapshot current preferences for undo
+    const cached = localStorage.getItem(localStorageKey);
+    if (cached) {
+      try {
+        const currentPrefs = JSON.parse(cached);
+        setPreviousPreferences(currentPrefs);
+      } catch (e) {
+        setPreviousPreferences(null);
+      }
+    }
+
+    const defaultPrefs: Preferences = {
+      preferredView: "bucket",
+      bucketViewPrefs: {
+        layout: "default",
+        columns: 3, // Default to 3 columns
+        detailView: false,
+        sortField: "",
+        sortAscending: true,
+        sortBuckets: "ALL",
+        groupBy: "bucket",
+        hiddenBuckets: "",
+        hiddenUsers: "",
+      },
+      userViewPrefs: {
+        layout: "default",
+        columns: 3, // Default to 3 columns
+        detailView: false,
+        sortField: "",
+        sortAscending: true,
+        sortBuckets: "ALL",
+        groupBy: "bucket",
+        hiddenBuckets: "",
+        hiddenUsers: "",
+      },
+    };
+
+    // Apply defaults to state
+    setViewMode("bucket");
+    setBucketViewMode("default");
+    setColumnCount(3); // Default to 3 columns
+    setDetailView(false);
     setSortField(undefined);
     setSortAscending(true);
     setSortBuckets(["ALL"]);
-    setHasPendingChanges(true);
-  };
+    setGroupBy("bucket");
+    setHiddenBuckets([]);
+    setHiddenUsers([]);
+
+    // Save to localStorage
+    try {
+      localStorage.setItem(localStorageKey, JSON.stringify(defaultPrefs));
+    } catch (e) {
+      // Ignore storage errors
+    }
+
+    // Save to backend
+    await savePreferences(defaultPrefs);
+    setHasPendingChanges(false);
+
+    // Show undo button for 10 seconds
+    setShowUndo(true);
+    const timer = setTimeout(() => {
+      setShowUndo(false);
+      setPreviousPreferences(null);
+    }, 10000); // 10 seconds
+    setUndoTimer(timer);
+  }, [savePreferences, localStorageKey, undoTimer]);
+
+  // Undo reset - restore previous preferences
+  const undoReset = useCallback(async () => {
+    if (!previousPreferences) return;
+
+    // Clear undo timer
+    if (undoTimer) {
+      clearTimeout(undoTimer);
+      setUndoTimer(null);
+    }
+
+    // Restore previous preferences
+    const viewPrefs =
+      previousPreferences.preferredView === "bucket"
+        ? previousPreferences.bucketViewPrefs
+        : previousPreferences.userViewPrefs;
+
+    setViewMode(previousPreferences.preferredView as ViewMode);
+    setBucketViewMode((viewPrefs.layout || "default") as BucketViewMode);
+    setColumnCount((viewPrefs.columns || 3) as ColumnCount);
+    setDetailView(viewPrefs.detailView || false);
+    setSortField(viewPrefs.sortField || undefined);
+    setSortAscending(viewPrefs.sortAscending !== false);
+    setGroupBy((viewPrefs.groupBy || "bucket") as "type" | "bucket");
+
+    if (viewPrefs.sortBuckets === "ALL" || !viewPrefs.sortBuckets) {
+      setSortBuckets(["ALL"]);
+    } else {
+      setSortBuckets(viewPrefs.sortBuckets.split(",").map((b) => b.trim()));
+    }
+
+    // Restore hiddenBuckets
+    if (viewPrefs.hiddenBuckets) {
+      setHiddenBuckets(viewPrefs.hiddenBuckets.split(",").map((b) => b.trim()));
+    } else {
+      setHiddenBuckets([]);
+    }
+
+    // Restore hiddenUsers
+    if (viewPrefs.hiddenUsers) {
+      setHiddenUsers(viewPrefs.hiddenUsers.split(",").map((u) => u.trim()));
+    } else {
+      setHiddenUsers([]);
+    }
+
+    // Save restored preferences
+    try {
+      localStorage.setItem(
+        localStorageKey,
+        JSON.stringify(previousPreferences),
+      );
+    } catch (e) {
+      // Ignore storage errors
+    }
+
+    await savePreferences(previousPreferences);
+
+    // Hide undo button
+    setShowUndo(false);
+    setPreviousPreferences(null);
+    setHasPendingChanges(false);
+  }, [previousPreferences, undoTimer, savePreferences, localStorageKey]);
+
+  // Clear undo state when user makes changes
+  useEffect(() => {
+    if (hasPendingChanges && showUndo) {
+      if (undoTimer) {
+        clearTimeout(undoTimer);
+        setUndoTimer(null);
+      }
+      setShowUndo(false);
+      setPreviousPreferences(null);
+    }
+  }, [hasPendingChanges, showUndo, undoTimer]);
 
   // Save function - localStorage first, then backend
   const saveView = useCallback(async () => {
@@ -217,7 +396,9 @@ export function useDashboardPreferences() {
         sortBuckets.includes("ALL") || sortBuckets.length === 0
           ? "ALL"
           : sortBuckets.join(","),
-      groupBy, // Include groupBy in saved preferences
+      groupBy,
+      hiddenBuckets: hiddenBuckets.length > 0 ? hiddenBuckets.join(",") : "",
+      hiddenUsers: hiddenUsers.length > 0 ? hiddenUsers.join(",") : "",
     };
 
     // Load existing preferences from localStorage
@@ -244,16 +425,21 @@ export function useDashboardPreferences() {
           : existingPrefs?.userViewPrefs || viewPrefs,
     };
 
-    // 1. Save to localStorage FIRST (instant)
+    // 1. Save to localStorage FIRST (instant, optimistic)
     try {
       localStorage.setItem(localStorageKey, JSON.stringify(prefsToSave));
     } catch (e) {
       // Ignore storage errors
     }
 
-    // 2. Save to backend (async)
-    await savePreferences(prefsToSave);
+    // 2. Clear pending changes immediately (optimistic)
     setHasPendingChanges(false);
+
+    // 3. Save to backend (async, in background - don't await)
+    savePreferences(prefsToSave).catch((error) => {
+      console.error("Failed to save preferences to backend:", error);
+      // Don't show error to user - localStorage is already saved
+    });
   }, [
     viewMode,
     bucketViewMode,
@@ -263,6 +449,8 @@ export function useDashboardPreferences() {
     sortAscending,
     sortBuckets,
     groupBy,
+    hiddenBuckets,
+    hiddenUsers,
     savePreferences,
     localStorageKey,
   ]);
@@ -277,7 +465,10 @@ export function useDashboardPreferences() {
     sortAscending,
     sortBuckets,
     groupBy,
+    hiddenBuckets,
+    hiddenUsers,
     hasPendingChanges,
+    showUndo,
     updateViewMode,
     updateBucketViewMode,
     updateColumnCount,
@@ -287,7 +478,10 @@ export function useDashboardPreferences() {
     updateSortAscending,
     updateSortBuckets,
     updateGroupBy,
-    clearSort,
+    updateHiddenBuckets,
+    updateHiddenUsers,
     saveView,
+    resetToDefaults,
+    undoReset,
   };
 }

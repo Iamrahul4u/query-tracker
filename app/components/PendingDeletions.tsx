@@ -79,8 +79,13 @@ export function PendingDeletions({
   );
   if (!isAdmin) return null;
 
-  // Filter queries with pending deletion requests
-  const pendingDeletions = queries.filter((q) => q["Delete Requested By"]);
+  // Filter queries with pending deletion requests (not yet approved or rejected)
+  const pendingDeletions = queries.filter(
+    (q) =>
+      q["Delete Requested By"] &&
+      !q["Delete Approved By"] &&
+      !q["Delete Rejected"],
+  );
 
   if (pendingDeletions.length === 0) return null;
 

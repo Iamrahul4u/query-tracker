@@ -49,10 +49,25 @@ export async function POST(request: NextRequest) {
 
     const tokens = await tokenResponse.json();
 
+    console.log("🔐 [AUTH-CALLBACK] Token exchange successful");
+    console.log(
+      `  - access_token: ${tokens.access_token ? "RECEIVED ✅" : "MISSING ❌"}`,
+    );
+    console.log(
+      `  - refresh_token: ${tokens.refresh_token ? "RECEIVED ✅" : "MISSING ❌"}`,
+    );
+    console.log(
+      `  - expires_in: ${tokens.expires_in}s (${(tokens.expires_in / 60).toFixed(1)} minutes)`,
+    );
+
     // CRITICAL: Warn if refresh token not received
     if (!tokens.refresh_token) {
-      // This may happen if user previously authorized the app
-      // Consider revoking access and re-authorizing
+      console.warn(
+        "⚠️ [AUTH-CALLBACK] No refresh_token received! This happens when:",
+      );
+      console.warn("  1. User previously authorized this app");
+      console.warn("  2. Need to revoke access and re-authorize");
+      console.warn("  3. Or ensure prompt=consent is set (already configured)");
     }
 
     // Get user info using the access token

@@ -8,6 +8,7 @@ import {
 import { QueryCardCompact } from "./QueryCardCompact";
 import { DateFieldKey } from "../utils/queryFilters";
 import { UserExpandModal } from "./UserExpandModal";
+import { useQueryStore } from "../stores/queryStore";
 
 interface UserViewLinearProps {
   sortedUsers: Array<{ email: string; name: string; isKnown: boolean }>;
@@ -50,11 +51,18 @@ export function UserViewLinear({
   detailView = false,
   groupBy = "bucket",
 }: UserViewLinearProps) {
-  // State for expanded user modal
-  const [expandedUser, setExpandedUser] = useState<{
-    email: string;
-    name: string;
-  } | null>(null);
+  // Use global modal state from store
+  const { expandedModal, openExpandedModal, closeExpandedModal } =
+    useQueryStore();
+  const expandedUser =
+    expandedModal?.type === "user"
+      ? {
+          email: expandedModal.id,
+          name:
+            sortedUsers.find((u) => u.email === expandedModal.id)?.name ||
+            expandedModal.id,
+        }
+      : null;
 
   // Split users into rows based on column count
   const rows: Array<Array<{ email: string; name: string; isKnown: boolean }>> =
@@ -78,7 +86,7 @@ export function UserViewLinear({
             onEditQuery={onEditQuery}
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
-            onExpandUser={(user) => setExpandedUser(user)}
+            onExpandUser={(user) => openExpandedModal("user", user.email)}
             showDateOnCards={showDateOnCards}
             dateField={dateField}
             currentUserRole={currentUserRole}
@@ -95,7 +103,7 @@ export function UserViewLinear({
           user={expandedUser}
           queries={groupedQueries[expandedUser.email] || []}
           users={users}
-          onClose={() => setExpandedUser(null)}
+          onClose={closeExpandedModal}
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
           onEditQuery={onEditQuery}
@@ -291,7 +299,9 @@ function SynchronizedUserRow({
           onEditQuery={onEditQuery}
           onApproveDelete={onApproveDelete}
           onRejectDelete={onRejectDelete}
-          onExpandUser={() => onExpandUser?.({ email: displayUser.email, name: displayUser.name })}
+          onExpandUser={() =>
+            onExpandUser?.({ email: displayUser.email, name: displayUser.name })
+          }
           scrollRef={(el) => {
             if (el) {
               scrollRefs.current.set(displayUser.email, el);
@@ -379,6 +389,11 @@ function UserColumnWithSync({
       text: "text-blue-700",
       border: "border-blue-200",
     },
+    "On Hold": {
+      bg: "bg-red-50",
+      text: "text-red-700",
+      border: "border-red-200",
+    },
     Other: {
       bg: "bg-gray-50",
       text: "text-gray-700",
@@ -387,7 +402,7 @@ function UserColumnWithSync({
   };
 
   return (
-    <div 
+    <div
       className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col border border-gray-100"
       style={{ height: "var(--bucket-height-expanded)" }}
     >
@@ -409,7 +424,10 @@ function UserColumnWithSync({
       </div>
 
       {/* Scrollable Content */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gray-50 scrollbar-thin">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto bg-gray-50 scrollbar-thin"
+      >
         {sortedQueries.length === 0 ? (
           <p className="p-4 text-gray-400 text-sm text-center">No queries</p>
         ) : (

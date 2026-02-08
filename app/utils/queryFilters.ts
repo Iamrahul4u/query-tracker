@@ -37,6 +37,7 @@ export function getVisibleQueries(
 /**
  * Group queries by bucket (status)
  * Applies history day filtering for F and G buckets
+ * DUAL BUCKET DISPLAY: Queries with pending deletion show in BOTH original bucket (grayed) and H bucket
  */
 export function groupQueriesByBucket(
   queries: Query[],
@@ -45,12 +46,49 @@ export function groupQueriesByBucket(
   const grouped: Record<string, Query[]> = {};
 
   BUCKET_ORDER.forEach((bucket) => {
-    grouped[bucket] = queries.filter((q) => {
-      // Status match
-      if (q["Status"] !== bucket) return false;
+    grouped[bucket] = [];
+  });
 
-      // Filter by history days for F (Completed) and G (Discarded)
-      if (["F", "G"].includes(bucket)) {
+  queries.forEach((q) => {
+    const currentBucket = q["Status"];
+
+    // Check if this is a PENDING deletion query (not yet approved or rejected)
+    const isPendingDeletion = !!(
+      q["Delete Requested By"] &&
+      !q["Delete Approved By"] && // NOT approved yet
+      q["Delete Rejected"] !== "true" && // NOT rejected
+      q["Previous Status"] &&
+      q["Previous Status"] !== "H"
+    );
+
+    // If pending deletion, add to BOTH original bucket (as ghost) and H bucket
+    if (isPendingDeletion && currentBucket === "H") {
+      const originalBucket = q["Previous Status"];
+
+      // Add to H bucket (normal)
+      if (grouped[currentBucket]) {
+        grouped[currentBucket].push(q);
+      }
+
+      // Add to original bucket (as ghost - grayed out)
+      if (originalBucket && grouped[originalBucket]) {
+        grouped[originalBucket].push({
+          ...q,
+          _isGhostInOriginalBucket: true, // Flag for grayed-out display
+        } as Query);
+      }
+    } else {
+      // Normal query - add to its current bucket
+      if (grouped[currentBucket]) {
+        grouped[currentBucket].push(q);
+      }
+    }
+  });
+
+  // Apply history day filtering for F and G buckets
+  BUCKET_ORDER.forEach((bucket) => {
+    if (["F", "G"].includes(bucket)) {
+      grouped[bucket] = grouped[bucket].filter((q) => {
         const dateStr =
           bucket === "F"
             ? q["Entered In SF Date Time"]
@@ -64,9 +102,9 @@ export function groupQueriesByBucket(
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           if (diffDays > historyDays) return false;
         }
-      }
-      return true;
-    });
+        return true;
+      });
+    }
   });
 
   return grouped;
@@ -88,8 +126,9 @@ export function groupQueriesByUser(queries: Query[]): Record<string, Query[]> {
 }
 
 /**
- * Filter queries by history days for F and G buckets
- * Returns queries with F/G status older than historyDays removed
+ * Filter queries by history days for F, G, and H buckets
+ * Returns queries with F/G/H status older than historyDays removed
+ * Exception: H bucket pending deletions (not yet approved) are always visible
  */
 export function filterByHistoryDays(
   queries: Query[],
@@ -98,12 +137,26 @@ export function filterByHistoryDays(
   return queries.filter((q) => {
     const status = q["Status"];
 
-    // Only filter F and G buckets by history
-    if (!["F", "G"].includes(status)) return true;
+    // Only filter F, G, and H buckets by history
+    if (!["F", "G", "H"].includes(status)) return true;
+
+    // H bucket special case: pending deletions (not approved) are always visible
+    if (status === "H") {
+      const isPending =
+        q["Delete Requested By"] &&
+        !q["Delete Approved By"] &&
+        q["Delete Rejected"] !== "true";
+      if (isPending) return true; // Always show pending deletions
+      // For approved deletions, apply history filter below
+    }
 
     // Get the relevant date for the bucket
     const dateStr =
-      status === "F" ? q["Entered In SF Date Time"] : q["Discarded Date Time"];
+      status === "F"
+        ? q["Entered In SF Date Time"]
+        : status === "G"
+          ? q["Discarded Date Time"]
+          : q["Delete Approved Date Time"]; // H bucket uses approval date
 
     if (!dateStr) return false;
 
@@ -153,6 +206,7 @@ export function calculateStats(queries: Query[]): Record<string, number> {
     E: 0,
     F: 0,
     G: 0,
+    H: 0,
   };
 
   queries.forEach((q) => {

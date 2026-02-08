@@ -403,13 +403,21 @@ export class SyncManager {
     // Optimistic update
     const optimisticQueries = currentQueries.map((q) => {
       if (q["Query ID"] === queryId) {
-        return {
+        const updatedQuery = {
           ...q,
           ...updates,
           "Last Edited Date Time": now,
           "Last Edited By": currentUserEmail,
           "Last Activity Date Time": now,
         };
+
+        // If remarks are being updated, also update remark audit trail optimistically
+        if (updates.Remarks !== undefined && updates.Remarks !== q.Remarks) {
+          updatedQuery["Remark Added By"] = currentUserEmail;
+          updatedQuery["Remark Added Date Time"] = now;
+        }
+
+        return updatedQuery;
       }
       return q;
     });
@@ -432,7 +440,10 @@ export class SyncManager {
         body: JSON.stringify({
           action: "edit",
           queryId,
-          data: updates,
+          data: {
+            ...updates,
+            "Last Edited By": currentUserEmail, // Include for remark audit trail
+          },
         }),
       });
 
@@ -468,137 +479,89 @@ export class SyncManager {
   ): Promise<SyncResult> {
     const now = getISTDateTime();
 
-    if (isAdmin) {
-      // Admin: Move to Bucket H (soft delete, can be permanently removed later)
-      // Changed from permanent delete based on Feb 5th meeting - all deletes go to H first
-      const queryToMove = currentQueries.find((q) => q["Query ID"] === queryId);
-      if (!queryToMove) {
-        return { success: false, error: "Query not found" };
+    // Both Admin and Non-admin: Move to Bucket H (soft delete)
+    // Admin: Auto-approved (won't show in Pending Deletions header)
+    // Junior: Pending approval (shows in Pending Deletions for admin to approve)
+    const queryToMove = currentQueries.find((q) => q["Query ID"] === queryId);
+    if (!queryToMove) {
+      return { success: false, error: "Query not found" };
+    }
+
+    const previousStatus = queryToMove.Status;
+
+    // Build updated query based on admin status
+    const baseUpdates = {
+      Status: "H",
+      "Previous Status": previousStatus,
+      "Delete Requested Date Time": now,
+      "Delete Requested By": requestedBy,
+      "Last Activity Date Time": now,
+      // Clear any previous rejection fields (in case this was rejected before)
+      "Delete Rejected": "",
+      "Delete Rejected By": "",
+      "Delete Rejected Date Time": "",
+    };
+
+    const updatedQuery: Query = isAdmin
+      ? {
+          ...queryToMove,
+          ...baseUpdates,
+          // Admin: Auto-approve (won't show in Pending Deletions)
+          "Delete Approved By": requestedBy,
+          "Delete Approved Date Time": now,
+        }
+      : {
+          ...queryToMove,
+          ...baseUpdates,
+          // Junior: Pending approval (shows in Pending Deletions)
+          // Don't set Delete Approved fields - leave them empty
+        };
+
+    const optimisticQueries = currentQueries.map((q) =>
+      q["Query ID"] === queryId ? updatedQuery : q,
+    );
+    updateStore(optimisticQueries);
+
+    try {
+      const currentToken = localStorage.getItem("auth_token");
+      if (!currentToken) {
+        throw new Error("No auth token available");
       }
 
-      const previousStatus = queryToMove.Status;
-      const updatedQuery: Query = {
-        ...queryToMove,
-        Status: "H",
-        "Previous Status": previousStatus,
-        "Deleted Date Time": now,
-        "Delete Requested By": requestedBy,
-        "Delete Rejected": "",
-        "Last Activity Date Time": now,
+      const response = await fetch("/api/queries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({
+          action: "delete",
+          queryId,
+          data: { requestedBy, isAdmin },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Delete request failed");
+      }
+
+      LocalStorageCache.saveQueries(optimisticQueries);
+
+      return {
+        success: true,
+        data: {
+          message: isAdmin
+            ? "Query moved to Deleted bucket"
+            : "Delete request submitted for approval",
+          status: "H",
+        },
       };
-
-      const optimisticQueries = currentQueries.map((q) =>
-        q["Query ID"] === queryId ? updatedQuery : q,
-      );
-      updateStore(optimisticQueries);
-
-      try {
-        const currentToken = localStorage.getItem("auth_token");
-        if (!currentToken) {
-          throw new Error("No auth token available");
-        }
-
-        const response = await fetch("/api/queries", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${currentToken}`,
-          },
-          body: JSON.stringify({
-            action: "update",
-            queryId,
-            data: {
-              Status: "H",
-              "Previous Status": previousStatus,
-              "Deleted Date Time": now,
-              "Delete Requested By": requestedBy,
-              "Delete Rejected": "",
-              "Last Activity Date Time": now,
-            },
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Delete failed");
-        }
-
-        LocalStorageCache.saveQueries(optimisticQueries);
-
-        return {
-          success: true,
-          data: { message: "Moved to Deleted bucket" },
-        };
-      } catch (error: any) {
-        updateStore(currentQueries);
-        return {
-          success: false,
-          error: error.message || "Failed to delete query",
-        };
-      }
-    } else {
-      // Non-admin: Move to Bucket H (Pending Approval)
-      const queryToMove = currentQueries.find((q) => q["Query ID"] === queryId);
-      if (!queryToMove) {
-        return { success: false, error: "Query not found" };
-      }
-
-      // Store previous status and move to H
-      const previousStatus = queryToMove.Status;
-      const updatedQuery: Query = {
-        ...queryToMove,
-        Status: "H",
-        "Previous Status": previousStatus,
-        "Delete Requested Date Time": now,
-        "Delete Requested By": requestedBy,
-        "Delete Rejected": "", // Clear any previous rejection
-        "Last Activity Date Time": now,
+    } catch (error: any) {
+      updateStore(currentQueries);
+      return {
+        success: false,
+        error: error.message || "Failed to submit delete request",
       };
-
-      const optimisticQueries = currentQueries.map((q) =>
-        q["Query ID"] === queryId ? updatedQuery : q,
-      );
-      updateStore(optimisticQueries);
-
-      try {
-        // Always get fresh token from localStorage
-        const currentToken = localStorage.getItem("auth_token");
-        if (!currentToken) {
-          throw new Error("No auth token available");
-        }
-
-        const response = await fetch("/api/queries", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${currentToken}`,
-          },
-          body: JSON.stringify({
-            action: "delete",
-            queryId,
-            data: { requestedBy, isAdmin },
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Delete request failed");
-        }
-
-        LocalStorageCache.saveQueries(optimisticQueries);
-
-        return {
-          success: true,
-          data: {
-            message: "Delete request submitted for approval",
-            status: "H",
-          },
-        };
-      } catch (error: any) {
-        updateStore(currentQueries);
-        return {
-          success: false,
-          error: error.message || "Failed to submit delete request",
-        };
-      }
     }
   }
 
@@ -621,8 +584,7 @@ export class SyncManager {
           Status: "H" as const,
           "Delete Approved By": approvedBy || "",
           "Delete Approved Date Time": now,
-          "Delete Requested By": "", // Clear pending request
-          "Delete Requested Date Time": "",
+          // Keep "Delete Requested By" and "Delete Requested Date Time" for audit trail
           "Last Activity Date Time": now,
         };
       }
@@ -700,8 +662,7 @@ export class SyncManager {
             ...q,
             Status: previousStatus,
             "Previous Status": "",
-            "Delete Requested By": "",
-            "Delete Requested Date Time": "",
+            // KEEP "Delete Requested By" and "Delete Requested Date Time" for audit trail
             "Delete Rejected": "true", // Shows "Del-Rej" indicator
             "Delete Rejected By": rejectedBy || "", // For audit trail
             "Delete Rejected Date Time": now, // For audit trail

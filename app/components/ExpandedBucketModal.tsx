@@ -131,33 +131,33 @@ export function ExpandedBucketModal({
         className="relative mx-4 mt-[60px] mb-2 bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col pointer-events-auto"
         style={{ height: "90vh" }}
       >
-        {/* Header - Compact */}
+        {/* Header - Matching AllQueriesModal style */}
         <div
-          className="px-3 py-2 text-white flex items-center justify-between flex-shrink-0"
+          className="px-4 py-3 text-white flex items-center justify-between flex-shrink-0 rounded-t-xl"
           style={{ backgroundColor: config.color }}
         >
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-lg">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-3">
+            <span className="font-bold text-2xl">
               {config.name.split(") ")[0]})
             </span>
-            <span className="font-medium text-sm text-white/90">
+            <span className="font-medium text-base text-white/90">
               {config.name.split(") ")[1]}
             </span>
-            <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">
+            <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-bold">
               {queries.length} queries
             </span>
-          </div>
+          </h3>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+            className="text-white/80 hover:text-white p-1.5 hover:bg-white/20 rounded-lg transition-colors"
             aria-label="Close modal"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Content Area - Newspaper column layout */}
-        <div 
+        <div
           ref={scrollContainerRef}
           className="flex-1 overflow-x-auto overflow-y-hidden p-2 bg-gray-50"
         >
@@ -192,6 +192,11 @@ export function ExpandedBucketModal({
                       bg: "#dbeafe",
                       text: "#1d4ed8",
                       border: "#bfdbfe",
+                    },
+                    "On Hold": {
+                      bg: "#fee2e2",
+                      text: "#b91c1c",
+                      border: "#fecaca",
                     },
                   };
                   const typeColor = typeColors[item.typeName] || {

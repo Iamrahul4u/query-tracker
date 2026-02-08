@@ -198,9 +198,29 @@ export function QueryDetailModal({
                 {displayName(query["Assigned To"])}
               </p>
               {query["Remarks"] && (
-                <p className="text-sm text-gray-600 mt-1 italic">
-                  &quot;{query["Remarks"]}&quot;
-                </p>
+                <div className="text-sm text-gray-600 mt-2">
+                  <span className="italic">&quot;{query["Remarks"]}&quot;</span>
+                  {query["Remark Added By"] && (
+                    <span className="text-xs text-gray-400 ml-2">
+                      —{" "}
+                      <span
+                        className="font-medium cursor-help"
+                        title={query["Remark Added By"]}
+                      >
+                        {displayName(query["Remark Added By"])
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()}
+                      </span>
+                      {query["Remark Added Date Time"] && (
+                        <span className="text-gray-400 ml-1">
+                          {formatAuditDate(query["Remark Added Date Time"])}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -352,6 +372,25 @@ export function QueryDetailModal({
                     </div>
                   )}
 
+                {/* Remark Added/Edited - Show remark text with attribution */}
+                {query["Remark Added By"] && query["Remarks"] && (
+                  <div className="flex justify-between items-center">
+                    <span>
+                      <span className="text-blue-600 font-medium">Remark</span>{" "}
+                      <span className="italic">
+                        &quot;{query["Remarks"]}&quot;
+                      </span>
+                      {" by "}
+                      <span className="font-medium text-gray-700">
+                        {displayName(query["Remark Added By"])}
+                      </span>
+                    </span>
+                    <span className="text-gray-400 text-right">
+                      {formatAuditDate(query["Remark Added Date Time"])}
+                    </span>
+                  </div>
+                )}
+
                 {/* Discarded */}
                 {query["Discarded Date Time"] && (
                   <div className="flex justify-between items-center">
@@ -368,7 +407,7 @@ export function QueryDetailModal({
 
                 {/* Delete Requested (for pending deletions) */}
                 {query["Delete Requested By"] && (
-                  <div className="flex justify-between items-center bg-red-50 -mx-2 px-2 py-1 rounded">
+                  <div className="flex justify-between items-center">
                     <span>
                       <span className="text-red-600 font-medium">
                         Delete requested
@@ -384,9 +423,33 @@ export function QueryDetailModal({
                   </div>
                 )}
 
+                {/* Delete Approved (for completed deletions - admin auto-approve or explicit approval) */}
+                {query["Delete Approved By"] && (
+                  <div className="flex justify-between items-center">
+                    <span>
+                      <span className="text-gray-600 font-medium">
+                        Delete approved
+                      </span>{" "}
+                      by{" "}
+                      <span className="font-medium text-gray-700">
+                        {displayName(query["Delete Approved By"])}
+                      </span>
+                      {query["Delete Requested By"] ===
+                        query["Delete Approved By"] && (
+                        <span className="text-gray-400 text-xs ml-1">
+                          (self)
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-gray-400 text-right">
+                      {formatAuditDate(query["Delete Approved Date Time"])}
+                    </span>
+                  </div>
+                )}
+
                 {/* Delete Rejected (for rejected deletions) */}
                 {query["Delete Rejected By"] && (
-                  <div className="flex justify-between items-center bg-orange-50 -mx-2 px-2 py-1 rounded">
+                  <div className="flex justify-between items-center">
                     <span>
                       <span className="text-orange-600 font-medium">
                         Delete rejected

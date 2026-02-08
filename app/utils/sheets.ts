@@ -26,7 +26,14 @@ export interface Query {
   "Delete Approved By"?: string; // Admin who approved deletion
   "Delete Approved Date Time"?: string; // When deletion was approved
   "Delete Rejected"?: string; // "true" if deletion was rejected
-  [key: string]: string | undefined;
+  "Delete Rejected By"?: string; // Admin who rejected deletion
+  "Delete Rejected Date Time"?: string; // When deletion was rejected
+  // Remark audit trail
+  "Remark Added By"?: string; // User who added/modified remark
+  "Remark Added Date Time"?: string; // When remark was added/modified
+  // Internal flags (not in sheet)
+  _isGhostInOriginalBucket?: boolean; // True when showing pending deletion in original bucket (grayed out)
+  [key: string]: string | undefined | boolean;
 }
 
 export interface User {
@@ -46,17 +53,21 @@ export interface ViewPreferences {
   sortAscending: boolean;
   sortBuckets: string; // "ALL" or comma-separated like "A,B,C"
   groupBy?: "type" | "bucket"; // User View only: group by Query Type or Bucket/Status
+  hiddenBuckets?: string; // Comma-separated bucket letters like "A,B" or empty for none
+  hiddenUsers?: string; // Comma-separated user emails or empty for none
 }
 
 export interface Preferences {
-  preferredView: "bucket" | "user"; // Last active view
+  preferredView: "bucket" | "user" | "list"; // Last active view
   bucketViewPrefs: ViewPreferences;
   userViewPrefs: ViewPreferences;
 }
 
 export function parseQueries(rows: string[][]): Query[] {
   if (!rows || rows.length <= 1) return [];
-  const headers = rows[0];
+
+  // Trim whitespace from headers to handle \r\n and other whitespace
+  const headers = rows[0].map((h) => (h || "").trim());
 
   return rows.slice(1).map((row, index) => {
     const query: any = {};

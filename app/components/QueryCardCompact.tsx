@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, memo } from "react";
 import {
   UserPlus,
   UserCheck,
@@ -7,6 +7,8 @@ import {
   Calendar,
   Check,
   X,
+  MessageSquare,
+  Quote,
 } from "lucide-react";
 import { Query, User } from "../utils/sheets";
 import { DateFieldKey } from "../utils/queryFilters";
@@ -17,7 +19,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export function QueryCardCompact({
+export const QueryCardCompact = memo(function QueryCardCompact({
   query,
   users,
   bucketColor,
@@ -94,14 +96,20 @@ export function QueryCardCompact({
   // Check pending/deleted state (optimistic UI flags)
   const isPending = (query as any)._isPending;
   const isDeleted = (query as any)._isDeleted;
+  // Ghost query: pending deletion shown in original bucket (grayed out, no actions)
+  const isGhost = !!(query as any)._isGhostInOriginalBucket;
   // Bucket H: Pending Approval status
   const isInBucketH = query.Status === "H";
   const isDeletePending = isInBucketH || !!query["Delete Requested By"];
   // Del-Rej: Query was previously rejected from deletion
   const wasDeleteRejected = query["Delete Rejected"] === "true";
   // Can this user approve/reject? Only Admin/Pseudo Admin/Senior in Bucket H
+  // AND query is not yet approved or rejected
   const canApproveDelete =
-    isInBucketH && ["admin", "pseudo admin", "senior"].includes(roleLC);
+    isInBucketH &&
+    ["admin", "pseudo admin", "senior"].includes(roleLC) &&
+    !query["Delete Approved By"] &&
+    !query["Delete Rejected"];
 
   // Parse and format date for display
   const formatDateDisplay = (dateValue: string | undefined): string | null => {
@@ -239,7 +247,7 @@ export function QueryCardCompact({
     const config = dateConfigs[bucketStatus] || [];
 
     config.forEach(({ field, label, color }) => {
-      const dateValue = formatDateDisplay(query[field]);
+      const dateValue = formatDateDisplay(query[field] as string | undefined);
       if (dateValue) {
         dates.push({ label, value: dateValue, color });
       }
@@ -264,14 +272,17 @@ export function QueryCardCompact({
   // - Bucket A: Only show if truly unassigned (empty "Assigned To" - handles dirty data)
   // - Bucket B-G: Hidden (Junior can't reassign)
   // Senior/Admin: Can assign/reassign anywhere
+  // Ghost queries: NO actions allowed
   const showAssignButton =
-    !isJunior || (bucketStatus === "A" && isTrulyUnassigned);
+    !isGhost && (!isJunior || (bucketStatus === "A" && isTrulyUnassigned));
 
   // Junior Edit button logic:
   // - Bucket A: NEVER show (Junior can only self-assign from A, not edit)
   // - Bucket B-G: Only show if it's their own query
   // Senior/Admin: Can edit any query
-  const showEditButton = !isJunior || (bucketStatus !== "A" && isOwnQuery);
+  // Ghost queries: NO actions allowed
+  const showEditButton =
+    !isGhost && (!isJunior || (bucketStatus !== "A" && isOwnQuery));
 
   // Dropdown content for AssignDropdown - search box stays close to trigger
   const renderDropdownContent = (
@@ -343,13 +354,18 @@ export function QueryCardCompact({
             if (!searchQuery.trim()) return true;
             const search = searchQuery.toLowerCase();
 
-            // Extract first name from Display Name or Name
-            const displayName = user["Display Name"] || user.Name || "";
-            const firstName = displayName.split(" ")[0].toLowerCase();
+            // Extract first name from Display Name
+            const displayName = user["Display Name"] || "";
+            const displayFirstName = displayName.split(" ")[0].toLowerCase();
 
+            // Extract first name from Name
+            const name = user.Name || "";
+            const nameFirstName = name.split(" ")[0].toLowerCase();
+
+            // Match if EITHER Display Name OR Name first name starts with search
             return (
-              firstName.startsWith(search) ||
-              user.Email.toLowerCase().includes(search)
+              displayFirstName.startsWith(search) ||
+              nameFirstName.startsWith(search)
             );
           })
           .map((user) => {
@@ -383,13 +399,18 @@ export function QueryCardCompact({
             if (!searchQuery.trim()) return true;
             const search = searchQuery.toLowerCase();
 
-            // Extract first name from Display Name or Name
-            const displayName = user["Display Name"] || user.Name || "";
-            const firstName = displayName.split(" ")[0].toLowerCase();
+            // Extract first name from Display Name
+            const displayName = user["Display Name"] || "";
+            const displayFirstName = displayName.split(" ")[0].toLowerCase();
 
+            // Extract first name from Name
+            const name = user.Name || "";
+            const nameFirstName = name.split(" ")[0].toLowerCase();
+
+            // Match if EITHER Display Name OR Name first name starts with search
             return (
-              firstName.startsWith(search) ||
-              user.Email.toLowerCase().includes(search)
+              displayFirstName.startsWith(search) ||
+              nameFirstName.startsWith(search)
             );
           }).length === 0 && (
           <div className="px-3 py-2 text-xs text-gray-400 text-center">
@@ -420,8 +441,10 @@ export function QueryCardCompact({
         group relative px-1.5 py-px bg-white border-l-4 cursor-pointer transition-all
         ${isPending ? "opacity-70 border-dashed" : "border-solid shadow-sm"}
         ${isDeleted ? "opacity-50 line-through" : ""}
-            ${isDeletePending ? "bg-red-50" : ""}
-            ${!isDeletePending ? "hover:bg-blue-50" : "hover:bg-red-100"}
+        ${isGhost ? "opacity-60 bg-gray-100" : ""}
+            ${isDeletePending && !isGhost ? "bg-red-50" : ""}
+            ${!isDeletePending && !isGhost ? "hover:bg-blue-50" : ""}
+            ${isGhost ? "hover:bg-gray-200" : ""}
           `}
       style={{ borderLeftColor: bucketColor, minHeight: "26px" }}
       onClick={onClick}
@@ -455,24 +478,38 @@ export function QueryCardCompact({
               ></span>
             )}
 
-            {/* P.A. indicator for Bucket H */}
-            {isInBucketH && (
-              <span
-                className="px-1.5 py-0.5 text-[8px] font-semibold bg-amber-100 text-amber-700 rounded flex-shrink-0"
-                title={`Pending Approval - Delete requested by ${query["Delete Requested By"]}`}
-              >
-                P.A.
-              </span>
-            )}
+            {/* P.A. indicator for Bucket H - only if pending (not yet approved) */}
+            {isInBucketH &&
+              query["Delete Requested By"] &&
+              !query["Delete Approved By"] && (
+                <span
+                  className="px-1.5 py-0.5 text-[8px] font-semibold bg-amber-100 text-amber-700 rounded flex-shrink-0"
+                  title={`Pending Approval - Delete requested by ${query["Delete Requested By"]}`}
+                >
+                  P.A.
+                </span>
+              )}
 
             {/* Del-Rej indicator */}
-            {wasDeleteRejected && !isInBucketH && (
+            {wasDeleteRejected && (
               <span
                 className="px-1.5 py-0.5 text-[8px] font-semibold bg-orange-100 text-orange-700 rounded flex-shrink-0"
                 title="Delete request was rejected"
               >
                 Del-Rej
               </span>
+            )}
+
+            {/* Remark indicator - Red quote icon with Tooltip */}
+            {query.Remarks && query.Remarks.trim() && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Quote className="w-3 h-3 text-red-500 fill-red-500 flex-shrink-0 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs max-w-xs">{query.Remarks}</p>
+                </TooltipContent>
+              </Tooltip>
             )}
 
             {/* Compact mode: Display Name inline with description */}
@@ -644,13 +681,14 @@ export function QueryCardCompact({
       </div>
     </div>
   );
-}
+});
 
 export function QueryTypeBadge({ type }: { type: string }) {
   const colors: Record<string, string> = {
     New: "bg-green-100 text-green-700 border border-green-200",
     Ongoing: "bg-blue-100 text-blue-700 border border-blue-200",
     "SEO Query": "bg-purple-100 text-purple-700 border border-purple-200",
+    "On Hold": "bg-red-100 text-red-700 border border-red-200",
   };
 
   // Clean type string (sometimes might have trailing spaces)

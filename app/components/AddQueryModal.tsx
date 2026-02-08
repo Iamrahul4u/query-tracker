@@ -33,6 +33,14 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
 
   // Get last selected user from localStorage for defaults
   const getLastSelectedUser = () => {
+    // Juniors cannot assign queries, so always return empty for them
+    const roleLC = (currentUser?.Role || "").toLowerCase();
+    const isJunior = roleLC === "junior";
+
+    if (isJunior) {
+      return ""; // Juniors always leave queries unassigned
+    }
+
     if (typeof window !== "undefined") {
       return localStorage.getItem("lastSelectedUser") || "";
     }
@@ -187,6 +195,51 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
     };
   }, [queryRows]);
 
+  // Global Enter key listener - add new row when Enter is pressed anywhere in modal
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Only handle Enter key
+      if (e.key !== "Enter") return;
+
+      // Don't interfere with Shift+Enter (for line breaks)
+      if (e.shiftKey) return;
+
+      // Don't trigger if a dropdown is open (let dropdown handle Enter)
+      if (openDropdownRowId !== null) return;
+
+      const target = e.target as HTMLElement;
+
+      // Don't trigger for search boxes (they have placeholder with "Search")
+      if (
+        target.tagName === "INPUT" &&
+        target.getAttribute("placeholder")?.toLowerCase().includes("search")
+      ) {
+        return;
+      }
+
+      // Don't trigger for buttons (they handle their own clicks)
+      if (target.tagName === "BUTTON") {
+        return;
+      }
+
+      // Prevent default form submission behavior
+      e.preventDefault();
+
+      // Stop propagation to prevent duplicate triggers
+      e.stopPropagation();
+
+      // Add new row
+      addNewRow();
+    };
+
+    // Use capture phase to catch event before it bubbles
+    window.addEventListener("keydown", handleGlobalKeyDown, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", handleGlobalKeyDown, {
+        capture: true,
+      });
+  }, [queryRows, openDropdownRowId]); // Add openDropdownRowId as dependency
+
   // Quick Save drafts to localStorage (manual save)
   const saveDrafts = () => {
     if (typeof window !== "undefined") {
@@ -238,8 +291,9 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
 
   const addNewRow = () => {
     const newId = String(Date.now());
-    setQueryRows([
-      ...queryRows,
+    // Use functional update to avoid stale closure
+    setQueryRows((prevRows) => [
+      ...prevRows,
       {
         id: newId,
         description: "",
@@ -268,7 +322,8 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
       ),
     );
     // Persist user selection to localStorage when assignedTo changes
-    if (field === "assignedTo" && value && typeof window !== "undefined") {
+    // This includes empty string (unassigned) so new rows inherit the unassigned state
+    if (field === "assignedTo" && typeof window !== "undefined") {
       localStorage.setItem("lastSelectedUser", value);
     }
     setError("");
@@ -307,14 +362,15 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
       localStorage.setItem("queryDraftsBackup", JSON.stringify(queryRows));
     }
 
-    const now = new Date().toLocaleString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    // Format date as DD/MM/YYYY HH:MM:SS (no comma, matches backend format)
+    const date = new Date();
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+    const now = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
     try {
       // Add all valid queries with silent=true to prevent individual toasts
@@ -323,13 +379,15 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
           "Query Description": row.description,
           "Query Type": row.queryType,
           GmIndicator: "", // Empty for new queries (only relevant for E/F buckets)
+          "Added By": currentUser?.Email || "",
+          // Don't set dates here - let backend set them with proper IST timezone
         };
 
         if (row.assignedTo) {
           newQueryData.Status = "B";
           newQueryData["Assigned To"] = row.assignedTo;
           newQueryData["Assigned By"] = currentUser?.Email || "";
-          newQueryData["Assignment Date Time"] = now;
+          // Don't set Assignment Date Time here - backend will set it
         }
 
         await addQueryOptimistic(newQueryData, true); // silent=true for batch
@@ -424,12 +482,6 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                     onChange={(e) =>
                       updateRow(row.id, "description", e.target.value)
                     }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        addNewRow();
-                      }
-                    }}
                     maxLength={MAX_CHARS}
                     className="flex-1 min-w-0 border border-gray-200 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:border-blue-400"
                     placeholder="Enter query description..."
@@ -489,16 +541,22 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                           if (!userSearchQuery.trim()) return true;
                           const search = userSearchQuery.toLowerCase();
 
-                          // Extract first name from Display Name or Name
-                          const displayName =
-                            user["Display Name"] || user.Name || "";
-                          const firstName = displayName
+                          // Extract first name from Display Name
+                          const displayName = user["Display Name"] || "";
+                          const displayFirstName = displayName
                             .split(" ")[0]
                             .toLowerCase();
 
+                          // Extract first name from Name
+                          const name = user.Name || "";
+                          const nameFirstName = name
+                            .split(" ")[0]
+                            .toLowerCase();
+
+                          // Match if EITHER Display Name OR Name first name starts with search
                           return (
-                            firstName.startsWith(search) ||
-                            user.Email.toLowerCase().includes(search)
+                            displayFirstName.startsWith(search) ||
+                            nameFirstName.startsWith(search)
                           );
                         });
 
@@ -525,7 +583,7 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                         );
 
                         return (
-                          <div className="bg-white border border-gray-200 rounded-lg shadow-xl min-w-[180px] max-h-[240px] flex flex-col overflow-hidden">
+                          <div className="bg-white border border-gray-200 rounded-lg shadow-xl w-[200px] max-h-[280px] flex flex-col overflow-hidden">
                             {!opensUp && <SearchBox />}
                             <div className="overflow-y-auto flex-1 p-1">
                               <button
@@ -534,6 +592,13 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                                   updateRow(row.id, "assignedTo", "");
                                   setOpenDropdownRowId(null);
                                   setUserSearchQuery("");
+                                  // Move focus back to description input
+                                  setTimeout(() => {
+                                    const input = inputRefsMap.current.get(
+                                      row.id,
+                                    );
+                                    if (input) input.focus();
+                                  }, 0);
                                 }}
                                 className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 rounded ${
                                   !row.assignedTo
@@ -551,6 +616,13 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                                     updateRow(row.id, "assignedTo", user.Email);
                                     setOpenDropdownRowId(null);
                                     setUserSearchQuery("");
+                                    // Move focus back to description input
+                                    setTimeout(() => {
+                                      const input = inputRefsMap.current.get(
+                                        row.id,
+                                      );
+                                      if (input) input.focus();
+                                    }, 0);
                                   }}
                                   className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 rounded ${
                                     row.assignedTo === user.Email
@@ -702,7 +774,7 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                     Adding...
                   </>
                 ) : (
-                  "Add All"
+                  "Submit"
                 )}
               </button>
             </div>

@@ -83,6 +83,11 @@ export function BucketColumn({
       text: "text-blue-700",
       border: "border-blue-200",
     },
+    "On Hold": {
+      bg: "bg-red-50",
+      text: "text-red-700",
+      border: "border-red-200",
+    },
     Other: {
       bg: "bg-gray-50",
       text: "text-gray-700",

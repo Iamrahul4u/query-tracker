@@ -4,6 +4,7 @@ import { BUCKETS, BUCKET_ORDER } from "../config/sheet-constants";
 import { QueryCardCompact } from "./QueryCardCompact";
 import { DateFieldKey } from "../utils/queryFilters";
 import { ExpandedBucketModal } from "./ExpandedBucketModal";
+import { useQueryStore } from "../stores/queryStore";
 
 interface BucketViewLinearProps {
   groupedQueries: Record<string, Query[]>;
@@ -329,12 +330,11 @@ function BucketColumnWithSync({
   currentUserEmail?: string;
   detailView?: boolean;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  // Track state changes
-  useEffect(() => {
-    // State tracking for debugging if needed
-  }, [isExpanded, bucketKey]);
+  // Use global modal state from store
+  const { expandedModal, openExpandedModal, closeExpandedModal } =
+    useQueryStore();
+  const isExpanded =
+    expandedModal?.type === "bucket" && expandedModal?.id === bucketKey;
 
   // Color coding for query types - matches BucketColumn
   const typeColors: Record<
@@ -355,6 +355,11 @@ function BucketColumnWithSync({
       bg: "bg-blue-50",
       text: "text-blue-700",
       border: "border-blue-200",
+    },
+    "On Hold": {
+      bg: "bg-red-50",
+      text: "text-red-700",
+      border: "border-red-200",
     },
     Other: {
       bg: "bg-gray-50",
@@ -387,7 +392,7 @@ function BucketColumnWithSync({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setIsExpanded(true);
+            openExpandedModal("bucket", bucketKey);
           }}
           className="bg-white/20 px-3 py-1 rounded-full text-base font-bold ml-2 flex-shrink-0 hover:bg-white/40 hover:scale-110 transition-all cursor-pointer"
           title="Click to expand view"
@@ -570,13 +575,13 @@ function BucketColumnWithSync({
       {/* Expanded Bucket Modal */}
       <ExpandedBucketModal
         isOpen={isExpanded}
-        onClose={() => setIsExpanded(false)}
+        onClose={closeExpandedModal}
         bucketKey={bucketKey}
         config={config}
         queries={queries}
         users={users}
         onSelectQuery={(q) => {
-          setIsExpanded(false);
+          closeExpandedModal();
           onSelectQuery(q);
         }}
         onAssignQuery={onAssignQuery}

@@ -67,7 +67,7 @@ export function AuditTooltipContent({
   users,
 }: AuditTooltipContentProps) {
   // Build audit items in chronological order per 5th Feb meeting requirements
-  // Order: Added → Assigned → Proposal Sent → SF Entry → Discarded → Last Edited
+  // Order: Added → Assigned → Proposal Sent → SF Entry → Discarded → Last Edited → Remark Added
   const allAuditItems = [
     {
       label: "Added By",
@@ -102,6 +102,13 @@ export function AuditTooltipContent({
       value: query["Last Edited By"],
       time: query["Last Edited Date Time"],
     },
+    {
+      label: "Remark Added By",
+      value: query["Remark Added By"],
+      time: query["Remark Added Date Time"],
+      highlight: true, // Highlight remark audit trail
+      remarkText: query["Remarks"], // Include the actual remark text
+    },
   ];
 
   // Filter to only show items with data (either value or time)
@@ -110,7 +117,10 @@ export function AuditTooltipContent({
   return (
     <div className="space-y-2 text-xs">
       {auditItems.map((item, idx) => (
-        <div key={idx} className="flex flex-col">
+        <div
+          key={idx}
+          className={`flex flex-col ${item.highlight ? "text-blue-600 font-semibold" : ""}`}
+        >
           <span className="text-muted-foreground font-semibold">
             {item.label}:
           </span>
@@ -119,6 +129,13 @@ export function AuditTooltipContent({
               formatDate(item.time)
             ) : (
               <>
+                {/* Show remark text if available */}
+                {"remarkText" in item && item.remarkText ? (
+                  <>
+                    <span className="italic">"{item.remarkText}"</span>
+                    <span> - </span>
+                  </>
+                ) : null}
                 {item.value ? getDisplayName(item.value, users) : "-"}
                 {item.time ? ` @ ${formatDate(item.time)}` : ""}
               </>
@@ -127,11 +144,32 @@ export function AuditTooltipContent({
         </div>
       ))}
       {query["Delete Requested By"] && (
-        <div className="flex flex-col text-red-400 border-t border-border pt-2 mt-2">
-          <span className="font-semibold">Deletion Requested:</span>
+        <div className="flex flex-col text-red-600 border-t border-border pt-2 mt-2">
+          <span className="font-semibold">Delete requested</span>
           <span>
-            {getDisplayName(query["Delete Requested By"], users)} @{" "}
-            {formatDate(query["Delete Requested Date Time"])}
+            by {getDisplayName(query["Delete Requested By"], users)}
+            {query["Delete Requested Date Time"] &&
+              ` @ ${formatDate(query["Delete Requested Date Time"])}`}
+          </span>
+        </div>
+      )}
+      {query["Delete Approved By"] && (
+        <div className="flex flex-col text-gray-600 border-t border-border pt-2 mt-2">
+          <span className="font-semibold">Delete approved</span>
+          <span>
+            by {getDisplayName(query["Delete Approved By"], users)}
+            {query["Delete Approved Date Time"] &&
+              ` @ ${formatDate(query["Delete Approved Date Time"])}`}
+          </span>
+        </div>
+      )}
+      {query["Delete Rejected By"] && (
+        <div className="flex flex-col text-orange-600 border-t border-border pt-2 mt-2">
+          <span className="font-semibold">Delete rejected</span>
+          <span>
+            by {getDisplayName(query["Delete Rejected By"], users)}
+            {query["Delete Rejected Date Time"] &&
+              ` @ ${formatDate(query["Delete Rejected Date Time"])}`}
           </span>
         </div>
       )}

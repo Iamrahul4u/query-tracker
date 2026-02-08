@@ -26,6 +26,12 @@ interface QueryState {
   // UI State
   isLoading: boolean;
   lastSyncedAt: Date | null;
+  
+  // Expanded Modal State (centralized to prevent conflicts)
+  expandedModal: {
+    type: 'bucket' | 'user';
+    id: string; // bucketKey or userEmail
+  } | null;
 
   // Sync State
   pendingActions: PendingAction[];
@@ -68,6 +74,10 @@ interface QueryState {
 
   // Rollback
   rollbackAction: (actionId: string) => void;
+  
+  // Expanded Modal Actions
+  openExpandedModal: (type: 'bucket' | 'user', id: string) => void;
+  closeExpandedModal: () => void;
 }
 
 export const useQueryStore = create<QueryState>()(
@@ -166,6 +176,7 @@ export const useQueryStore = create<QueryState>()(
       pendingActions: [],
       syncStatus: "idle",
       syncError: null,
+      expandedModal: null,
 
       // ═══════════════════════════════════════════════════════════════
       // INITIALIZE - Load from cache or fetch
@@ -444,7 +455,7 @@ export const useQueryStore = create<QueryState>()(
             .getState()
             .showToast(
               isAdmin
-                ? "Query permanently deleted"
+                ? "Query moved to Deleted bucket"
                 : "Delete request submitted",
               "success",
             );
@@ -558,6 +569,21 @@ export const useQueryStore = create<QueryState>()(
 
       rollbackAction: (actionId: string) => {
         // No longer used - SyncManager handles this
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // EXPANDED MODAL ACTIONS
+      // ═══════════════════════════════════════════════════════════════
+      openExpandedModal: (type: 'bucket' | 'user', id: string) => {
+        set((state) => {
+          state.expandedModal = { type, id };
+        });
+      },
+
+      closeExpandedModal: () => {
+        set((state) => {
+          state.expandedModal = null;
+        });
       },
     };
   }),

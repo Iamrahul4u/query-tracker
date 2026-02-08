@@ -2,7 +2,11 @@
 
 import { Query, User } from "../utils/sheets";
 import { QueryCardCompact } from "./QueryCardCompact";
-import { BUCKETS, BUCKET_ORDER, QUERY_TYPE_ORDER } from "../config/sheet-constants";
+import {
+  BUCKETS,
+  BUCKET_ORDER,
+  QUERY_TYPE_ORDER,
+} from "../config/sheet-constants";
 import { X } from "lucide-react";
 
 interface UserExpandModalProps {
@@ -59,6 +63,7 @@ export function UserExpandModal({
     "SEO Query": "#9333ea",
     New: "#22c55e",
     Ongoing: "#3b82f6",
+    "On Hold": "#dc2626",
     Other: "#6b7280",
   };
 
@@ -116,7 +121,7 @@ export function UserExpandModal({
     });
 
     const nonEmptyBuckets = BUCKET_ORDER.filter(
-      (bucket) => groupedByBucket[bucket].length > 0
+      (bucket) => groupedByBucket[bucket].length > 0,
     );
 
     nonEmptyBuckets.forEach((bucket) => {
@@ -147,8 +152,8 @@ export function UserExpandModal({
   }
 
   // Count non-empty buckets for header display
-  const nonEmptyBucketCount = BUCKET_ORDER.filter(
-    (bucket) => queries.some((q) => q.Status === bucket)
+  const nonEmptyBucketCount = BUCKET_ORDER.filter((bucket) =>
+    queries.some((q) => q.Status === bucket),
   ).length;
 
   return (
@@ -204,7 +209,7 @@ export function UserExpandModal({
                   return (
                     <div
                       key={`bucket-${index}`}
-                      className={`flex items-center justify-between mb-0.5 rounded-lg ${isSubHeader ? 'px-2 py-1' : 'px-3 py-2'}`}
+                      className={`flex items-center justify-between mb-0.5 rounded-lg ${isSubHeader ? "px-2 py-1" : "px-3 py-2"}`}
                       style={{
                         backgroundColor: item.bucketColor,
                         breakInside: "avoid",
@@ -212,20 +217,22 @@ export function UserExpandModal({
                     >
                       <div className="flex items-center gap-1.5">
                         <span
-                          className={`rounded bg-white/20 flex items-center justify-center text-white font-bold ${isSubHeader ? 'w-4 h-4 text-[10px]' : 'w-6 h-6 text-sm'}`}
+                          className={`rounded bg-white/20 flex items-center justify-center text-white font-bold ${isSubHeader ? "w-4 h-4 text-[10px]" : "w-6 h-6 text-sm"}`}
                         >
                           {item.bucketKey}
                         </span>
                         <span
-                          className={`font-bold uppercase tracking-wide text-white ${isSubHeader ? 'text-[10px]' : 'text-sm'}`}
+                          className={`font-bold uppercase tracking-wide text-white ${isSubHeader ? "text-[10px]" : "text-sm"}`}
                         >
-                          {item.bucketName
-                            .replace(`${item.bucketKey}) `, "")
-                            .split(" - ")[0]}
+                          {
+                            item.bucketName
+                              .replace(`${item.bucketKey}) `, "")
+                              .split(" - ")[0]
+                          }
                         </span>
                       </div>
                       <span
-                        className={`px-1.5 py-0.5 rounded-full font-bold bg-white/20 text-white ${isSubHeader ? 'text-[9px]' : 'text-xs'}`}
+                        className={`px-1.5 py-0.5 rounded-full font-bold bg-white/20 text-white ${isSubHeader ? "text-[9px]" : "text-xs"}`}
                       >
                         {item.count}
                       </span>
@@ -239,19 +246,19 @@ export function UserExpandModal({
                   return (
                     <div
                       key={`type-${index}`}
-                      className={`flex items-center justify-between rounded-lg ${isMainCategory ? 'px-3 py-2.5 mb-1' : 'px-2 py-1 mb-0.5'}`}
+                      className={`flex items-center justify-between rounded-lg ${isMainCategory ? "px-3 py-2.5 mb-1" : "px-2 py-1 mb-0.5"}`}
                       style={{
                         backgroundColor: typeColor,
                         breakInside: "avoid",
                       }}
                     >
                       <span
-                        className={`font-bold uppercase tracking-wide text-white ${isMainCategory ? 'text-sm' : 'text-[10px]'}`}
+                        className={`font-bold uppercase tracking-wide text-white ${isMainCategory ? "text-sm" : "text-[10px]"}`}
                       >
                         {item.typeName}
                       </span>
                       <span
-                        className={`rounded-full font-bold bg-white/20 text-white ${isMainCategory ? 'text-xs px-2.5 py-1' : 'text-[9px] px-1.5 py-0.5'}`}
+                        className={`rounded-full font-bold bg-white/20 text-white ${isMainCategory ? "text-xs px-2.5 py-1" : "text-[9px] px-1.5 py-0.5"}`}
                       >
                         {item.count}
                       </span>

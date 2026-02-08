@@ -68,11 +68,8 @@ export function UserViewDefault({
     gridClass = "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
   }
 
-  // Dynamic max height based on filter bar state
-  // Using CSS variables from globals.css for consistent styling at 100% zoom
-  const maxHeight = isFilterExpanded
-    ? "var(--bucket-height-expanded)"
-    : "var(--bucket-height-collapsed)";
+  // Dynamic max height based on filter bar state - match linear view
+  const maxHeight = isFilterExpanded ? "85vh" : "90vh";
 
   return (
     <>
@@ -192,6 +189,11 @@ function UserColumn({
       bg: "bg-blue-50",
       text: "text-blue-700",
       border: "border-blue-200",
+    },
+    "On Hold": {
+      bg: "bg-red-50",
+      text: "text-red-700",
+      border: "border-red-200",
     },
     Other: {
       bg: "bg-gray-50",

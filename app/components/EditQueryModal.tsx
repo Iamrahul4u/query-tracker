@@ -184,7 +184,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
         onClose();
       }
     } else {
-      // Non-admin: Request deletion (pending admin approval) - no extra confirm needed
+      // Non-admin: Delete query (pending admin approval) - no extra confirm needed
       deleteQueryOptimistic(query["Query ID"], currentUser?.Email || "", false);
       onClose();
     }
@@ -725,7 +725,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               onClick={handleDelete}
               className="text-red-500 text-sm hover:text-red-700 font-medium"
             >
-              {isAdminOrSenior ? "Delete Query" : "Request Deletion"}
+              {isAdminOrSenior ? "Delete Query" : "Delete Query"}
             </button>
           )}
           {!isAdminOrSenior && !isAssignedToMe && <div></div>}

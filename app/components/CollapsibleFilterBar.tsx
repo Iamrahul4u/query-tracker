@@ -30,7 +30,6 @@ interface CollapsibleFilterBarProps {
   onSortAscendingChange?: (ascending: boolean) => void;
   sortBuckets?: string[]; // Buckets to apply custom sort to
   onSortBucketsChange?: (buckets: string[]) => void;
-  onClearSort?: () => void; // Clear custom sort
   showDateOnCards?: boolean;
   onShowDateOnCardsChange?: (show: boolean) => void;
   // Detail View toggle (1-row vs 2-row per query card)
@@ -41,7 +40,10 @@ interface CollapsibleFilterBarProps {
   onGroupByChange?: (mode: "type" | "bucket") => void;
   // Save View button
   hasPendingChanges?: boolean;
+  showUndo?: boolean;
   onSaveView?: () => void;
+  onResetView?: () => void;
+  onUndoReset?: () => void;
   // User role for hiding User View from Juniors
   currentUserRole?: string;
   // Hidden Buckets/Users filters
@@ -71,7 +73,6 @@ export function CollapsibleFilterBar({
   onSortAscendingChange,
   sortBuckets = ["ALL"],
   onSortBucketsChange,
-  onClearSort,
   showDateOnCards = false,
   onShowDateOnCardsChange,
   detailView = false,
@@ -79,7 +80,10 @@ export function CollapsibleFilterBar({
   groupBy = "bucket",
   onGroupByChange,
   hasPendingChanges = false,
+  showUndo = false,
   onSaveView,
+  onResetView,
+  onUndoReset,
   currentUserRole = "",
   hiddenBuckets = [],
   onHiddenBucketsChange,
@@ -352,11 +356,11 @@ export function CollapsibleFilterBar({
           )}
         </div>
       )}
-      {onClearSort && sortField && (
+      {onResetView && sortField && (
         <button
-          onClick={onClearSort}
+          onClick={onResetView}
           className="w-5 h-5 text-sm font-bold rounded bg-red-100 text-red-700 hover:bg-red-200 transition flex items-center justify-center"
-          title="Reset to default bucket sorting"
+          title="Reset all preferences to defaults"
         >
           ✕
         </button>
@@ -384,17 +388,16 @@ export function CollapsibleFilterBar({
     }
   };
 
-  // Filtered users based on search query (first name only)
+  // Filtered users based on search query (first name from Name field)
   const filteredUsers = allUsers.filter((u) => {
     const search = userSearchQuery.toLowerCase();
     if (!search) return true;
 
-    // Extract first name (first word before space)
-    const firstName = u.name.split(" ")[0].toLowerCase();
+    // Extract first name from Name
+    const nameFirstName = u.name.split(" ")[0].toLowerCase();
 
-    return (
-      firstName.startsWith(search) || u.email.toLowerCase().includes(search)
-    );
+    // Match if Name first name starts with search
+    return nameFirstName.startsWith(search);
   });
 
   // Hidden Buckets Filter (for Bucket View)
@@ -594,11 +597,14 @@ export function CollapsibleFilterBar({
   return (
     <div className="bg-white border-b border-gray-100 transition-all sticky top-[40px] sm:top-[48px] z-40">
       {/* Toggle Handle */}
+      {/* Toggle Handle */}
       <div
-        className="flex items-center justify-center -mb-2 relative z-10 cursor-pointer group"
-        onClick={toggleExpanded}
+        className="flex items-center justify-center -mb-2 relative z-10 pointer-events-none"
       >
-        <div className="bg-white border border-gray-100 border-t-0 rounded-b-lg px-2 py-0.5 shadow-sm text-[10px] text-gray-400 group-hover:text-gray-600 flex items-center gap-1">
+        <div 
+          className="bg-white border border-gray-100 border-t-0 rounded-b-lg px-2 py-0.5 shadow-sm text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-1 cursor-pointer pointer-events-auto"
+          onClick={toggleExpanded}
+        >
           <span>{isExpanded ? "Hide" : "Show"}</span>
           <svg
             className={`w-2.5 h-2.5 transition-transform ${isExpanded ? "rotate-180" : ""}`}
@@ -686,6 +692,28 @@ export function CollapsibleFilterBar({
 
             {/* Search + Save View - Hidden on mobile - INLINED to prevent focus loss */}
             <div className="hidden lg:flex items-center gap-1.5 ml-auto">
+              {/* Undo Button - visible for 10 seconds after reset */}
+              {showUndo && onUndoReset && (
+                <button
+                  onClick={onUndoReset}
+                  className="w-5 h-5 text-sm font-bold rounded bg-blue-600 text-white hover:bg-blue-700 transition flex items-center justify-center shadow-sm animate-pulse"
+                  title="Undo reset"
+                >
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                    />
+                  </svg>
+                </button>
+              )}
               {/* Save View Button - visible when there are pending changes */}
               {hasPendingChanges && onSaveView && (
                 <button
@@ -959,12 +987,12 @@ export function CollapsibleFilterBar({
                             </div>
                           )}
 
-                          {onClearSort && (
+                          {onResetView && (
                             <button
-                              onClick={onClearSort}
+                              onClick={onResetView}
                               className="w-full px-3 py-2 text-sm font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition"
                             >
-                              ✕ Reset to Default Sorting
+                              ✕ Reset All Preferences to Defaults
                             </button>
                           )}
                         </div>
@@ -994,6 +1022,33 @@ export function CollapsibleFilterBar({
                           />
                         </svg>
                         Save View
+                      </button>
+                    )}
+
+                    {/* Undo Button - Mobile */}
+                    {showUndo && onUndoReset && (
+                      <button
+                        onClick={() => {
+                          onUndoReset();
+                          setDrawerOpen(false); // Close drawer after undo
+                        }}
+                        className="w-full px-4 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm animate-pulse"
+                        title="Undo reset"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                          />
+                        </svg>
+                        Undo Reset
                       </button>
                     )}
 

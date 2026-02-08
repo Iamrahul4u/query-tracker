@@ -46,6 +46,7 @@ function DashboardContent() {
     sortBuckets,
     groupBy,
     hasPendingChanges,
+    showUndo,
     updateViewMode,
     updateBucketViewMode,
     updateColumnCount,
@@ -55,8 +56,13 @@ function DashboardContent() {
     updateSortAscending,
     updateSortBuckets,
     updateGroupBy,
-    clearSort,
+    hiddenBuckets,
+    hiddenUsers,
+    updateHiddenBuckets,
+    updateHiddenUsers,
     saveView,
+    resetToDefaults,
+    undoReset,
   } = useDashboardPreferences();
 
   // Store
@@ -88,9 +94,6 @@ function DashboardContent() {
   const [extendedDays, setExtendedDays] = useState<Record<string, number>>({});
   // Loading state for Load +7 Days button
   const [loadingBuckets, setLoadingBuckets] = useState<Set<string>>(new Set());
-  // Hidden buckets/users for view filtering (session-only, not persisted)
-  const [hiddenBuckets, setHiddenBuckets] = useState<string[]>([]);
-  const [hiddenUsers, setHiddenUsers] = useState<string[]>([]);
   // All Queries Modal (for Total click in header)
   const [isAllQueriesModalOpen, setIsAllQueriesModalOpen] = useState(false);
   // Selected bucket filter for All Queries Modal
@@ -220,7 +223,7 @@ function DashboardContent() {
           setSelectedBucketFilter(bucket);
           setIsAllQueriesModalOpen(true);
         }}
-        currentViewMode={viewMode}
+        currentViewMode={viewMode === "list" ? "bucket" : viewMode}
       />
 
       {/* Filter Bar */}
@@ -242,7 +245,6 @@ function DashboardContent() {
         onSortAscendingChange={updateSortAscending}
         sortBuckets={sortBuckets}
         onSortBucketsChange={updateSortBuckets}
-        onClearSort={clearSort}
         showDateOnCards={showDateOnCards}
         onShowDateOnCardsChange={setShowDateOnCards}
         detailView={detailView}
@@ -250,12 +252,15 @@ function DashboardContent() {
         groupBy={groupBy}
         onGroupByChange={updateGroupBy}
         hasPendingChanges={hasPendingChanges}
+        showUndo={showUndo}
         onSaveView={saveView}
+        onResetView={resetToDefaults}
+        onUndoReset={undoReset}
         currentUserRole={currentUser?.Role || ""}
         hiddenBuckets={hiddenBuckets}
-        onHiddenBucketsChange={setHiddenBuckets}
+        onHiddenBucketsChange={updateHiddenBuckets}
         hiddenUsers={hiddenUsers}
-        onHiddenUsersChange={setHiddenUsers}
+        onHiddenUsersChange={updateHiddenUsers}
         allUsers={users.map((u) => ({ email: u.Email, name: u.Name }))}
       />
 
@@ -348,6 +353,7 @@ function DashboardContent() {
 
       {isAllQueriesModalOpen && (
         <AllQueriesModal
+          key={`all-queries-${selectedBucketFilter || "all"}`}
           queries={historyFilteredQueries}
           users={users}
           onClose={() => {
@@ -369,7 +375,7 @@ function DashboardContent() {
           detailView={detailView}
           groupBy={groupBy}
           filterBucket={selectedBucketFilter}
-          currentViewMode={viewMode}
+          currentViewMode={viewMode === "list" ? "bucket" : viewMode}
         />
       )}
 
