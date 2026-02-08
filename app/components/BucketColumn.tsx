@@ -95,18 +95,16 @@ export function BucketColumn({
     },
   };
 
+  // Always use 90vh height when maxHeight is provided (Default view)
   const heightClass = disableScroll
     ? ""
     : maxHeight
-      ? `h-full`
-      : "h-full max-h-[calc(100vh-140px)]";
-
-  const heightStyle = maxHeight && !disableScroll ? { maxHeight } : {};
+      ? "h-[90vh]"
+      : "h-[90vh]";
 
   return (
     <div
       className={`bg-white rounded-xl shadow-sm overflow-hidden flex flex-col border border-gray-100 ${heightClass}`}
-      style={heightStyle}
     >
       {/* Bucket Header */}
       <div

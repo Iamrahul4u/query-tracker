@@ -101,19 +101,15 @@ export function QueryDetailModal({
   // Audit trail expanded by default (client requirement)
   const [showAuditTrail, setShowAuditTrail] = useState(true);
 
-  // Role-based Edit button visibility (same logic as QueryCardCompact)
+  // Role-based Edit button visibility
   const roleLC = (currentUser?.Role || "").toLowerCase();
-  const isJunior = roleLC === "junior";
-  const bucketStatus = query.Status;
-  const userEmailLC = (currentUser?.Email || "").toLowerCase();
-  const assignedToLC = (query["Assigned To"] || "").toLowerCase().trim();
-  const isOwnQuery = assignedToLC && assignedToLC === userEmailLC;
+  const isAdminOrPseudoAdmin = ["admin", "pseudo admin"].includes(roleLC);
 
-  // Junior Edit restrictions:
-  // - Bucket A: NEVER show Edit (Junior can only self-assign, not edit)
-  // - Bucket B-G: Only show if it's their own query
-  // Senior/Admin: Can edit any query
-  const canEdit = !isJunior || (bucketStatus !== "A" && isOwnQuery);
+  // Edit button restrictions:
+  // - ONLY Admin/Pseudo Admin can see edit button
+  // - Admin/Pseudo Admin can edit ALL buckets including H (Deleted)
+  // - Senior and Junior: NO edit button
+  const canEdit = isAdminOrPseudoAdmin;
 
   const handleEdit = () => {
     onEdit?.(query);

@@ -337,7 +337,12 @@ async function updateRowCells(
 async function handleAssign(
   sheets: any,
   queryId: string,
-  data: { assignee: string; assignedBy?: string; remarks?: string },
+  data: {
+    assignee: string;
+    assignedBy?: string;
+    remarks?: string;
+    _currentStatus?: string;
+  },
 ) {
   const rowIndex = await findRowIndex(sheets, queryId);
   if (!rowIndex)
@@ -356,14 +361,19 @@ async function handleAssign(
   // In `queryStore`: assignQueryOptimistic sets Status='B' if it was 'A'.
   // But it does NOT queue a separate 'updateStatus' action.
   // So we MUST update status to 'B' here if we can.
-  // However, we don't know the *current* status without fetching.
-  // Let's fetching the current status to be safe.
+  // HYBRID APPROACH: Use current status from client if provided
+  let currentStatus = data._currentStatus || "";
 
-  const statusRes = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `Queries!D${rowIndex}`,
-  });
-  const currentStatus = statusRes.data.values?.[0]?.[0];
+  if (!currentStatus) {
+    console.log(
+      `[handleAssign] Fetching current status (not provided by client)`,
+    );
+    const statusRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Queries!D${rowIndex}`,
+    });
+    currentStatus = statusRes.data.values?.[0]?.[0] || "";
+  }
 
   const updates: any = {
     "Assigned To": data.assignee,
@@ -386,7 +396,12 @@ async function handleAssign(
 async function handleUpdateStatus(
   sheets: any,
   queryId: string,
-  data: { newStatus: string; fields?: any },
+  data: {
+    newStatus: string;
+    fields?: any;
+    _currentStatus?: string;
+    _previousStatus?: string;
+  },
 ) {
   const rowIndex = await findRowIndex(sheets, queryId);
 
@@ -394,12 +409,19 @@ async function handleUpdateStatus(
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
   }
 
-  // Get current status to detect backward transitions
-  const statusRes = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `Queries!D${rowIndex}`,
-  });
-  const currentStatus = statusRes.data.values?.[0]?.[0] || "";
+  // HYBRID APPROACH: Use current status from client if provided
+  let currentStatus = data._currentStatus || "";
+
+  if (!currentStatus) {
+    console.log(
+      `[handleUpdateStatus] Fetching current status (not provided by client)`,
+    );
+    const statusRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Queries!D${rowIndex}`,
+    });
+    currentStatus = statusRes.data.values?.[0]?.[0] || "";
+  }
 
   const now = getISTDateTime();
   const updates: any = {
@@ -487,12 +509,21 @@ async function handleEdit(sheets: any, queryId: string, data: any) {
 
   const now = getISTDateTime();
 
-  // Get current Remarks value to detect if it changed
-  const currentRemarksRes = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `Queries!J${rowIndex}`, // Remarks column
-  });
-  const currentRemarks = currentRemarksRes.data.values?.[0]?.[0] || "";
+  // HYBRID APPROACH: Use currentRemarks from client if provided, otherwise fetch
+  // This reduces API calls by 1 per edit when client sends the value
+  let currentRemarks = data._currentRemarks || "";
+
+  // Only fetch if client didn't provide it (fallback for safety)
+  if (data._currentRemarks === undefined) {
+    console.log(
+      `[handleEdit] Fetching current Remarks (not provided by client)`,
+    );
+    const currentRemarksRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Queries!J${rowIndex}`, // Remarks column
+    });
+    currentRemarks = currentRemarksRes.data.values?.[0]?.[0] || "";
+  }
 
   console.log(`[handleEdit] Query ${queryId}:`);
   console.log(`  Current Remarks: "${currentRemarks}"`);
@@ -505,6 +536,9 @@ async function handleEdit(sheets: any, queryId: string, data: any) {
     "Last Edited Date Time": now,
     "Last Activity Date Time": now,
   };
+
+  // Remove internal fields that shouldn't be written to sheet
+  delete updates._currentRemarks;
 
   // If Remarks field is being updated (changed from current value), add audit trail
   if (
@@ -564,7 +598,8 @@ async function handleAdd(sheets: any, data: Query) {
 
   const newRow: string[] = [];
   keysInOrder.forEach((key) => {
-    newRow.push(enrichedData[key as keyof Query] || "");
+    const value = enrichedData[key as keyof Query];
+    newRow.push(String(value || ""));
   });
 
   try {
@@ -590,7 +625,7 @@ async function handleAdd(sheets: any, data: Query) {
 async function handleDelete(
   sheets: any,
   queryId: string,
-  data: { requestedBy: string; isAdmin?: boolean },
+  data: { requestedBy: string; isAdmin?: boolean; _currentStatus?: string },
 ) {
   console.log(`[handleDelete] Starting delete for query ${queryId}`, data);
 
@@ -604,12 +639,19 @@ async function handleDelete(
 
   const now = getISTDateTime();
 
-  // First, get current status to store as previousStatus
-  const statusRes = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `Queries!D${rowIndex}`,
-  });
-  const currentStatus = statusRes.data.values?.[0]?.[0] || "";
+  // HYBRID APPROACH: Use current status from client if provided
+  let currentStatus = data._currentStatus || "";
+
+  if (!currentStatus) {
+    console.log(
+      `[handleDelete] Fetching current status (not provided by client)`,
+    );
+    const statusRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Queries!D${rowIndex}`,
+    });
+    currentStatus = statusRes.data.values?.[0]?.[0] || "";
+  }
 
   console.log(`[handleDelete] Current status: ${currentStatus}`);
 
@@ -623,9 +665,9 @@ async function handleDelete(
   }
 
   // Build updates based on whether user is admin or junior
-  const baseUpdates = {
+  const baseUpdates: Record<string, string> = {
     Status: "H",
-    "Previous Status": currentStatus,
+    "Previous Status": currentStatus || "",
     "Last Activity Date Time": now,
     // Clear any previous rejection fields (in case this was rejected before)
     "Delete Rejected": "",
@@ -732,21 +774,29 @@ async function handleRejectDelete(
   sheets: any,
   queryId: string,
   rejectedBy?: string,
+  _previousStatus?: string,
 ) {
   const rowIndex = await findRowIndex(sheets, queryId);
   if (!rowIndex)
     return NextResponse.json({ error: "Query not found" }, { status: 404 });
 
-  // Get current Previous Status to restore
-  const prevStatusRes = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `Queries!W${rowIndex}`, // Previous Status column
-  });
-  const previousStatus = prevStatusRes.data.values?.[0]?.[0] || "A";
+  // HYBRID APPROACH: Use previous status from client if provided
+  let previousStatus = _previousStatus || "";
+
+  if (!previousStatus) {
+    console.log(
+      `[handleRejectDelete] Fetching previous status (not provided by client)`,
+    );
+    const prevStatusRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Queries!W${rowIndex}`, // Previous Status column
+    });
+    previousStatus = prevStatusRes.data.values?.[0]?.[0] || "A";
+  }
 
   const now = getISTDateTime();
 
-  const updates = {
+  const updates: Record<string, string> = {
     Status: previousStatus, // Return to previous status
     "Previous Status": "", // Clear previous status
     // KEEP "Delete Requested Date Time" and "Delete Requested By" for audit trail

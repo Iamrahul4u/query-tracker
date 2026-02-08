@@ -11,6 +11,7 @@ interface UserSearchDropdownProps {
   placeholder?: string;
   className?: string;
   label?: string;
+  disabled?: boolean;
 }
 
 export function UserSearchDropdown({
@@ -20,6 +21,7 @@ export function UserSearchDropdown({
   placeholder = "-- Select User --",
   className = "",
   label,
+  disabled = false,
 }: UserSearchDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -91,8 +93,13 @@ export function UserSearchDropdown({
       {/* Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-left flex items-center justify-between"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`w-full border border-gray-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-left flex items-center justify-between ${
+          disabled
+            ? "bg-gray-100 cursor-not-allowed text-gray-500"
+            : "bg-white cursor-pointer"
+        }`}
       >
         <span className={value ? "text-gray-900" : "text-gray-500"}>
           {displayValue}

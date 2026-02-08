@@ -103,11 +103,11 @@ export const QueryCardCompact = memo(function QueryCardCompact({
   const isDeletePending = isInBucketH || !!query["Delete Requested By"];
   // Del-Rej: Query was previously rejected from deletion
   const wasDeleteRejected = query["Delete Rejected"] === "true";
-  // Can this user approve/reject? Only Admin/Pseudo Admin/Senior in Bucket H
+  // Can this user approve/reject? Only Admin/Pseudo Admin in Bucket H (NOT Senior)
   // AND query is not yet approved or rejected
   const canApproveDelete =
     isInBucketH &&
-    ["admin", "pseudo admin", "senior"].includes(roleLC) &&
+    ["admin", "pseudo admin"].includes(roleLC) &&
     !query["Delete Approved By"] &&
     !query["Delete Rejected"];
 
@@ -276,13 +276,13 @@ export const QueryCardCompact = memo(function QueryCardCompact({
   const showAssignButton =
     !isGhost && (!isJunior || (bucketStatus === "A" && isTrulyUnassigned));
 
-  // Junior Edit button logic:
-  // - Bucket A: NEVER show (Junior can only self-assign from A, not edit)
-  // - Bucket B-G: Only show if it's their own query
-  // Senior/Admin: Can edit any query
+  // Edit button logic:
+  // - ONLY Admin/Pseudo Admin can see edit button
+  // - Admin/Pseudo Admin can edit ALL buckets including H (Deleted)
+  // - Senior and Junior: NO edit button
   // Ghost queries: NO actions allowed
-  const showEditButton =
-    !isGhost && (!isJunior || (bucketStatus !== "A" && isOwnQuery));
+  const isAdminOrPseudoAdmin = ["admin", "pseudo admin"].includes(roleLC);
+  const showEditButton = !isGhost && isAdminOrPseudoAdmin;
 
   // Dropdown content for AssignDropdown - search box stays close to trigger
   const renderDropdownContent = (
@@ -478,13 +478,13 @@ export const QueryCardCompact = memo(function QueryCardCompact({
               ></span>
             )}
 
-            {/* P.A. indicator for Bucket H - only if pending (not yet approved) */}
-            {isInBucketH &&
+            {/* P.A. indicator for Bucket H or ghost queries - only if pending (not yet approved) */}
+            {(isInBucketH || isGhost) &&
               query["Delete Requested By"] &&
               !query["Delete Approved By"] && (
                 <span
                   className="px-1.5 py-0.5 text-[8px] font-semibold bg-amber-100 text-amber-700 rounded flex-shrink-0"
-                  title={`Pending Approval - Delete requested by ${query["Delete Requested By"]}`}
+                  title={`Pending Approval - Delete requested by ${query["Delete Requested By"]}${isGhost ? " (shown in original bucket)" : ""}`}
                 >
                   P.A.
                 </span>
@@ -647,7 +647,7 @@ export const QueryCardCompact = memo(function QueryCardCompact({
               )}
 
               {/* Edit Button */}
-              {showEditButton && !isInBucketH && (
+              {showEditButton && (
                 <button
                   onClick={handleEditClick}
                   className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors"

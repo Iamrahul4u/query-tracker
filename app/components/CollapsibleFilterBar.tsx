@@ -165,16 +165,14 @@ export function CollapsibleFilterBar({
 
   // Filter section component for reuse in desktop and drawer
   const ColumnsFilter = () => (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-        Columns:
-      </span>
-      <div className="flex bg-gray-100 rounded-lg p-0.5">
+    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+      <span className="text-[10px] font-medium text-gray-600">COLUMNS:</span>
+      <div className="flex bg-gray-50 rounded p-0.5">
         {[2, 3, 4].map((count) => (
           <button
             key={count}
             onClick={() => setColumnCount(count as 2 | 3 | 4)}
-            className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${columnCount === count ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+            className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${columnCount === count ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           >
             {count}
           </button>
@@ -184,21 +182,19 @@ export function CollapsibleFilterBar({
   );
 
   const LayoutFilter = () => (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-        Layout:
-      </span>
-      <div className="flex bg-gray-100 rounded-lg p-0.5">
+    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+      <span className="text-[10px] font-medium text-gray-600">LAYOUT:</span>
+      <div className="flex bg-gray-50 rounded p-0.5">
         <button
           onClick={() => setBucketViewMode("default")}
-          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${bucketViewMode === "default" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${bucketViewMode === "default" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Independent scroll per bucket"
         >
           Default
         </button>
         <button
           onClick={() => setBucketViewMode("linear")}
-          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${bucketViewMode === "linear" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${bucketViewMode === "linear" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Synchronized row scrolling"
         >
           Linear
@@ -208,21 +204,19 @@ export function CollapsibleFilterBar({
   );
 
   const CardViewFilter = () => (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-        Card:
-      </span>
-      <div className="flex bg-gray-100 rounded-lg p-0.5">
+    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+      <span className="text-[10px] font-medium text-gray-600">CARD:</span>
+      <div className="flex bg-gray-50 rounded p-0.5">
         <button
           onClick={() => onDetailViewChange?.(false)}
-          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${!detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${!detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Single row per card (compact)"
         >
           Compact
         </button>
         <button
           onClick={() => onDetailViewChange?.(true)}
-          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Two rows per card with all dates"
         >
           Detail
@@ -232,21 +226,19 @@ export function CollapsibleFilterBar({
   );
 
   const GroupByFilter = () => (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-        Group:
-      </span>
-      <div className="flex bg-gray-100 rounded-lg p-0.5">
+    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+      <span className="text-[10px] font-medium text-gray-600">GROUP:</span>
+      <div className="flex bg-gray-50 rounded p-0.5">
         <button
           onClick={() => onGroupByChange?.("bucket")}
-          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${groupBy === "bucket" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${groupBy === "bucket" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Group by workflow stage (bucket)"
         >
           Bucket
         </button>
         <button
           onClick={() => onGroupByChange?.("type")}
-          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${groupBy === "type" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${groupBy === "type" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Group by query type"
         >
           Type
@@ -256,12 +248,12 @@ export function CollapsibleFilterBar({
   );
 
   const SortFilter = () => (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
       <span className="text-[10px] font-medium text-gray-600">SORT:</span>
       <select
         value={sortField || ""}
         onChange={(e) => onSortFieldChange?.(e.target.value as DateFieldKey)}
-        className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-700 border-0 focus:ring-1 focus:ring-blue-500"
+        className="px-1 py-0.5 text-[10px] font-medium rounded bg-gray-50 border-0 text-gray-700 focus:ring-1 focus:ring-blue-500 max-w-[100px]"
         title="Sort by date field"
       >
         {DATE_FIELDS.map((f) => (
@@ -273,7 +265,7 @@ export function CollapsibleFilterBar({
       {sortField && (
         <button
           onClick={() => onSortAscendingChange?.(!sortAscending)}
-          className="w-5 h-5 text-sm font-bold rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition flex items-center justify-center"
+          className="w-4 h-4 text-xs font-bold rounded bg-gray-50 text-gray-700 hover:bg-gray-100 transition flex items-center justify-center"
           title={
             sortAscending
               ? "Oldest first (click for Newest)"
@@ -288,12 +280,12 @@ export function CollapsibleFilterBar({
         <div className="relative">
           <button
             onClick={() => setBucketDropdownOpen(!bucketDropdownOpen)}
-            className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition flex items-center gap-1"
+            className="px-1 py-0.5 text-[10px] font-medium rounded bg-blue-50 text-blue-700 hover:bg-blue-100 transition flex items-center gap-0.5"
             title="Select buckets to apply custom sort"
           >
             <span>{allBucketsSelected ? "All" : `${selectedCount}`}</span>
             <svg
-              className="w-2.5 h-2.5"
+              className="w-2 h-2"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -359,10 +351,10 @@ export function CollapsibleFilterBar({
       {onResetView && sortField && (
         <button
           onClick={onResetView}
-          className="w-5 h-5 text-sm font-bold rounded bg-red-100 text-red-700 hover:bg-red-200 transition flex items-center justify-center"
+          className="px-1.5 py-0.5 text-[9px] font-medium rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition"
           title="Reset all preferences to defaults"
         >
-          ✕
+          Restore Defaults
         </button>
       )}
     </div>
@@ -402,21 +394,19 @@ export function CollapsibleFilterBar({
 
   // Hidden Buckets Filter (for Bucket View)
   const HiddenBucketsFilter = () => (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-        Show:
-      </span>
+    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+      <span className="text-[10px] font-medium text-gray-600">SHOW:</span>
       <div className="relative">
         <button
           onClick={() => setHiddenBucketDropdownOpen(!hiddenBucketDropdownOpen)}
-          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition flex items-center gap-1 ${hiddenBuckets.length > 0 ? "bg-orange-100 text-orange-700 hover:bg-orange-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition flex items-center gap-0.5 ${hiddenBuckets.length > 0 ? "bg-orange-50 text-orange-700 hover:bg-orange-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
           title="Toggle which buckets to show"
         >
           {hiddenBuckets.length > 0
             ? `${8 - hiddenBuckets.length}/8 Buckets`
             : "All Buckets"}
           <svg
-            className="w-3 h-3"
+            className="w-2.5 h-2.5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -492,14 +482,12 @@ export function CollapsibleFilterBar({
 
   // Hidden Users Filter (for User View)
   const HiddenUsersFilter = () => (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-        Show:
-      </span>
+    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+      <span className="text-[10px] font-medium text-gray-600">SHOW:</span>
       <div className="relative">
         <button
           onClick={() => setHiddenUserDropdownOpen(!hiddenUserDropdownOpen)}
-          className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition flex items-center gap-1 ${hiddenUsers.length > 0 ? "bg-orange-100 text-orange-700 hover:bg-orange-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+          className={`px-1.5 py-0.5 text-xs font-medium rounded transition flex items-center gap-1 ${hiddenUsers.length > 0 ? "bg-orange-50 text-orange-700 hover:bg-orange-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
           title="Toggle which users to show"
         >
           {hiddenUsers.length > 0
@@ -595,12 +583,12 @@ export function CollapsibleFilterBar({
   // SearchInput is inlined to prevent focus loss on re-render
 
   return (
-    <div className="bg-white border-b border-gray-100 transition-all sticky top-[40px] sm:top-[48px] z-40">
+    <div className="bg-gray-100 border-b border-gray-200 transition-all sticky top-[40px] sm:top-[48px] z-40">
       {/* Toggle Handle */}
       {/* Toggle Handle */}
       <div className="flex items-center justify-center -mb-2 relative z-10 pointer-events-none">
         <div
-          className="bg-white border border-gray-100 border-t-0 rounded-b-lg px-2 py-0.5 shadow-sm text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-1 cursor-pointer pointer-events-auto"
+          className="bg-white border border-gray-200 border-t-0 rounded-b-lg px-2 py-0.5 shadow-sm text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-1 cursor-pointer pointer-events-auto"
           onClick={toggleExpanded}
         >
           <span>{isExpanded ? "Hide" : "Show"}</span>
@@ -621,84 +609,93 @@ export function CollapsibleFilterBar({
       </div>
 
       {isExpanded && (
-        <div className="max-w-full mx-auto px-3 sm:px-4 lg:px-6 py-1">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* View Toggles - Always visible (User tab hidden for Juniors) */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-                View:
-              </span>
-              <div className="flex bg-gray-100 rounded-lg p-0.5">
-                <button
-                  onClick={() => setViewMode("bucket")}
-                  className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${viewMode === "bucket" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                >
-                  Bucket
-                </button>
-                {!isJunior && (
+        <div className="max-w-full mx-auto px-2 sm:px-3 lg:px-4 py-1">
+          <div className="flex flex-wrap items-center gap-1">
+            {/* View Toggle - Complete white box with label + controls - Hide for juniors (only one view) */}
+            {!isJunior && (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+                <span className="text-[10px] font-medium text-gray-600">
+                  VIEW:
+                </span>
+                <div className="flex bg-gray-50 rounded p-0.5">
+                  <button
+                    onClick={() => setViewMode("bucket")}
+                    className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${viewMode === "bucket" ? "bg-white text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                  >
+                    Bucket
+                  </button>
                   <button
                     onClick={() => setViewMode("user")}
-                    className={`px-1.5 py-0.5 text-xs font-medium rounded-md transition ${viewMode === "user" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                    className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${viewMode === "user" ? "bg-white text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
                   >
                     User
                   </button>
-                )}
+                </div>
               </div>
-            </div>
-
-            {/* Desktop Only Filters - Hidden on mobile (<lg / <1024px) */}
-            {(viewMode === "bucket" || viewMode === "user") && (
-              <>
-                <div className="hidden lg:flex">
-                  <ColumnsFilter />
-                </div>
-                <div className="hidden lg:flex">
-                  <LayoutFilter />
-                </div>
-                {onDetailViewChange && (
-                  <div className="hidden lg:flex">
-                    <CardViewFilter />
-                  </div>
-                )}
-                {/* Group By toggle - Only visible in User View */}
-                {viewMode === "user" && onGroupByChange && (
-                  <div className="hidden lg:flex">
-                    <GroupByFilter />
-                  </div>
-                )}
-                {/* Hidden Buckets Filter - Only visible in Bucket View */}
-                {viewMode === "bucket" && onHiddenBucketsChange && (
-                  <div className="hidden lg:flex">
-                    <HiddenBucketsFilter />
-                  </div>
-                )}
-                {/* Hidden Users Filter - Only visible in User View */}
-                {viewMode === "user" && onHiddenUsersChange && (
-                  <div className="hidden lg:flex">
-                    <HiddenUsersFilter />
-                  </div>
-                )}
-              </>
             )}
 
+            {/* Columns Filter - Complete white box */}
+            {(viewMode === "bucket" || viewMode === "user") && (
+              <div className="hidden lg:block">
+                <ColumnsFilter />
+              </div>
+            )}
+
+            {/* Layout Filter - Individual */}
+            {(viewMode === "bucket" || viewMode === "user") && (
+              <div className="hidden lg:block">
+                <LayoutFilter />
+              </div>
+            )}
+
+            {/* Card View Filter - Individual */}
+            {(viewMode === "bucket" || viewMode === "user") &&
+              onDetailViewChange && (
+                <div className="hidden lg:block">
+                  <CardViewFilter />
+                </div>
+              )}
+
+            {/* Group By Filter - Individual (User View only) */}
+            {viewMode === "user" && onGroupByChange && (
+              <div className="hidden lg:block">
+                <GroupByFilter />
+              </div>
+            )}
+
+            {/* Show/Hide Buckets Filter - Individual (Bucket View only) */}
+            {viewMode === "bucket" && onHiddenBucketsChange && (
+              <div className="hidden lg:block">
+                <HiddenBucketsFilter />
+              </div>
+            )}
+
+            {/* Show/Hide Users Filter - Individual (User View only) */}
+            {viewMode === "user" && onHiddenUsersChange && (
+              <div className="hidden lg:block">
+                <HiddenUsersFilter />
+              </div>
+            )}
+
+            {/* Sort Filter - Individual */}
             {(viewMode === "bucket" || viewMode === "user") &&
               onSortFieldChange && (
-                <div className="hidden lg:flex">
+                <div className="hidden lg:block">
                   <SortFilter />
                 </div>
               )}
 
             {/* Search + Save View - Hidden on mobile - INLINED to prevent focus loss */}
-            <div className="hidden lg:flex items-center gap-2 ml-auto">
+            <div className="hidden lg:flex items-center gap-1.5 ml-auto">
               {/* Undo Button - visible for 10 seconds after reset */}
               {showUndo && onUndoReset && (
                 <button
                   onClick={onUndoReset}
-                  className="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition flex items-center gap-1.5 shadow-sm"
+                  className="px-2 py-0.5 text-[10px] font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition flex items-center gap-1"
                   title="Undo reset"
                 >
                   <svg
-                    className="w-3.5 h-3.5"
+                    className="w-2.5 h-2.5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -713,15 +710,15 @@ export function CollapsibleFilterBar({
                   Undo
                 </button>
               )}
-              {/* Save View Button - visible when there are pending changes */}
+              {/* Save View Button - visible when there are pending changes - MINIMAL */}
               {hasPendingChanges && onSaveView && (
                 <button
                   onClick={onSaveView}
-                  className="px-3 py-1.5 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 transition flex items-center gap-1.5 shadow-sm"
+                  className="px-2 py-0.5 text-[10px] font-medium rounded bg-green-600 text-white hover:bg-green-700 transition flex items-center gap-1"
                   title="Save your current view preferences"
                 >
                   <svg
-                    className="w-3.5 h-3.5"
+                    className="w-2.5 h-2.5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

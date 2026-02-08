@@ -131,9 +131,11 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     (currentUser?.Email || "").toLowerCase();
 
   // Permission Check
-  // Junior: Can change own queries only (Plan 5.7)
-  // Senior/Admin: Can change any
-  const canEdit = isAdminOrSenior || isAssignedToMe || query.Status === "A"; // Junior can edit unassigned? Plan says "Change own status". Assuming yes if unassigned or own.
+  // ONLY Admin/Pseudo Admin can edit queries
+  // Admin/Pseudo Admin can edit ALL buckets including H (Deleted)
+  // Senior and Junior: Cannot edit at all
+  const isAdminOrPseudoAdmin = ["admin", "pseudo admin"].includes(role);
+  const canEdit = isAdminOrPseudoAdmin;
 
   const handleSave = () => {
     if (!canEdit) return;
@@ -172,7 +174,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
     const confirmMessage = isAdminOrPseudoAdmin
       ? "Are you sure you want to delete this query? It will move to Bucket H (Deleted) and be automatically approved."
-      : "Are you sure you want to request deletion of this query? It will move to Bucket H (Deleted) and require admin approval.";
+      : "Are you sure you want to delete this query? It will move to Bucket H (Deleted) and require admin approval.";
 
     if (confirm(confirmMessage)) {
       deleteQueryOptimistic(
@@ -276,9 +278,26 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           {/* Assign To Section */}
           <div className="mb-4">
             <UserSearchDropdown
-              users={users}
+              users={
+                isAdminOrSenior
+                  ? users // Seniors/Admins see all users
+                  : users.filter(
+                      (u) =>
+                        u.Email.toLowerCase() ===
+                        (currentUser?.Email || "").toLowerCase(),
+                    ) // Juniors only see themselves
+              }
               value={assignedTo}
               onChange={(newAssignee) => {
+                // Juniors can only self-assign
+                if (
+                  !isAdminOrSenior &&
+                  newAssignee.toLowerCase() !==
+                    (currentUser?.Email || "").toLowerCase()
+                ) {
+                  alert("Junior users can only self-assign queries.");
+                  return;
+                }
                 setAssignedTo(newAssignee);
                 setFormData((prev) => ({
                   ...prev,
@@ -291,8 +310,16 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 }
               }}
               label={assignedTo ? "Assigned To" : "Assign To"}
-              placeholder="-- Select User --"
+              placeholder={
+                isAdminOrSenior ? "-- Select User --" : "Self-Assign Only"
+              }
+              disabled={!canEdit}
             />
+            {!isAdminOrSenior && (
+              <p className="text-xs text-orange-600 mt-1">
+                ⚠️ Junior users can only self-assign queries
+              </p>
+            )}
             {!assignedTo && status !== "A" && (
               <p className="text-xs text-orange-600 mt-1">
                 ⚠️ Query must be assigned before moving to next status
@@ -510,11 +537,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               disabled={!canEdit}
               className="w-full border border-gray-300 rounded-md p-2 text-sm"
             >
-              {/* Show allowed transitions or all? Plan says "Show valid next statuses (progressive flow)". 
-                      For simplicity and flexibility, showing all for now, or just allow manual override. 
-                      Admins/Seniors might need to jump. 
-                      Juniors cannot move to G (Discarded) or H (Deleted) - they must use delete button for H
-                  */}
+              {/* Show allowed transitions based on role
+                  Juniors cannot move to G (Discarded) or H (Deleted) - they must use delete button for H
+                  Seniors/Admins can access all buckets
+              */}
               {Object.entries(BUCKETS).map(([key, config]) => {
                 // Hide G and H from Juniors - they cannot discard or delete directly
                 if (!isAdminOrSenior && (key === "G" || key === "H")) {
@@ -714,15 +740,20 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
         <div className="bg-gray-50 px-4 py-3 flex justify-between items-center border-t border-gray-100">
           {/* Delete Button (Senior/Admin/Pseudo Admin can delete directly, Junior requests deletion) */}
-          {(isAdminOrSenior || isAssignedToMe) && (
-            <button
-              onClick={handleDelete}
-              className="text-red-500 text-sm hover:text-red-700 font-medium"
-            >
-              {isAdminOrSenior ? "Delete Query" : "Delete Query"}
-            </button>
-          )}
-          {!isAdminOrSenior && !isAssignedToMe && <div></div>}
+          {/* Don't show delete button if already in deleted bucket (H) or discarded bucket (G) */}
+          {(isAdminOrSenior || isAssignedToMe) &&
+            !["G", "H"].includes(query.Status) && (
+              <button
+                onClick={handleDelete}
+                className="text-red-500 text-sm hover:text-red-700 font-medium"
+              >
+                {isAdminOrSenior ? "Delete Query" : "Delete Query"}
+              </button>
+            )}
+          {(!isAdminOrSenior && !isAssignedToMe) ||
+          ["G", "H"].includes(query.Status) ? (
+            <div></div>
+          ) : null}
 
           <div className="flex gap-3">
             <button

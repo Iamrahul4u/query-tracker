@@ -11,6 +11,7 @@
 
 import { LocalStorageCache } from "../utils/localStorageCache";
 import { Query, User, Preferences } from "../utils/sheets";
+import { refreshAccessToken, clearAllAuth } from "../utils/tokenRefresh";
 
 interface SyncResult {
   success: boolean;
@@ -118,14 +119,48 @@ export class SyncManager {
         headers: { Authorization: `Bearer ${currentToken}` },
       });
 
-      // Handle unauthorized - token expired
+      // Handle unauthorized - token expired, try to refresh
       if (response.status === 401) {
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("user_email");
-        this.stopBackgroundRefresh();
-        this.clearCache();
-        window.location.href = "/";
-        throw new Error("Unauthorized - token expired");
+        console.log("🔄 [SYNC] Got 401, attempting token refresh...");
+        const refreshResult = await refreshAccessToken();
+
+        if (refreshResult.token) {
+          // Retry with new token
+          console.log("🔄 [SYNC] Retrying request with refreshed token...");
+          const retryResponse = await fetch("/api/queries", {
+            headers: { Authorization: `Bearer ${refreshResult.token}` },
+          });
+
+          if (retryResponse.ok) {
+            const data = await retryResponse.json();
+            LocalStorageCache.saveAll({
+              queries: data.queries,
+              users: data.users,
+              preferences: data.preferences,
+            });
+            return {
+              queries: data.queries,
+              users: data.users,
+              preferences: data.preferences,
+            };
+          }
+        }
+
+        // Only logout if token was actually revoked, not on network error
+        if (refreshResult.wasRevoked) {
+          console.error("❌ [SYNC] Token revoked, logging out");
+          clearAllAuth();
+          this.stopBackgroundRefresh();
+          this.clearCache();
+          window.location.href = "/";
+          throw new Error("Unauthorized - token revoked");
+        } else {
+          // Network error during refresh - let the error propagate, don't logout
+          console.warn(
+            "⚠️ [SYNC] Token refresh failed (network), will retry later",
+          );
+          throw new Error("Token refresh failed - network error");
+        }
       }
 
       if (!response.ok) {
@@ -149,6 +184,61 @@ export class SyncManager {
     } catch (error) {
       throw error;
     }
+  }
+
+  /**
+   * Helper method for POST requests with automatic token refresh on 401
+   * Returns the response object or throws an error
+   */
+  private async fetchWithRetry(url: string, body: object): Promise<Response> {
+    const currentToken = localStorage.getItem("auth_token");
+    if (!currentToken) {
+      throw new Error("No auth token available");
+    }
+
+    const makeRequest = async (token: string): Promise<Response> => {
+      return fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+    };
+
+    let response = await makeRequest(currentToken);
+
+    // If 401, try to refresh token and retry once
+    if (response.status === 401) {
+      console.log("🔄 [SYNC] POST got 401, attempting token refresh...");
+      const refreshResult = await refreshAccessToken();
+
+      if (refreshResult.token) {
+        console.log("🔄 [SYNC] Retrying POST with refreshed token...");
+        response = await makeRequest(refreshResult.token);
+      }
+
+      // If still 401 after refresh attempt, check why
+      if (response.status === 401) {
+        if (refreshResult.wasRevoked) {
+          console.error("❌ [SYNC] Token revoked, logging out");
+          clearAllAuth();
+          this.stopBackgroundRefresh();
+          this.clearCache();
+          window.location.href = "/";
+          throw new Error("Unauthorized - token revoked");
+        } else {
+          // Network error during refresh - don't logout, let error propagate
+          console.warn(
+            "⚠️ [SYNC] Token refresh failed (network), will retry later",
+          );
+          throw new Error("Token refresh failed - network error");
+        }
+      }
+    }
+
+    return response;
   }
 
   /**
@@ -260,22 +350,9 @@ export class SyncManager {
       delete queryForApi._isPending;
       delete queryForApi._tempId;
 
-      // Always get fresh token from localStorage
-      const currentToken = localStorage.getItem("auth_token");
-      if (!currentToken) {
-        throw new Error("No auth token available");
-      }
-
-      const response = await fetch("/api/queries", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${currentToken}`,
-        },
-        body: JSON.stringify({
-          action: "add",
-          data: queryForApi, // Send full query object, not partial
-        }),
+      const response = await this.fetchWithRetry("/api/queries", {
+        action: "add",
+        data: queryForApi,
       });
 
       if (!response.ok) {
@@ -327,6 +404,10 @@ export class SyncManager {
   ): Promise<SyncResult> {
     const now = getISTDateTime();
 
+    // Find current query to get its status
+    const currentQuery = currentQueries.find((q) => q["Query ID"] === queryId);
+    const currentStatus = currentQuery?.Status || "";
+
     // Step 1: Optimistic update (immediate UI change)
     const optimisticQueries = currentQueries.map((q) => {
       if (q["Query ID"] === queryId) {
@@ -347,23 +428,15 @@ export class SyncManager {
 
     // Step 2: API call in background
     try {
-      // Always get fresh token from localStorage
-      const currentToken = localStorage.getItem("auth_token");
-      if (!currentToken) {
-        throw new Error("No auth token available");
-      }
-
-      const response = await fetch("/api/queries", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${currentToken}`,
+      const response = await this.fetchWithRetry("/api/queries", {
+        action: "assign",
+        queryId,
+        data: {
+          assignee,
+          assignedBy: currentUserEmail,
+          // HYBRID APPROACH: Send current status to avoid extra API call
+          _currentStatus: currentStatus,
         },
-        body: JSON.stringify({
-          action: "assign",
-          queryId,
-          data: { assignee, assignedBy: currentUserEmail },
-        }),
       });
 
       if (!response.ok) {
@@ -400,6 +473,10 @@ export class SyncManager {
   ): Promise<SyncResult> {
     const now = getISTDateTime();
 
+    // Find the current query to get its Remarks value
+    const currentQuery = currentQueries.find((q) => q["Query ID"] === queryId);
+    const currentRemarks = currentQuery?.Remarks || "";
+
     // Optimistic update
     const optimisticQueries = currentQueries.map((q) => {
       if (q["Query ID"] === queryId) {
@@ -425,26 +502,15 @@ export class SyncManager {
     updateStore(optimisticQueries);
 
     try {
-      // Always get fresh token from localStorage
-      const currentToken = localStorage.getItem("auth_token");
-      if (!currentToken) {
-        throw new Error("No auth token available");
-      }
-
-      const response = await fetch("/api/queries", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${currentToken}`,
+      const response = await this.fetchWithRetry("/api/queries", {
+        action: "edit",
+        queryId,
+        data: {
+          ...updates,
+          "Last Edited By": currentUserEmail,
+          // HYBRID APPROACH: Send current Remarks to avoid extra API call
+          _currentRemarks: currentRemarks,
         },
-        body: JSON.stringify({
-          action: "edit",
-          queryId,
-          data: {
-            ...updates,
-            "Last Edited By": currentUserEmail, // Include for remark audit trail
-          },
-        }),
       });
 
       if (!response.ok) {
@@ -523,22 +589,15 @@ export class SyncManager {
     updateStore(optimisticQueries);
 
     try {
-      const currentToken = localStorage.getItem("auth_token");
-      if (!currentToken) {
-        throw new Error("No auth token available");
-      }
-
-      const response = await fetch("/api/queries", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${currentToken}`,
+      const response = await this.fetchWithRetry("/api/queries", {
+        action: "delete",
+        queryId,
+        data: {
+          requestedBy,
+          isAdmin,
+          // HYBRID APPROACH: Send current status to avoid extra API call
+          _currentStatus: queryToMove.Status,
         },
-        body: JSON.stringify({
-          action: "delete",
-          queryId,
-          data: { requestedBy, isAdmin },
-        }),
       });
 
       if (!response.ok) {
@@ -594,23 +653,10 @@ export class SyncManager {
     updateStore(optimisticQueries);
 
     try {
-      // Always get fresh token from localStorage
-      const currentToken = localStorage.getItem("auth_token");
-      if (!currentToken) {
-        throw new Error("No auth token available");
-      }
-
-      const response = await fetch("/api/queries", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${currentToken}`,
-        },
-        body: JSON.stringify({
-          action: "approveDelete",
-          queryId,
-          data: { approvedBy },
-        }),
+      const response = await this.fetchWithRetry("/api/queries", {
+        action: "approveDelete",
+        queryId,
+        data: { approvedBy },
       });
 
       if (!response.ok) {
@@ -674,23 +720,10 @@ export class SyncManager {
     updateStore(optimisticQueries);
 
     try {
-      // Always get fresh token from localStorage
-      const currentToken = localStorage.getItem("auth_token");
-      if (!currentToken) {
-        throw new Error("No auth token available");
-      }
-
-      const response = await fetch("/api/queries", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${currentToken}`,
-        },
-        body: JSON.stringify({
-          action: "rejectDelete",
-          queryId,
-          data: { rejectedBy },
-        }),
+      const response = await this.fetchWithRetry("/api/queries", {
+        action: "rejectDelete",
+        queryId,
+        data: { rejectedBy },
       });
 
       if (!response.ok) {
@@ -843,23 +876,16 @@ export class SyncManager {
     updateStore(optimisticQueries);
 
     try {
-      // Always get fresh token from localStorage
-      const currentToken = localStorage.getItem("auth_token");
-      if (!currentToken) {
-        throw new Error("No auth token available");
-      }
-
-      const response = await fetch("/api/queries", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${currentToken}`,
+      const response = await this.fetchWithRetry("/api/queries", {
+        action: "updateStatus",
+        queryId,
+        data: {
+          newStatus,
+          fields,
+          // HYBRID APPROACH: Send current status to avoid extra API call
+          _currentStatus: targetQuery.Status,
+          _previousStatus: targetQuery["Previous Status"],
         },
-        body: JSON.stringify({
-          action: "updateStatus",
-          queryId,
-          data: { newStatus, fields },
-        }),
       });
 
       if (!response.ok) {
