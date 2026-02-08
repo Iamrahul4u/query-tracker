@@ -47,30 +47,12 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    // Debug: Log the headers to verify columns AC and AD exist
-    const headers = queriesRes.data.values?.[0] || [];
-    console.log(`[GET] Total columns fetched: ${headers.length}`);
-    console.log(`[GET] Last 5 headers:`, headers.slice(-5));
-    console.log(`[GET] Column AC (index 28):`, headers[28]);
-    console.log(`[GET] Column AD (index 29):`, headers[29]);
-
     const queries = parseQueries(queriesRes.data.values || []);
     const users = parseUsers(usersRes.data.values || []);
     const preferences = parsePreferences(
       prefsRes.data.values || [],
       userEmail || "",
     );
-
-    // Debug: Log a sample query to verify remark audit fields are included
-    const sampleQuery = queries.find((q) => q.Remarks);
-    if (sampleQuery) {
-      console.log(`[GET] Sample query with remarks:`);
-      console.log(`  Remarks: "${sampleQuery.Remarks}"`);
-      console.log(`  Remark Added By: "${sampleQuery["Remark Added By"]}"`);
-      console.log(
-        `  Remark Added Date Time: "${sampleQuery["Remark Added Date Time"]}"`,
-      );
-    }
 
     return NextResponse.json({
       queries,
@@ -321,7 +303,7 @@ async function updateRowCells(
     const result = await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
       resource: {
-        valueInputOption: "RAW", // Store as raw text strings
+        valueInputOption: "USER_ENTERED", // Interpret TRUE/FALSE as checkbox values
         data,
       },
     });

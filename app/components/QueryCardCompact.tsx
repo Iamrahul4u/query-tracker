@@ -276,13 +276,17 @@ export const QueryCardCompact = memo(function QueryCardCompact({
   const showAssignButton =
     !isGhost && (!isJunior || (bucketStatus === "A" && isTrulyUnassigned));
 
-  // Edit button logic:
-  // - ONLY Admin/Pseudo Admin can see edit button
-  // - Admin/Pseudo Admin can edit ALL buckets including H (Deleted)
-  // - Senior and Junior: NO edit button
+  // Edit button logic (from role-based-access-control.md):
+  // - Senior/Admin/Pseudo Admin: Can edit ANY query
+  // - Junior: Can edit ONLY their own queries (assigned to them) EXCEPT in G/H buckets
   // Ghost queries: NO actions allowed
-  const isAdminOrPseudoAdmin = ["admin", "pseudo admin"].includes(roleLC);
-  const showEditButton = !isGhost && isAdminOrPseudoAdmin;
+  const isAdminOrSenior = ["admin", "pseudo admin", "senior"].includes(roleLC);
+  // Reuse already-defined variables: userEmailLC, assignedToLC, isOwnQuery
+
+  const showEditButton =
+    !isGhost &&
+    (isAdminOrSenior || // Admin/Senior can edit all
+      (isOwnQuery && bucketStatus !== "G" && bucketStatus !== "H")); // Junior can edit own except G/H
 
   // Dropdown content for AssignDropdown - search box stays close to trigger
   const renderDropdownContent = (

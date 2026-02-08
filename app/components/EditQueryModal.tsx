@@ -123,19 +123,15 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
   // Determine Role
   const role = (currentUser?.Role || "").toLowerCase();
-  const isAdminOrSenior = ["admin", "pseudo admin", "senior"].includes(
-    role.toLowerCase(),
-  );
+  const isAdminOrSenior = ["admin", "pseudo admin", "senior"].includes(role);
   const isAssignedToMe =
     (query["Assigned To"] || "").toLowerCase() ===
     (currentUser?.Email || "").toLowerCase();
 
-  // Permission Check
-  // ONLY Admin/Pseudo Admin can edit queries
-  // Admin/Pseudo Admin can edit ALL buckets including H (Deleted)
-  // Senior and Junior: Cannot edit at all
-  const isAdminOrPseudoAdmin = ["admin", "pseudo admin"].includes(role);
-  const canEdit = isAdminOrPseudoAdmin;
+  // Permission Check (from role-based-access-control.md)
+  // - Senior/Admin/Pseudo Admin: Can edit ANY query
+  // - Junior: Can edit ONLY their own queries (assigned to them)
+  const canEdit = isAdminOrSenior || isAssignedToMe;
 
   const handleSave = () => {
     if (!canEdit) return;
@@ -276,56 +272,35 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           </div>
 
           {/* Assign To Section */}
-          <div className="mb-4">
-            <UserSearchDropdown
-              users={
-                isAdminOrSenior
-                  ? users // Seniors/Admins see all users
-                  : users.filter(
-                      (u) =>
-                        u.Email.toLowerCase() ===
-                        (currentUser?.Email || "").toLowerCase(),
-                    ) // Juniors only see themselves
-              }
-              value={assignedTo}
-              onChange={(newAssignee) => {
-                // Juniors can only self-assign
-                if (
-                  !isAdminOrSenior &&
-                  newAssignee.toLowerCase() !==
-                    (currentUser?.Email || "").toLowerCase()
-                ) {
-                  alert("Junior users can only self-assign queries.");
-                  return;
-                }
-                setAssignedTo(newAssignee);
-                setFormData((prev) => ({
-                  ...prev,
-                  "Assigned To": newAssignee,
-                }));
-                // Auto-select Bucket B when assigning from A
-                if (newAssignee && status === "A") {
-                  setStatus("B");
-                  setFormData((prev) => ({ ...prev, Status: "B" }));
-                }
-              }}
-              label={assignedTo ? "Assigned To" : "Assign To"}
-              placeholder={
-                isAdminOrSenior ? "-- Select User --" : "Self-Assign Only"
-              }
-              disabled={!canEdit}
-            />
-            {!isAdminOrSenior && (
-              <p className="text-xs text-orange-600 mt-1">
-                ⚠️ Junior users can only self-assign queries
-              </p>
-            )}
-            {!assignedTo && status !== "A" && (
-              <p className="text-xs text-orange-600 mt-1">
-                ⚠️ Query must be assigned before moving to next status
-              </p>
-            )}
-          </div>
+          {/* Assigned To - Only show for Senior/Admin/Pseudo Admin */}
+          {isAdminOrSenior && (
+            <div className="mb-4">
+              <UserSearchDropdown
+                users={users} // Seniors/Admins see all users
+                value={assignedTo}
+                onChange={(newAssignee) => {
+                  setAssignedTo(newAssignee);
+                  setFormData((prev) => ({
+                    ...prev,
+                    "Assigned To": newAssignee,
+                  }));
+                  // Auto-select Bucket B when assigning from A
+                  if (newAssignee && status === "A") {
+                    setStatus("B");
+                    setFormData((prev) => ({ ...prev, Status: "B" }));
+                  }
+                }}
+                label={assignedTo ? "Assigned To" : "Assign To"}
+                placeholder="-- Select User --"
+                disabled={!canEdit}
+              />
+              {!assignedTo && status !== "A" && (
+                <p className="text-xs text-orange-600 mt-1">
+                  ⚠️ Query must be assigned before moving to next status
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Editable Date Fields Section */}
           <div className="mb-3 p-2 bg-gray-50 rounded-lg">

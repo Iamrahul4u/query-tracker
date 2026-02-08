@@ -9,10 +9,7 @@ export function useAutoRefresh(intervalMs = 60000, enabled = true) {
     // Don't start until enabled (auth checked)
     if (!enabled) return;
 
-    // Initial fetch
-    refreshFromServer();
-
-    // Set up polling
+    // Set up polling (no initial fetch - queryStore.initialize() handles that)
     const interval = setInterval(() => {
       // Only refresh if no pending actions (avoid conflicts)
       if (pendingActions.length === 0) {

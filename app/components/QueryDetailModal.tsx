@@ -101,15 +101,19 @@ export function QueryDetailModal({
   // Audit trail expanded by default (client requirement)
   const [showAuditTrail, setShowAuditTrail] = useState(true);
 
-  // Role-based Edit button visibility
+  // Role-based Edit button visibility (from role-based-access-control.md)
   const roleLC = (currentUser?.Role || "").toLowerCase();
-  const isAdminOrPseudoAdmin = ["admin", "pseudo admin"].includes(roleLC);
+  const isAdminOrSenior = ["admin", "pseudo admin", "senior"].includes(roleLC);
+  const userEmailLC = (currentUser?.Email || "").toLowerCase();
+  const assignedToLC = (query["Assigned To"] || "").toLowerCase().trim();
+  const isOwnQuery = assignedToLC && assignedToLC === userEmailLC;
 
   // Edit button restrictions:
-  // - ONLY Admin/Pseudo Admin can see edit button
-  // - Admin/Pseudo Admin can edit ALL buckets including H (Deleted)
-  // - Senior and Junior: NO edit button
-  const canEdit = isAdminOrPseudoAdmin;
+  // - Senior/Admin/Pseudo Admin: Can edit ANY query
+  // - Junior: Can edit ONLY their own queries (assigned to them) EXCEPT in G/H buckets
+  const canEdit =
+    isAdminOrSenior || // Admin/Senior can edit all
+    (isOwnQuery && query.Status !== "G" && query.Status !== "H"); // Junior can edit own except G/H
 
   const handleEdit = () => {
     onEdit?.(query);
@@ -197,21 +201,14 @@ export function QueryDetailModal({
                 <div className="text-sm text-gray-600 mt-2">
                   <span className="italic">&quot;{query["Remarks"]}&quot;</span>
                   {query["Remark Added By"] && (
-                    <span className="text-xs text-gray-400 ml-2">
+                    <span className="text-xs text-gray-500 ml-2">
                       —{" "}
-                      <span
-                        className="font-medium cursor-help"
-                        title={query["Remark Added By"]}
-                      >
-                        {displayName(query["Remark Added By"])
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()}
+                      <span className="font-medium">
+                        {displayName(query["Remark Added By"])}
                       </span>
                       {query["Remark Added Date Time"] && (
-                        <span className="text-gray-400 ml-1">
-                          {formatAuditDate(query["Remark Added Date Time"])}
+                        <span className="ml-1">
+                          @ {formatAuditDate(query["Remark Added Date Time"])}
                         </span>
                       )}
                     </span>
