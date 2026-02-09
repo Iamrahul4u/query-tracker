@@ -225,8 +225,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     // Common
     // Query Description should always be editable
     if (field === "Query Description") return true;
-    if (field === "Query Type") return ["A", "B"].includes(s);
-    if (field === "Remarks") return ["B"].includes(s); // Or always show but optional? Plan says B.
+    // Query Type is visible in A-F per FRD (each bucket section lists "Query type" as visible field)
+    if (field === "Query Type") return ["A", "B", "C", "D", "E", "F"].includes(s);
+    // Remarks entered during assignment (B) but should remain visible/editable in subsequent buckets
+    if (field === "Remarks") return ["B", "C", "D", "E", "F"].includes(s);
     if (field === "Whats Pending") return ["D", "E", "F"].includes(s);
     if (field === "Event ID in SF") return ["E", "F"].includes(s);
     if (field === "Event Title in SF") return ["E", "F"].includes(s);

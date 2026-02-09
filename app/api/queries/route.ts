@@ -383,6 +383,8 @@ async function handleUpdateStatus(
     fields?: any;
     _currentStatus?: string;
     _previousStatus?: string;
+    _currentRemarks?: string;
+    _lastEditedBy?: string;
   },
 ) {
   const rowIndex = await findRowIndex(sheets, queryId);
@@ -406,76 +408,130 @@ async function handleUpdateStatus(
   }
 
   const now = getISTDateTime();
+  
+  // Get current remarks for audit trail comparison (from client or empty)
+  const currentRemarks = data._currentRemarks || "";
+  const newRemarks = data.fields?.Remarks;
+  const lastEditedBy = data._lastEditedBy || "";
+  
   const updates: any = {
     Status: data.newStatus,
     "Last Activity Date Time": now,
     ...data.fields,
   };
+  
+  // If Remarks field is being updated (changed from current value), add audit trail
+  if (
+    newRemarks !== undefined &&
+    newRemarks !== currentRemarks &&
+    lastEditedBy
+  ) {
+    console.log(`[handleUpdateStatus] Remarks changed, setting audit trail`);
+    updates["Remark Added By"] = lastEditedBy;
+    updates["Remark Added Date Time"] = now;
+  }
 
-  // Check for backward transition and clear fields
+  // Check for backward transition and clear fields that don't apply to the target bucket
+  // Two types of clearing:
+  // 1. FORCE clear: Fields that CANNOT exist in the target bucket (always clear, ignore user input)
+  // 2. CONDITIONAL clear: Fields that CAN exist in target bucket but weren't provided (clearIfNotProvided)
   const bucketOrder = ["A", "B", "C", "D", "E", "F", "G", "H"];
   const oldIndex = bucketOrder.indexOf(currentStatus);
   const newIndex = bucketOrder.indexOf(data.newStatus);
 
+  // Force clear a field - regardless of user input (field doesn't belong in target bucket)
+  const forceClear = (fieldName: string) => {
+    updates[fieldName] = "";
+    // Also remove from data.fields if present to prevent it from being re-added
+    if (data.fields && data.fields[fieldName] !== undefined) {
+      delete data.fields[fieldName];
+    }
+  };
+
+  // Conditionally clear a field - only if user didn't provide it (field CAN exist in target bucket)
+  const clearIfNotProvided = (fieldName: string) => {
+    if (data.fields && data.fields[fieldName] !== undefined) {
+      // User explicitly provided this field - preserve their value
+      return;
+    }
+    updates[fieldName] = "";
+  };
+
   if (newIndex >= 0 && oldIndex >= 0 && newIndex < oldIndex) {
     // Moving to A: Clear ALL fields except Query Description, Type, Added By/Date
     if (data.newStatus === "A") {
-      updates["Assigned To"] = "";
-      updates["Assigned By"] = "";
-      updates["Assignment Date Time"] = "";
-      updates["Remarks"] = "";
-      updates["Proposal Sent Date Time"] = "";
-      updates["Whats Pending"] = "";
-      updates["Entered In SF Date Time"] = "";
-      updates["Event ID in SF"] = "";
-      updates["Event Title in SF"] = "";
-      updates["GmIndicator"] = "";
-      updates["Discarded Date Time"] = "";
-      updates["Delete Requested By"] = "";
-      updates["Delete Requested Date Time"] = "";
-      updates["Previous Status"] = "";
-      updates["Delete Rejected"] = "";
+      // Force clear - these fields don't belong in A
+      forceClear("Assigned To");
+      forceClear("Assigned By");
+      forceClear("Assignment Date Time");
+      forceClear("Remarks");
+      forceClear("Remark Added By");
+      forceClear("Remark Added Date Time");
+      forceClear("Proposal Sent Date Time");
+      forceClear("Whats Pending");
+      forceClear("Entered In SF Date Time");
+      forceClear("Event ID in SF");
+      forceClear("Event Title in SF");
+      forceClear("GmIndicator");
+      forceClear("Discarded Date Time");
+      forceClear("Delete Requested By");
+      forceClear("Delete Requested Date Time");
+      forceClear("Previous Status");
+      forceClear("Delete Rejected");
     }
-    // Moving to B: Clear proposal, SF, discard, and deletion fields
+    // Moving to B: Keep Assignment + Remarks, clear proposal/SF/discard/deletion fields
     else if (data.newStatus === "B") {
-      updates["Proposal Sent Date Time"] = "";
-      updates["Whats Pending"] = "";
-      updates["Entered In SF Date Time"] = "";
-      updates["Event ID in SF"] = "";
-      updates["Event Title in SF"] = "";
-      updates["GmIndicator"] = "";
-      updates["Discarded Date Time"] = "";
-      updates["Delete Requested By"] = "";
-      updates["Delete Requested Date Time"] = "";
-      updates["Previous Status"] = "";
-      updates["Delete Rejected"] = "";
+      // Conditional clear - these CAN exist in B, preserve if user provided
+      clearIfNotProvided("Remarks");
+      // Force clear - these fields DON'T belong in B
+      forceClear("Proposal Sent Date Time");
+      forceClear("Whats Pending");
+      forceClear("Entered In SF Date Time");
+      forceClear("Event ID in SF");
+      forceClear("Event Title in SF");
+      forceClear("GmIndicator");
+      forceClear("Discarded Date Time");
+      forceClear("Delete Requested By");
+      forceClear("Delete Requested Date Time");
+      forceClear("Previous Status");
+      forceClear("Delete Rejected");
     }
-    // Moving to C or D: Clear SF, discard, and deletion fields
+    // Moving to C or D: Keep proposal fields, clear SF/discard/deletion fields
     else if (["C", "D"].includes(data.newStatus)) {
-      updates["Entered In SF Date Time"] = "";
-      updates["Event ID in SF"] = "";
-      updates["Event Title in SF"] = "";
-      updates["GmIndicator"] = "";
-      updates["Discarded Date Time"] = "";
-      updates["Delete Requested By"] = "";
-      updates["Delete Requested Date Time"] = "";
-      updates["Previous Status"] = "";
-      updates["Delete Rejected"] = "";
+      // Conditional clear - these CAN exist in C/D
+      clearIfNotProvided("Proposal Sent Date Time");
+      clearIfNotProvided("Whats Pending");
+      // Force clear - these fields DON'T belong in C/D
+      forceClear("Entered In SF Date Time");
+      forceClear("Event ID in SF");
+      forceClear("Event Title in SF");
+      forceClear("GmIndicator");
+      forceClear("Discarded Date Time");
+      forceClear("Delete Requested By");
+      forceClear("Delete Requested Date Time");
+      forceClear("Previous Status");
+      forceClear("Delete Rejected");
     }
-    // Moving to E or F: Clear discard and deletion fields
+    // Moving to E or F: Keep SF fields, clear discard/deletion fields
     else if (["E", "F"].includes(data.newStatus)) {
-      updates["Discarded Date Time"] = "";
-      updates["Delete Requested By"] = "";
-      updates["Delete Requested Date Time"] = "";
-      updates["Previous Status"] = "";
-      updates["Delete Rejected"] = "";
+      // Conditional clear - these CAN exist in E/F
+      clearIfNotProvided("Entered In SF Date Time");
+      clearIfNotProvided("Event ID in SF");
+      clearIfNotProvided("Event Title in SF");
+      // Force clear - these fields DON'T belong in E/F
+      forceClear("Discarded Date Time");
+      forceClear("Delete Requested By");
+      forceClear("Delete Requested Date Time");
+      forceClear("Previous Status");
+      forceClear("Delete Rejected");
     }
     // Moving to G: Clear deletion fields only
     else if (data.newStatus === "G") {
-      updates["Delete Requested By"] = "";
-      updates["Delete Requested Date Time"] = "";
-      updates["Previous Status"] = "";
-      updates["Delete Rejected"] = "";
+      // Force clear - these fields DON'T belong in G
+      forceClear("Delete Requested By");
+      forceClear("Delete Requested Date Time");
+      forceClear("Previous Status");
+      forceClear("Delete Rejected");
     }
   }
 

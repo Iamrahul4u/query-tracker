@@ -781,6 +781,12 @@ export class SyncManager {
           "Last Activity Date Time": now,
         };
 
+        // If remarks are being updated, also update remark audit trail optimistically
+        if (fields.Remarks !== undefined && fields.Remarks !== q.Remarks) {
+          updated["Remark Added By"] = currentUserEmail;
+          updated["Remark Added Date Time"] = now;
+        }
+
         // Auto-fill date fields based on status
         if (
           ["C", "D"].includes(newStatus) &&
@@ -813,6 +819,8 @@ export class SyncManager {
             updated["Assigned By"] = "";
             updated["Assignment Date Time"] = "";
             updated["Remarks"] = "";
+            updated["Remark Added By"] = "";
+            updated["Remark Added Date Time"] = "";
             updated["Proposal Sent Date Time"] = "";
             updated["Whats Pending"] = "";
             updated["Entered In SF Date Time"] = "";
@@ -882,9 +890,11 @@ export class SyncManager {
         data: {
           newStatus,
           fields,
-          // HYBRID APPROACH: Send current status to avoid extra API call
+          // HYBRID APPROACH: Send current values to avoid extra API calls
           _currentStatus: targetQuery.Status,
           _previousStatus: targetQuery["Previous Status"],
+          _currentRemarks: targetQuery.Remarks || "",
+          _lastEditedBy: currentUserEmail,
         },
       });
 
