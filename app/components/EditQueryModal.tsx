@@ -513,12 +513,12 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               className="w-full border border-gray-300 rounded-md p-2 text-sm"
             >
               {/* Show allowed transitions based on role
-                  Juniors cannot move to G (Discarded) or H (Deleted) - they must use delete button for H
+                  Juniors CAN move to G (Discarded) but NOT to H (Deleted) - they must use delete button for H
                   Seniors/Admins can access all buckets
               */}
               {Object.entries(BUCKETS).map(([key, config]) => {
-                // Hide G and H from Juniors - they cannot discard or delete directly
-                if (!isAdminOrSenior && (key === "G" || key === "H")) {
+                // Hide only H from Juniors - they cannot delete directly, must use delete button
+                if (!isAdminOrSenior && key === "H") {
                   return null;
                 }
                 return (
