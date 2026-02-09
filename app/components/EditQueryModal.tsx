@@ -307,7 +307,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           {/* Editable Date Fields Section */}
           <div className="mb-3 p-2 bg-gray-50 rounded-lg">
             <h4 className="text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
-              Date Fields {!isAdminOrSenior && "(Assignment Date locked)"}
+              Date Fields
             </h4>
             <div className="grid grid-cols-2 gap-2">
               {/* Added Date - Show for all buckets except G and H */}
@@ -329,17 +329,16 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                         convertFromDateTimeLocal(e.target.value),
                       )
                     }
-                    disabled={!isAdminOrSenior}
                     className={getInputClass("Added Date Time", "text-xs")}
                   />
                 </div>
               )}
 
-              {/* Assigned Date - Show for B, C, D, E, F - LOCKED for Juniors */}
+              {/* Assigned Date - Show for B, C, D, E, F */}
               {["B", "C", "D", "E", "F"].includes(status) && (
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
-                    Assigned Date {!isAdminOrSenior && "🔒"}
+                    Assigned Date
                   </label>
                   <input
                     type="datetime-local"
@@ -356,13 +355,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                         convertFromDateTimeLocal(e.target.value),
                       )
                     }
-                    disabled={!isAdminOrSenior}
-                    className={`${getInputClass("Assignment Date Time", "text-xs")} ${!isAdminOrSenior ? "bg-gray-100 cursor-not-allowed" : ""}`}
-                    title={
-                      !isAdminOrSenior
-                        ? "Only Admin/Senior can change Assignment Date"
-                        : ""
-                    }
+                    className={getInputClass("Assignment Date Time", "text-xs")}
                   />
                 </div>
               )}

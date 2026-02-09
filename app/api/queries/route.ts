@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
+import * as fs from "fs";
+import * as path from "path";
 import { SPREADSHEET_ID, SHEET_RANGES } from "../../config/sheet-constants";
 import {
   parseQueries,
@@ -9,7 +11,88 @@ import {
 } from "../../utils/sheets";
 
 // ----------------------------------------------------------------------
+// SERVICE ACCOUNT AUTH (for write operations)
+// Supports both env var (Vercel) and file (local development)
+// ----------------------------------------------------------------------
+function getServiceAccountAuth() {
+  let credentials: any;
+
+  // Option 1: Environment variable (Vercel production)
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+    try {
+      credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+    } catch (e) {
+      console.error("[getServiceAccountAuth] Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY env var");
+      throw new Error("Invalid service account credentials in environment");
+    }
+  }
+  // Option 2: File (local development)
+  else if (process.env.GOOGLE_SERVICE_ACCOUNT_FILE) {
+    try {
+      const filePath = path.resolve(process.cwd(), process.env.GOOGLE_SERVICE_ACCOUNT_FILE);
+      const fileContent = fs.readFileSync(filePath, "utf-8");
+      credentials = JSON.parse(fileContent);
+    } catch (e) {
+      console.error("[getServiceAccountAuth] Failed to read service account file:", e);
+      throw new Error("Failed to read service account file");
+    }
+  }
+  // Fallback: Try default file location
+  else {
+    try {
+      const filePath = path.resolve(process.cwd(), "service-account.json");
+      if (fs.existsSync(filePath)) {
+        const fileContent = fs.readFileSync(filePath, "utf-8");
+        credentials = JSON.parse(fileContent);
+      }
+    } catch (e) {
+      // Ignore - will fall back to user token
+    }
+  }
+
+  if (!credentials) {
+    return null; // No service account available, will use user token
+  }
+
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+
+  return auth;
+}
+
+// ----------------------------------------------------------------------
+// RETRY HELPER (Exponential backoff for rate limits)
+// ----------------------------------------------------------------------
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 1000
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isRateLimit = error.code === 429 || error.status === 429 || 
+        (error.message && error.message.includes("Quota exceeded"));
+      const isLastAttempt = attempt === maxRetries;
+      
+      if (!isRateLimit || isLastAttempt) {
+        throw error; // Non-retryable or exhausted retries
+      }
+      
+      const delay = baseDelayMs * Math.pow(2, attempt); // 1s, 2s, 4s
+      console.log(`[RETRY] Rate limited, waiting ${delay}ms before retry ${attempt + 1}/${maxRetries}`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw new Error("Retry failed"); // Should never reach here
+}
+
+// ----------------------------------------------------------------------
 // GET HANDLER
+// Uses service account for reads, user token just for identity verification
 // ----------------------------------------------------------------------
 export async function GET(request: NextRequest) {
   const token =
@@ -21,15 +104,23 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: token });
-
-    // Validate token info to get email
-    const oauth2 = google.oauth2({ version: "v2", auth });
+    // Validate user token to get their email (for personalization/preferences)
+    const userAuth = new google.auth.OAuth2();
+    userAuth.setCredentials({ access_token: token });
+    const oauth2 = google.oauth2({ version: "v2", auth: userAuth });
     const tokenInfo = await oauth2.tokeninfo({ access_token: token });
     const userEmail = tokenInfo.data.email;
 
-    const sheets = google.sheets({ version: "v4", auth });
+    // Use service account for reading sheets (if available)
+    let sheets;
+    const serviceAuth = getServiceAccountAuth();
+    if (serviceAuth) {
+      console.log("[GET] Using service account for read operation");
+      sheets = google.sheets({ version: "v4", auth: serviceAuth });
+    } else {
+      console.log("[GET] No service account, falling back to user token");
+      sheets = google.sheets({ version: "v4", auth: userAuth });
+    }
 
     // Fetch in parallel
     const [queriesRes, usersRes, prefsRes] = await Promise.all([
@@ -60,6 +151,7 @@ export async function GET(request: NextRequest) {
       preferences,
       userEmail,
     });
+
   } catch (error: any) {
     // Google API errors can be objects, not strings
     const errorMessage =
@@ -86,6 +178,7 @@ export async function GET(request: NextRequest) {
 
 // ----------------------------------------------------------------------
 // POST HANDLER (Write Operations)
+// Uses service account for writes, user token just for identity verification
 // ----------------------------------------------------------------------
 export async function POST(request: NextRequest) {
   const token = request.headers.get("Authorization")?.replace("Bearer ", "");
@@ -99,9 +192,19 @@ export async function POST(request: NextRequest) {
 
     console.log(`[POST] Action: ${action}, QueryID: ${queryId}`, data);
 
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: token });
-    const sheets = google.sheets({ version: "v4", auth });
+    // Use service account for writes (if available), otherwise fall back to user token
+    let sheets;
+    const serviceAuth = getServiceAccountAuth();
+    if (serviceAuth) {
+      console.log("[POST] Using service account for write operation");
+      sheets = google.sheets({ version: "v4", auth: serviceAuth });
+    } else {
+      console.log("[POST] No service account, falling back to user token");
+      const userAuth = new google.auth.OAuth2();
+      userAuth.setCredentials({ access_token: token });
+      sheets = google.sheets({ version: "v4", auth: userAuth });
+    }
+
 
     switch (action) {
       case "assign":
@@ -118,7 +221,10 @@ export async function POST(request: NextRequest) {
         return await handleApproveDelete(sheets, queryId, data?.approvedBy);
       case "rejectDelete":
         return await handleRejectDelete(sheets, queryId, data?.rejectedBy);
+      case "batchAdd":
+        return await handleBatchAdd(sheets, data?.queries || []);
       default:
+
         console.error(`[POST] Invalid action: ${action}`);
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
@@ -657,6 +763,97 @@ async function handleAdd(sheets: any, data: Query) {
     return NextResponse.json({ success: true, queryId: realId });
   } catch (error: any) {
     throw error;
+  }
+}
+
+/**
+ * Batch add multiple queries in a single atomic operation.
+ * If any part fails, the entire batch fails (all-or-nothing).
+ * Uses exponential backoff retry for rate limits.
+ */
+async function handleBatchAdd(sheets: any, queries: Query[]) {
+  if (!queries || queries.length === 0) {
+    return NextResponse.json({ error: "No queries provided" }, { status: 400 });
+  }
+
+  console.log(`[handleBatchAdd] Adding ${queries.length} queries in batch`);
+  
+  const now = getISTDateTime();
+  const generatedIds: string[] = [];
+
+  // Helper function to convert column letter to number for proper sorting
+  const columnToNumber = (col: string): number => {
+    let result = 0;
+    for (let i = 0; i < col.length; i++) {
+      result = result * 26 + (col.charCodeAt(i) - 64);
+    }
+    return result;
+  };
+
+  // Get keys in column order (A-AD)
+  const keysInOrder = Object.entries(COL_MAP)
+    .sort(([, a], [, b]) => columnToNumber(a) - columnToNumber(b))
+    .map(([key]) => key);
+
+  // Prepare all rows
+  const allRows: string[][] = queries.map((data) => {
+    // Generate unique ID
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 9);
+    const realId = `Q-${timestamp}-${random}`;
+    generatedIds.push(realId);
+
+    // Enrich query data
+    const enrichedData: Query = {
+      ...data,
+      "Query ID": realId,
+      "Added Date Time": now,
+      "Last Activity Date Time": now,
+      "Last Edited Date Time": now,
+      "Last Edited By": data["Added By"] || "",
+    };
+
+    // If assigned, set assignment date
+    if (enrichedData["Assigned To"]) {
+      enrichedData["Assignment Date Time"] = now;
+    }
+
+    // Construct row in correct column order
+    const row: string[] = [];
+    keysInOrder.forEach((key) => {
+      const value = enrichedData[key as keyof Query];
+      row.push(String(value || ""));
+    });
+
+    return row;
+  });
+
+  try {
+    // Single atomic batch append with retry for rate limits
+    await withRetry(async () => {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: "Queries!A:AD",
+        valueInputOption: "RAW",
+        insertDataOption: "INSERT_ROWS",
+        resource: {
+          values: allRows, // All rows in one call
+        },
+      });
+    });
+
+    // Invalidate cache since row indices have shifted
+    rowIndexCache.clear();
+
+    console.log(`[handleBatchAdd] Successfully added ${queries.length} queries`);
+    return NextResponse.json({ 
+      success: true, 
+      queryIds: generatedIds,
+      count: queries.length 
+    });
+  } catch (error: any) {
+    console.error(`[handleBatchAdd] Batch add FAILED:`, error.message);
+    throw error; // Let the caller handle - keep drafts
   }
 }
 

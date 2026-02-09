@@ -49,3 +49,6 @@ web-app/tsconfig.tsbuildinfo
 
 # Old code backup
 old-code/
+
+# Service account credentials (sensitive)
+service-account.json

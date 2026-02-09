@@ -348,15 +348,6 @@ export function CollapsibleFilterBar({
           )}
         </div>
       )}
-      {onResetView && sortField && (
-        <button
-          onClick={onResetView}
-          className="px-1.5 py-0.5 text-[9px] font-medium rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition"
-          title="Reset all preferences to defaults"
-        >
-          Restore Defaults
-        </button>
-      )}
     </div>
   );
 
@@ -685,7 +676,7 @@ export function CollapsibleFilterBar({
                 </div>
               )}
 
-            {/* Search + Save View - Hidden on mobile - INLINED to prevent focus loss */}
+            {/* Search + Save View + Restore Defaults - Hidden on mobile - INLINED to prevent focus loss */}
             <div className="hidden lg:flex items-center gap-1.5 ml-auto">
               {/* Undo Button - visible for 10 seconds after reset */}
               {showUndo && onUndoReset && (
@@ -708,6 +699,16 @@ export function CollapsibleFilterBar({
                     />
                   </svg>
                   Undo
+                </button>
+              )}
+              {/* Restore Defaults Button - always visible */}
+              {onResetView && (
+                <button
+                  onClick={onResetView}
+                  className="px-2 py-0.5 text-[10px] font-medium rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-200 transition"
+                  title="Reset all filters to defaults"
+                >
+                  Restore Defaults
                 </button>
               )}
               {/* Save View Button - visible when there are pending changes - MINIMAL */}

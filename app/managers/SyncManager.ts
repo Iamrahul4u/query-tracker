@@ -389,7 +389,115 @@ export class SyncManager {
   }
 
   /**
+   * Batch add multiple queries in a single atomic operation.
+   * If the batch fails, all queries stay in drafts (rolled back).
+   * If the batch succeeds, all queries are added and drafts can be cleared.
+   */
+  async batchAddQueriesOptimistic(
+    queriesData: Partial<Query>[],
+    currentQueries: Query[],
+    updateStore: (queries: Query[]) => void,
+    currentUserEmail: string,
+  ): Promise<{ success: boolean; error?: string; queryIds?: string[] }> {
+    if (!queriesData || queriesData.length === 0) {
+      return { success: false, error: "No queries to add" };
+    }
+
+    console.log(`[SyncManager] Batch adding ${queriesData.length} queries`);
+    const now = getISTDateTime();
+
+    // Create optimistic queries with temp IDs
+    const optimisticQueries: any[] = queriesData.map((queryData, index) => {
+      const tempId = `temp_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
+      return {
+        "Query ID": tempId,
+        "Query Description": queryData["Query Description"] || "",
+        "Query Type": queryData["Query Type"] || "New",
+        Status: queryData.Status || "A",
+        "Added By": currentUserEmail,
+        "Added Date Time": now,
+        "Assigned To": queryData["Assigned To"] || "",
+        "Assigned By": queryData["Assigned By"] || "",
+        "Assignment Date Time": queryData["Assignment Date Time"] || "",
+        Remarks: "",
+        "Proposal Sent Date Time": "",
+        "Whats Pending": "",
+        "Entered In SF Date Time": "",
+        "Event ID in SF": "",
+        "Event Title in SF": "",
+        "Discarded Date Time": "",
+        GmIndicator: queryData.GmIndicator || "",
+        "Delete Requested Date Time": "",
+        "Delete Requested By": "",
+        "Last Edited Date Time": now,
+        "Last Edited By": currentUserEmail,
+        "Last Activity Date Time": now,
+        "Previous Status": "",
+        "Delete Approved By": "",
+        "Delete Approved Date Time": "",
+        "Delete Rejected": "",
+        _isPending: true,
+        _tempId: tempId,
+      };
+    });
+
+    // Optimistic update - add all at once
+    const optimisticStore = [...optimisticQueries, ...currentQueries];
+    updateStore(optimisticStore);
+
+    try {
+      // Prepare queries for API (remove internal flags)
+      const queriesForApi = optimisticQueries.map((q) => {
+        const clean = { ...q };
+        delete clean._isPending;
+        delete clean._tempId;
+        return clean;
+      });
+
+      const response = await this.fetchWithRetry("/api/queries", {
+        action: "batchAdd",
+        data: { queries: queriesForApi },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to batch add queries");
+      }
+
+      const result = await response.json();
+      const realIds = result.queryIds || [];
+
+      // Update with real IDs from server
+      const finalQueries = optimisticStore.map((q: any, index: number) => {
+        if (q._isPending && index < realIds.length) {
+          const updated = { ...q };
+          updated["Query ID"] = realIds[index];
+          delete updated._tempId;
+          delete updated._isPending;
+          return updated;
+        }
+        return q;
+      });
+
+      updateStore(finalQueries);
+      LocalStorageCache.saveQueries(finalQueries);
+
+      console.log(`[SyncManager] Successfully batch added ${queriesData.length} queries`);
+      return { success: true, queryIds: realIds };
+    } catch (error: any) {
+      // Rollback ALL - keep in drafts
+      console.error(`[SyncManager] Batch add failed, rolling back:`, error.message);
+      updateStore(currentQueries);
+
+      return {
+        success: false,
+        error: error.message || "Failed to batch add queries. They remain in drafts.",
+      };
+    }
+  }
+
+  /**
    * Optimistic assign query
+
    * 1. Update UI immediately (optimistic)
    * 2. Send API request in background
    * 3. On success: Update cache

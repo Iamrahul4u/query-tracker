@@ -29,7 +29,7 @@ interface QueryRow {
 }
 
 export function AddQueryModal({ onClose }: AddQueryModalProps) {
-  const { currentUser, users, addQueryOptimistic } = useQueryStore();
+  const { currentUser, users, addQueryOptimistic, batchAddQueriesOptimistic } = useQueryStore();
 
   // Get last selected user from localStorage for defaults
   const getLastSelectedUser = () => {
@@ -362,20 +362,10 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
       localStorage.setItem("queryDraftsBackup", JSON.stringify(queryRows));
     }
 
-    // Format date as DD/MM/YYYY HH:MM:SS (no comma, matches backend format)
-    const date = new Date();
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const seconds = String(date.getSeconds()).padStart(2, "0");
-    const now = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-
     try {
-      // Add all valid queries with silent=true to prevent individual toasts
-      for (const row of validRows) {
-        const newQueryData: Partial<Query> = {
+      // Prepare all queries for batch add
+      const queriesForBatch: Partial<Query>[] = validRows.map((row) => {
+        const queryData: Partial<Query> = {
           "Query Description": row.description,
           "Query Type": row.queryType,
           GmIndicator: "", // Empty for new queries (only relevant for E/F buckets)
@@ -384,33 +374,32 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
         };
 
         if (row.assignedTo) {
-          newQueryData.Status = "B";
-          newQueryData["Assigned To"] = row.assignedTo;
-          newQueryData["Assigned By"] = currentUser?.Email || "";
+          queryData.Status = "B";
+          queryData["Assigned To"] = row.assignedTo;
+          queryData["Assigned By"] = currentUser?.Email || "";
           // Don't set Assignment Date Time here - backend will set it
         }
 
-        await addQueryOptimistic(newQueryData, true); // silent=true for batch
-      }
+        return queryData;
+      });
 
-      // Show single batch toast
-      const count = validRows.length;
-      useToast
-        .getState()
-        .showToast(
-          count === 1
-            ? "Query added successfully"
-            : `${count} queries added successfully`,
-          "success",
+      // Single atomic batch add - all succeed or all fail
+      const result = await batchAddQueriesOptimistic(queriesForBatch);
+
+      if (result.success) {
+        // Clear drafts AND backup on successful submit
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("queryDrafts");
+          localStorage.removeItem("queryDraftsBackup");
+        }
+        onClose();
+      } else {
+        // Batch failed - keep drafts for retry
+        setIsSubmitting(false);
+        setError(
+          result.error || "Failed to add queries. Your drafts are saved and can be retried.",
         );
-
-      // Clear drafts AND backup on successful submit
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("queryDrafts");
-        localStorage.removeItem("queryDraftsBackup");
       }
-
-      onClose();
     } catch (err) {
       // On error, keep backup intact for recovery
       setIsSubmitting(false);
@@ -419,6 +408,7 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
       );
     }
   };
+
 
   return (
     <div

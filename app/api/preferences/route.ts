@@ -1,7 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
+import * as fs from "fs";
+import * as path from "path";
 import { SPREADSHEET_ID, SHEET_RANGES } from "../../config/sheet-constants";
 import { Preferences, ViewPreferences } from "../../utils/sheets";
+
+// Service account auth helper (same pattern as queries/route.ts)
+function getServiceAccountAuth() {
+  let credentials: any;
+
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+    try {
+      credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+    } catch (e) {
+      console.error("[getServiceAccountAuth] Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY env var");
+      throw new Error("Invalid service account credentials in environment");
+    }
+  } else if (process.env.GOOGLE_SERVICE_ACCOUNT_FILE) {
+    try {
+      const filePath = path.resolve(process.cwd(), process.env.GOOGLE_SERVICE_ACCOUNT_FILE);
+      const fileContent = fs.readFileSync(filePath, "utf-8");
+      credentials = JSON.parse(fileContent);
+    } catch (e) {
+      console.error("[getServiceAccountAuth] Failed to read service account file:", e);
+      throw new Error("Failed to read service account file");
+    }
+  } else {
+    try {
+      const filePath = path.resolve(process.cwd(), "service-account.json");
+      if (fs.existsSync(filePath)) {
+        const fileContent = fs.readFileSync(filePath, "utf-8");
+        credentials = JSON.parse(fileContent);
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  if (!credentials) {
+    return null;
+  }
+
+  return new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+}
 
 export async function POST(request: NextRequest) {
   const token = request.headers.get("Authorization")?.replace("Bearer ", "");
@@ -13,11 +57,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const preferences: Partial<Preferences> = body;
 
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: token });
-
-    // Validate token info to get email
-    const oauth2 = google.oauth2({ version: "v2", auth });
+    // Validate user token to get their email
+    const userAuth = new google.auth.OAuth2();
+    userAuth.setCredentials({ access_token: token });
+    const oauth2 = google.oauth2({ version: "v2", auth: userAuth });
     const tokenInfo = await oauth2.tokeninfo({ access_token: token });
     const userEmail = tokenInfo.data.email;
 
@@ -25,13 +68,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    const sheets = google.sheets({ version: "v4", auth });
+    // Use service account for sheets access
+    let sheets;
+    const serviceAuth = getServiceAccountAuth();
+    if (serviceAuth) {
+      console.log("[PREFERENCES] Using service account for write operation");
+      sheets = google.sheets({ version: "v4", auth: serviceAuth });
+    } else {
+      console.log("[PREFERENCES] No service account, falling back to user token");
+      sheets = google.sheets({ version: "v4", auth: userAuth });
+    }
 
     // 1. Find User Row in Preferences Sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: SHEET_RANGES.PREFERENCES, // A:D
     });
+
 
     const rows = response.data.values || [];
     let rowIndex = rows.findIndex((row: string[]) => row[0] === userEmail);

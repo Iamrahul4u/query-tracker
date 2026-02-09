@@ -47,6 +47,9 @@ interface QueryState {
     query: Partial<Query>,
     silent?: boolean,
   ) => Promise<string>; // Returns temp ID, silent skips toast
+  batchAddQueriesOptimistic: (
+    queries: Partial<Query>[],
+  ) => Promise<{ success: boolean; queryIds?: string[]; error?: string }>;
   assignQueryOptimistic: (
     queryId: string,
     assignee: string,
@@ -277,6 +280,53 @@ export const useQueryStore = create<QueryState>()(
             .showToast(result.error || "Failed to add query", "error");
           return "";
         }
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // BATCH ADD QUERIES (Atomic - all or nothing)
+      // ═══════════════════════════════════════════════════════════════
+      batchAddQueriesOptimistic: async (queriesData) => {
+        const syncManager = SyncManager.getInstance();
+        const currentQueries = get().queries;
+        const currentUser = get().currentUser;
+
+        // Add pending action to block background refresh
+        const pendingId = `batch_${Date.now()}`;
+        set((state) => {
+          state.pendingActions.push({
+            id: pendingId,
+            type: "batch",
+            data: queriesData,
+            timestamp: Date.now(),
+            retries: 0,
+          });
+        });
+
+        const result = await syncManager.batchAddQueriesOptimistic(
+          queriesData,
+          currentQueries,
+          (queries) => set({ queries }),
+          currentUser?.Email || "",
+        );
+
+        // Remove pending action
+        set((state) => {
+          state.pendingActions = state.pendingActions.filter(
+            (a) => a.id !== pendingId,
+          );
+        });
+
+        if (result.success) {
+          useToast
+            .getState()
+            .showToast(`${queriesData.length} queries added successfully`, "success");
+        } else {
+          useToast
+            .getState()
+            .showToast(result.error || "Failed to add queries", "error");
+        }
+
+        return result;
       },
 
       // ═══════════════════════════════════════════════════════════════
