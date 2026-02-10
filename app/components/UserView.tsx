@@ -59,7 +59,19 @@ export function UserView({
   const displayUsers: Array<{ email: string; name: string; isKnown: boolean }> =
     [];
 
-  // First, add all known users that have assigned queries
+  // First, add Bucket A if it exists and is not hidden
+  if (
+    groupedQueries["__BUCKET_A__"]?.length > 0 &&
+    !hiddenUsers.includes("__BUCKET_A__")
+  ) {
+    displayUsers.push({
+      email: "__BUCKET_A__",
+      name: "A) Pending (Unassigned)",
+      isKnown: false,
+    });
+  }
+
+  // Then, add all known users that have assigned queries
   users.forEach((user) => {
     if (!user.Email) return;
 
@@ -77,7 +89,7 @@ export function UserView({
 
   // Then, add any assignees that don't match a known user
   allAssignees.forEach((assignee) => {
-    if (assignee === "Unassigned") return;
+    if (assignee === "Unassigned" || assignee === "__BUCKET_A__") return;
     const isKnown = displayUsers.some(
       (u) => u.email.toLowerCase() === assignee.toLowerCase(),
     );
@@ -99,8 +111,10 @@ export function UserView({
     });
   }
 
-  // Sort: Current user first, then known users alphabetically, then unknown
+  // Sort: Bucket A first, then Current user, then known users alphabetically, then unknown
   const sortedUsers = [...displayUsers].sort((a, b) => {
+    if (a.email === "__BUCKET_A__") return -1;
+    if (b.email === "__BUCKET_A__") return 1;
     if (a.email.toLowerCase() === currentEmail) return -1;
     if (b.email.toLowerCase() === currentEmail) return 1;
     if (a.isKnown && !b.isKnown) return -1;

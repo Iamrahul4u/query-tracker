@@ -22,18 +22,26 @@ function getServiceAccountAuth() {
     try {
       credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
     } catch (e) {
-      console.error("[getServiceAccountAuth] Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY env var");
+      console.error(
+        "[getServiceAccountAuth] Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY env var",
+      );
       throw new Error("Invalid service account credentials in environment");
     }
   }
   // Option 2: File (local development)
   else if (process.env.GOOGLE_SERVICE_ACCOUNT_FILE) {
     try {
-      const filePath = path.resolve(process.cwd(), process.env.GOOGLE_SERVICE_ACCOUNT_FILE);
+      const filePath = path.resolve(
+        process.cwd(),
+        process.env.GOOGLE_SERVICE_ACCOUNT_FILE,
+      );
       const fileContent = fs.readFileSync(filePath, "utf-8");
       credentials = JSON.parse(fileContent);
     } catch (e) {
-      console.error("[getServiceAccountAuth] Failed to read service account file:", e);
+      console.error(
+        "[getServiceAccountAuth] Failed to read service account file:",
+        e,
+      );
       throw new Error("Failed to read service account file");
     }
   }
@@ -68,23 +76,27 @@ function getServiceAccountAuth() {
 async function withRetry<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
-  baseDelayMs: number = 1000
+  baseDelayMs: number = 1000,
 ): Promise<T> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error: any) {
-      const isRateLimit = error.code === 429 || error.status === 429 || 
+      const isRateLimit =
+        error.code === 429 ||
+        error.status === 429 ||
         (error.message && error.message.includes("Quota exceeded"));
       const isLastAttempt = attempt === maxRetries;
-      
+
       if (!isRateLimit || isLastAttempt) {
         throw error; // Non-retryable or exhausted retries
       }
-      
+
       const delay = baseDelayMs * Math.pow(2, attempt); // 1s, 2s, 4s
-      console.log(`[RETRY] Rate limited, waiting ${delay}ms before retry ${attempt + 1}/${maxRetries}`);
-      await new Promise(r => setTimeout(r, delay));
+      console.log(
+        `[RETRY] Rate limited, waiting ${delay}ms before retry ${attempt + 1}/${maxRetries}`,
+      );
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
   throw new Error("Retry failed"); // Should never reach here
@@ -151,7 +163,6 @@ export async function GET(request: NextRequest) {
       preferences,
       userEmail,
     });
-
   } catch (error: any) {
     // Google API errors can be objects, not strings
     const errorMessage =
@@ -205,7 +216,6 @@ export async function POST(request: NextRequest) {
       sheets = google.sheets({ version: "v4", auth: userAuth });
     }
 
-
     switch (action) {
       case "assign":
         return await handleAssign(sheets, queryId, data);
@@ -224,7 +234,6 @@ export async function POST(request: NextRequest) {
       case "batchAdd":
         return await handleBatchAdd(sheets, data?.queries || []);
       default:
-
         console.error(`[POST] Invalid action: ${action}`);
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
@@ -514,18 +523,74 @@ async function handleUpdateStatus(
   }
 
   const now = getISTDateTime();
-  
+
   // Get current remarks for audit trail comparison (from client or empty)
   const currentRemarks = data._currentRemarks || "";
   const newRemarks = data.fields?.Remarks;
   const lastEditedBy = data._lastEditedBy || "";
-  
+
   const updates: any = {
     Status: data.newStatus,
     "Last Activity Date Time": now,
     ...data.fields,
   };
-  
+
+  // CRITICAL: Preserve ALL audit trail fields - don't overwrite with empty values
+  // These fields should only be set during their specific operations, not during status updates
+  const protectedAuditFields = [
+    "Added By",
+    "Added Date Time",
+    "Assigned By",
+    "Assignment Date Time",
+    "Last Edited By",
+    "Last Edited Date Time",
+    "Remark Added By",
+    "Remark Added Date Time",
+    "Proposal Sent Date Time",
+    "Entered In SF Date Time",
+    "Discarded Date Time",
+    "Delete Requested By",
+    "Delete Requested Date Time",
+    "Delete Approved By",
+    "Delete Approved Date Time",
+    "Delete Rejected By",
+    "Delete Rejected Date Time",
+  ];
+
+  // Remove protected fields if they're empty/undefined to preserve existing values
+  protectedAuditFields.forEach((field) => {
+    if (updates[field] === "" || updates[field] === undefined) {
+      delete updates[field];
+    }
+  });
+
+  // CRITICAL: Only set "Assigned By" if assignment is CHANGING (not just moving buckets)
+  // We need to fetch current "Assigned To" to compare
+  if (updates["Assigned To"] && lastEditedBy) {
+    // Fetch current assignment to check if it's changing
+    const currentAssignmentRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Queries!G${rowIndex}`, // "Assigned To" column
+    });
+    const currentAssignedTo = currentAssignmentRes.data.values?.[0]?.[0] || "";
+
+    // Only update audit trail if assignment is CHANGING
+    if (updates["Assigned To"] !== currentAssignedTo) {
+      console.log(
+        `[handleUpdateStatus] Assignment CHANGED from "${currentAssignedTo}" to "${updates["Assigned To"]}", setting audit trail`,
+      );
+      updates["Assigned By"] = lastEditedBy;
+      updates["Assignment Date Time"] = now;
+    } else {
+      console.log(
+        `[handleUpdateStatus] Assignment unchanged (${currentAssignedTo}), preserving existing audit trail`,
+      );
+      // Remove from updates to preserve existing values
+      delete updates["Assigned By"];
+      delete updates["Assignment Date Time"];
+    }
+  }
+
   // If Remarks field is being updated (changed from current value), add audit trail
   if (
     newRemarks !== undefined &&
@@ -775,7 +840,7 @@ async function handleBatchAdd(sheets: any, queries: Query[]) {
   }
 
   console.log(`[handleBatchAdd] Adding ${queries.length} queries in batch`);
-  
+
   const now = getISTDateTime();
   const generatedIds: string[] = [];
 
@@ -843,11 +908,13 @@ async function handleBatchAdd(sheets: any, queries: Query[]) {
     // Invalidate cache since row indices have shifted
     rowIndexCache.clear();
 
-    console.log(`[handleBatchAdd] Successfully added ${queries.length} queries`);
-    return NextResponse.json({ 
-      success: true, 
+    console.log(
+      `[handleBatchAdd] Successfully added ${queries.length} queries`,
+    );
+    return NextResponse.json({
+      success: true,
       queryIds: generatedIds,
-      count: queries.length 
+      count: queries.length,
     });
   } catch (error: any) {
     console.error(`[handleBatchAdd] Batch add FAILED:`, error.message);

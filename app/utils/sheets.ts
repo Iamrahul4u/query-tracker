@@ -55,6 +55,7 @@ export interface ViewPreferences {
   groupBy?: "type" | "bucket"; // User View only: group by Query Type or Bucket/Status
   hiddenBuckets?: string; // Comma-separated bucket letters like "A,B" or empty for none
   hiddenUsers?: string; // Comma-separated user emails or empty for none
+  segregatedBuckets?: string; // Comma-separated bucket letters to segregate by type (e.g., "A,B") or empty for none
 }
 
 export interface Preferences {

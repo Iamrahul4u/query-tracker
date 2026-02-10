@@ -481,16 +481,23 @@ export class SyncManager {
       updateStore(finalQueries);
       LocalStorageCache.saveQueries(finalQueries);
 
-      console.log(`[SyncManager] Successfully batch added ${queriesData.length} queries`);
+      console.log(
+        `[SyncManager] Successfully batch added ${queriesData.length} queries`,
+      );
       return { success: true, queryIds: realIds };
     } catch (error: any) {
       // Rollback ALL - keep in drafts
-      console.error(`[SyncManager] Batch add failed, rolling back:`, error.message);
+      console.error(
+        `[SyncManager] Batch add failed, rolling back:`,
+        error.message,
+      );
       updateStore(currentQueries);
 
       return {
         success: false,
-        error: error.message || "Failed to batch add queries. They remain in drafts.",
+        error:
+          error.message ||
+          "Failed to batch add queries. They remain in drafts.",
       };
     }
   }
@@ -893,6 +900,15 @@ export class SyncManager {
         if (fields.Remarks !== undefined && fields.Remarks !== q.Remarks) {
           updated["Remark Added By"] = currentUserEmail;
           updated["Remark Added Date Time"] = now;
+        }
+
+        // CRITICAL: If "Assigned To" is being set/changed, update assignment audit trail optimistically
+        if (
+          fields["Assigned To"] !== undefined &&
+          fields["Assigned To"] !== q["Assigned To"]
+        ) {
+          updated["Assigned By"] = currentUserEmail;
+          updated["Assignment Date Time"] = now;
         }
 
         // Auto-fill date fields based on status

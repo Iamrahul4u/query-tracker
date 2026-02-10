@@ -34,6 +34,7 @@ export function useDashboardPreferences() {
   const [groupBy, setGroupBy] = useState<"type" | "bucket">("bucket");
   const [hiddenBuckets, setHiddenBuckets] = useState<string[]>([]);
   const [hiddenUsers, setHiddenUsers] = useState<string[]>([]);
+  const [segregatedBuckets, setSegregatedBuckets] = useState<string[]>([]); // Buckets to segregate by type
 
   // Track if there are unsaved changes
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
@@ -136,6 +137,15 @@ export function useDashboardPreferences() {
     } else {
       setHiddenUsers([]);
     }
+
+    // Parse segregatedBuckets
+    if (viewPrefs.segregatedBuckets) {
+      setSegregatedBuckets(
+        viewPrefs.segregatedBuckets.split(",").map((b) => b.trim()),
+      );
+    } else {
+      setSegregatedBuckets([]);
+    }
   }, [localStorageKey]); // ONLY depend on localStorageKey, NOT backend preferences
 
   // Switch view and load its preferences
@@ -230,6 +240,11 @@ export function useDashboardPreferences() {
 
   const updateHiddenUsers = (users: string[]) => {
     setHiddenUsers(users);
+    setHasPendingChanges(true);
+  };
+
+  const updateSegregatedBuckets = (buckets: string[]) => {
+    setSegregatedBuckets(buckets);
     setHasPendingChanges(true);
   };
 
@@ -399,6 +414,8 @@ export function useDashboardPreferences() {
       groupBy,
       hiddenBuckets: hiddenBuckets.length > 0 ? hiddenBuckets.join(",") : "",
       hiddenUsers: hiddenUsers.length > 0 ? hiddenUsers.join(",") : "",
+      segregatedBuckets:
+        segregatedBuckets.length > 0 ? segregatedBuckets.join(",") : "",
     };
 
     // Load existing preferences from localStorage
@@ -467,6 +484,7 @@ export function useDashboardPreferences() {
     groupBy,
     hiddenBuckets,
     hiddenUsers,
+    segregatedBuckets,
     hasPendingChanges,
     showUndo,
     updateViewMode,
@@ -480,6 +498,7 @@ export function useDashboardPreferences() {
     updateGroupBy,
     updateHiddenBuckets,
     updateHiddenUsers,
+    updateSegregatedBuckets,
     saveView,
     resetToDefaults,
     undoReset,

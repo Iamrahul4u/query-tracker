@@ -109,10 +109,12 @@ export function QueryDetailModal({
   const isOwnQuery = assignedToLC && assignedToLC === userEmailLC;
 
   // Edit button restrictions:
-  // - Senior/Admin/Pseudo Admin: Can edit ANY query
-  // - Junior: Can edit ONLY their own queries (assigned to them) EXCEPT in G/H buckets
+  // - Bucket A: ALL users can edit (no restrictions)
+  // - Senior/Admin/Pseudo Admin: Can edit ANY query in any bucket
+  // - Junior: Can edit their own queries EXCEPT in G/H buckets
   const canEdit =
-    isAdminOrSenior || // Admin/Senior can edit all
+    query.Status === "A" || // ALL users can edit Bucket A
+    isAdminOrSenior || // Admin/Senior can edit all buckets
     (isOwnQuery && query.Status !== "G" && query.Status !== "H"); // Junior can edit own except G/H
 
   const handleEdit = () => {

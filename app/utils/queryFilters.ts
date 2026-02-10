@@ -4,7 +4,8 @@ import { BUCKET_ORDER } from "../config/sheet-constants";
 /**
  * Filter queries based on user role
  * - Admin/Senior: See all queries
- * - Junior: See ALL Bucket A + Own assigned queries in B-G
+ * - Junior: See ALL Bucket A + Own assigned queries in B-F
+ *   + G/H queries for 24 hours after approval only
  *   (Action restrictions handled in component button visibility)
  */
 export function getVisibleQueries(
@@ -22,16 +23,81 @@ export function getVisibleQueries(
 
   // Junior sees:
   // 1. Bucket A - ALL queries (action restrictions in UI components)
-  // 2. Bucket B-G - ONLY their own assigned queries
+  // 2. Bucket B-F - ONLY their own assigned queries
+  // 3. Bucket G/H - ONLY their own queries AND only for 24 hours after approval
   return queries.filter((q) => {
+    const bucket = q.Status;
+
     // Show all Bucket A queries to Junior
-    if (q.Status === "A") {
+    if (bucket === "A") {
       return true;
     }
 
-    // For all other buckets (B-G), only show if assigned to this user
+    // For G/H buckets: Apply 24-hour visibility rule
+    if (bucket === "G" || bucket === "H") {
+      // Must be assigned to this junior
+      const isAssignedToMe =
+        q["Assigned To"] && q["Assigned To"].toLowerCase() === userEmail;
+      if (!isAssignedToMe) return false;
+
+      // Check if approved and within 24 hours
+      if (bucket === "G") {
+        // Discarded queries: Check Discarded Date Time
+        const discardedDate = q["Discarded Date Time"];
+        if (!discardedDate) return false; // No discard date = hide
+
+        const date = parseDateRobust(discardedDate);
+        if (!date) return false;
+
+        const now = new Date();
+        const hoursSinceDiscard =
+          (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+        return hoursSinceDiscard <= 24;
+      }
+
+      if (bucket === "H") {
+        // Deleted queries: Only show if approved AND within 24 hours
+        const approvedDate = q["Delete Approved Date Time"];
+        if (!approvedDate) {
+          // Not yet approved - show pending deletions to junior (their own queries)
+          return true;
+        }
+
+        const date = parseDateRobust(approvedDate);
+        if (!date) return false;
+
+        const now = new Date();
+        const hoursSinceApproval =
+          (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+        return hoursSinceApproval <= 24;
+      }
+    }
+
+    // For all other buckets (B-F), only show if assigned to this user
     return q["Assigned To"] && q["Assigned To"].toLowerCase() === userEmail;
   });
+}
+
+/**
+ * Robust date parsing - handles DD/MM/YYYY format (from Google Sheets)
+ */
+function parseDateRobust(dateStr: string): Date | null {
+  if (!dateStr) return null;
+
+  // Normalize: handle both "DD/MM/YYYY, HH:MM:SS" and "DD/MM/YYYY HH:MM:SS"
+  const normalized = dateStr.replace(", ", " ");
+  const parts = normalized.split(" ")[0].split("/");
+
+  if (parts.length === 3) {
+    // Parse as DD/MM/YYYY
+    const [day, month, year] = parts.map((p) => parseInt(p, 10));
+    const date = new Date(year, month - 1, day);
+    if (!isNaN(date.getTime())) return date;
+  }
+
+  // Fallback to standard parse
+  const fallback = new Date(dateStr);
+  return !isNaN(fallback.getTime()) ? fallback : null;
 }
 
 /**
@@ -112,11 +178,19 @@ export function groupQueriesByBucket(
 
 /**
  * Group queries by assigned user
+ * Special handling: Bucket A queries are grouped under "__BUCKET_A__" key
  */
 export function groupQueriesByUser(queries: Query[]): Record<string, Query[]> {
   const grouped: Record<string, Query[]> = {};
 
   queries.forEach((q) => {
+    // Bucket A queries go to special "__BUCKET_A__" group
+    if (q.Status === "A") {
+      if (!grouped["__BUCKET_A__"]) grouped["__BUCKET_A__"] = [];
+      grouped["__BUCKET_A__"].push(q);
+      return;
+    }
+
     const user = q["Assigned To"] || "Unassigned";
 
     // Check if this is a PENDING deletion query (same logic as groupQueriesByBucket)
@@ -194,28 +268,6 @@ export function filterByHistoryDays(
 }
 
 /**
- * Robust date parsing - handles DD/MM/YYYY format (from Google Sheets)
- */
-function parseDateRobust(dateStr: string): Date | null {
-  if (!dateStr) return null;
-
-  // Normalize: handle both "DD/MM/YYYY, HH:MM:SS" and "DD/MM/YYYY HH:MM:SS"
-  const normalized = dateStr.replace(", ", " ");
-  const parts = normalized.split(" ")[0].split("/");
-
-  if (parts.length === 3) {
-    // Parse as DD/MM/YYYY
-    const [day, month, year] = parts.map((p) => parseInt(p, 10));
-    const date = new Date(year, month - 1, day);
-    if (!isNaN(date.getTime())) return date;
-  }
-
-  // Fallback to standard parse
-  const fallback = new Date(dateStr);
-  return !isNaN(fallback.getTime()) ? fallback : null;
-}
-
-/**
  * Check if a Bucket B query is "Already Allocated" (assigned date older than today 00:00)
  * Used as a virtual type grouping for Bucket B only.
  */
@@ -231,15 +283,71 @@ export function isAlreadyAllocated(q: Query, bucketKey: string): boolean {
 }
 
 /**
+ * Get the effective type for a query, including "Already Allocated" pseudo-type for Bucket B
+ */
+export function getEffectiveQueryType(q: Query): string {
+  const bucketStatus = q.Status;
+  const queryType = (q["Query Type"] || "").trim();
+
+  // Special case: Bucket B with old assignment date
+  if (bucketStatus === "B" && isAlreadyAllocated(q, "B")) {
+    return "Already Allocated";
+  }
+
+  return queryType || "Other";
+}
+
+/**
+ * Group queries by primary dimension (bucket or type), then by secondary dimension
+ * Returns nested structure: Record<primary, Record<secondary, Query[]>>
+ *
+ * Example when primaryBy="bucket", secondaryBy="type":
+ * {
+ *   "B": { "New": [query1, query2], "SEO Query": [query3] },
+ *   "C": { "Ongoing": [query4] }
+ * }
+ */
+export function groupQueriesByPrimaryAndSecondary(
+  queries: Query[],
+  primaryBy: "bucket" | "type",
+  secondaryBy: "type" | "bucket",
+): Record<string, Record<string, Query[]>> {
+  const grouped: Record<string, Record<string, Query[]>> = {};
+
+  queries.forEach((q) => {
+    const primaryKey =
+      primaryBy === "bucket" ? q.Status : getEffectiveQueryType(q);
+    const secondaryKey =
+      secondaryBy === "bucket" ? q.Status : getEffectiveQueryType(q);
+
+    if (!primaryKey) return;
+
+    if (!grouped[primaryKey]) {
+      grouped[primaryKey] = {};
+    }
+
+    if (!grouped[primaryKey][secondaryKey]) {
+      grouped[primaryKey][secondaryKey] = [];
+    }
+
+    grouped[primaryKey][secondaryKey].push(q);
+  });
+
+  return grouped;
+}
+
+/**
  * Split queries into already-allocated and regular for Bucket B display.
  * For non-B buckets, all queries go to regular.
  */
 export function splitAlreadyAllocated(
   queries: Query[],
-  bucketKey: string
+  bucketKey: string,
 ): { alreadyAllocated: Query[]; regular: Query[] } {
   if (bucketKey !== "B") return { alreadyAllocated: [], regular: queries };
-  const alreadyAllocated = queries.filter((q) => isAlreadyAllocated(q, bucketKey));
+  const alreadyAllocated = queries.filter((q) =>
+    isAlreadyAllocated(q, bucketKey),
+  );
   const regular = queries.filter((q) => !isAlreadyAllocated(q, bucketKey));
   return { alreadyAllocated, regular };
 }

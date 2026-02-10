@@ -29,7 +29,8 @@ interface QueryRow {
 }
 
 export function AddQueryModal({ onClose }: AddQueryModalProps) {
-  const { currentUser, users, addQueryOptimistic, batchAddQueriesOptimistic } = useQueryStore();
+  const { currentUser, users, addQueryOptimistic, batchAddQueriesOptimistic } =
+    useQueryStore();
 
   // Get last selected user from localStorage for defaults
   const getLastSelectedUser = () => {
@@ -397,7 +398,8 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
         // Batch failed - keep drafts for retry
         setIsSubmitting(false);
         setError(
-          result.error || "Failed to add queries. Your drafts are saved and can be retried.",
+          result.error ||
+            "Failed to add queries. Your drafts are saved and can be retried.",
         );
       }
     } catch (err) {
@@ -408,7 +410,6 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
       );
     }
   };
-
 
   return (
     <div
@@ -479,7 +480,9 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
 
                   {/* Query Type - compact pills with border container */}
                   <div className="flex gap-0.5 flex-shrink-0 border border-gray-200 rounded p-0.5 bg-white">
-                    {QUERY_TYPE_ORDER.map((type) => (
+                    {QUERY_TYPE_ORDER.filter(
+                      (type) => type !== "Already Allocated",
+                    ).map((type) => (
                       <button
                         key={type}
                         type="button"

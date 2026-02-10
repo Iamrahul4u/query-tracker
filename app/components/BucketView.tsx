@@ -26,6 +26,7 @@ interface BucketViewProps {
   currentUserEmail?: string;
   detailView?: boolean;
   hiddenBuckets?: string[];
+  segregatedBuckets?: string[];
 }
 
 export function BucketView({
@@ -48,6 +49,7 @@ export function BucketView({
   currentUserEmail = "",
   detailView = false,
   hiddenBuckets = [],
+  segregatedBuckets = [],
 }: BucketViewProps) {
   // Filter visible buckets
   const visibleBuckets = BUCKET_ORDER.filter((b) => !hiddenBuckets.includes(b));
@@ -96,6 +98,7 @@ export function BucketView({
             currentUserEmail={currentUserEmail}
             detailView={detailView}
             hiddenBuckets={hiddenBuckets}
+            segregatedBuckets={segregatedBuckets}
           />
         ) : (
           <BucketViewLinear
@@ -117,6 +120,7 @@ export function BucketView({
             currentUserEmail={currentUserEmail}
             detailView={detailView}
             hiddenBuckets={hiddenBuckets}
+            segregatedBuckets={segregatedBuckets}
           />
         )}
       </div>

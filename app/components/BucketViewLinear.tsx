@@ -29,6 +29,7 @@ interface BucketViewLinearProps {
   currentUserEmail?: string;
   detailView?: boolean;
   hiddenBuckets?: string[];
+  segregatedBuckets?: string[];
 }
 
 /**
@@ -58,12 +59,82 @@ export function BucketViewLinear({
   currentUserEmail = "",
   detailView = false,
   hiddenBuckets = [],
+  segregatedBuckets = [],
 }: BucketViewLinearProps) {
-  // Filter visible buckets and split into rows based on column count
+  // Filter visible buckets
   const visibleBuckets = BUCKET_ORDER.filter((b) => !hiddenBuckets.includes(b));
-  const rows: string[][] = [];
-  for (let i = 0; i < visibleBuckets.length; i += columnCount) {
-    rows.push(visibleBuckets.slice(i, i + columnCount));
+
+  // Expand segregated buckets into sub-buckets by type
+  const expandedBuckets: Array<{
+    key: string;
+    bucketKey: string;
+    typeName?: string;
+  }> = [];
+
+  visibleBuckets.forEach((bucketKey) => {
+    if (segregatedBuckets.includes(bucketKey)) {
+      // Segregate this bucket by query type
+      const bucketQueries = groupedQueries[bucketKey] || [];
+      const { alreadyAllocated, regular } = splitAlreadyAllocated(
+        bucketQueries,
+        bucketKey,
+      );
+
+      // Group regular queries by type
+      const typeGroups: Record<string, Query[]> = {};
+      regular.forEach((q) => {
+        const qType = (q["Query Type"] || "").trim() || "Other";
+        if (!typeGroups[qType]) typeGroups[qType] = [];
+        typeGroups[qType].push(q);
+      });
+
+      // Add sub-buckets in QUERY_TYPE_ORDER
+      QUERY_TYPE_ORDER.forEach((typeName) => {
+        if (typeName === "Already Allocated") return; // Handle separately
+        if (typeGroups[typeName] && typeGroups[typeName].length > 0) {
+          expandedBuckets.push({
+            key: `${bucketKey}-${typeName}`,
+            bucketKey,
+            typeName,
+          });
+        }
+      });
+
+      // Add "Other" types not in QUERY_TYPE_ORDER
+      Object.keys(typeGroups).forEach((typeName) => {
+        if (
+          !QUERY_TYPE_ORDER.includes(typeName) &&
+          typeGroups[typeName].length > 0
+        ) {
+          expandedBuckets.push({
+            key: `${bucketKey}-${typeName}`,
+            bucketKey,
+            typeName,
+          });
+        }
+      });
+
+      // Add "Already Allocated" at the end (Bucket B only)
+      if (alreadyAllocated.length > 0) {
+        expandedBuckets.push({
+          key: `${bucketKey}-Already Allocated`,
+          bucketKey,
+          typeName: "Already Allocated",
+        });
+      }
+    } else {
+      // Not segregated - show as single bucket
+      expandedBuckets.push({
+        key: bucketKey,
+        bucketKey,
+      });
+    }
+  });
+
+  // Split expanded buckets into rows based on column count
+  const rows: (typeof expandedBuckets)[] = [];
+  for (let i = 0; i < expandedBuckets.length; i += columnCount) {
+    rows.push(expandedBuckets.slice(i, i + columnCount));
   }
 
   return (
@@ -120,7 +191,7 @@ function SynchronizedRow({
   currentUserEmail = "",
   detailView = false,
 }: {
-  buckets: string[];
+  buckets: Array<{ key: string; bucketKey: string; typeName?: string }>;
   groupedQueries: Record<string, Query[]>;
   users: User[];
   columnCount: number;
@@ -254,36 +325,65 @@ function SynchronizedRow({
 
   return (
     <div ref={rowRef} className={`grid gap-4 ${gridClass}`}>
-      {buckets.map((bucketKey) => (
-        <BucketColumnWithSync
-          key={bucketKey}
-          bucketKey={bucketKey}
-          config={BUCKETS[bucketKey]}
-          queries={groupedQueries[bucketKey] || []}
-          users={users}
-          onSelectQuery={onSelectQuery}
-          onAssignQuery={onAssignQuery}
-          onEditQuery={onEditQuery}
-          onApproveDelete={onApproveDelete}
-          onRejectDelete={onRejectDelete}
-          onLoadMore={onLoadMore}
-          extendedDays={extendedDays[bucketKey] || 3}
-          isLoading={loadingBuckets.has(bucketKey)}
-          scrollRef={(el) => {
-            if (el) {
-              scrollRefs.current.set(bucketKey, el);
-            } else {
-              scrollRefs.current.delete(bucketKey);
-            }
-          }}
-          isFilterExpanded={isFilterExpanded}
-          showDateOnCards={showDateOnCards}
-          dateField={BUCKETS[bucketKey].defaultSortField as DateFieldKey}
-          currentUserRole={currentUserRole}
-          currentUserEmail={currentUserEmail}
-          detailView={detailView}
-        />
-      ))}
+      {buckets.map((bucket) => {
+        const { key, bucketKey, typeName } = bucket;
+        const config = BUCKETS[bucketKey];
+
+        // Get queries for this bucket/sub-bucket
+        let queries = groupedQueries[bucketKey] || [];
+
+        // If segregated (has typeName), filter to only that type
+        if (typeName) {
+          if (typeName === "Already Allocated") {
+            const { alreadyAllocated } = splitAlreadyAllocated(
+              queries,
+              bucketKey,
+            );
+            queries = alreadyAllocated;
+          } else {
+            queries = queries.filter((q) => {
+              const qType = (q["Query Type"] || "").trim() || "Other";
+              return qType === typeName;
+            });
+          }
+        }
+
+        // Sub-bucket name for segregated buckets
+        const displayName = typeName
+          ? `${config.name.split(") ")[0]}) ${config.name.split(") ")[1]} - ${typeName}`
+          : config.name;
+
+        return (
+          <BucketColumnWithSync
+            key={key}
+            bucketKey={key}
+            config={{ ...config, name: displayName }}
+            queries={queries}
+            users={users}
+            onSelectQuery={onSelectQuery}
+            onAssignQuery={onAssignQuery}
+            onEditQuery={onEditQuery}
+            onApproveDelete={onApproveDelete}
+            onRejectDelete={onRejectDelete}
+            onLoadMore={typeName ? undefined : onLoadMore} // Only show Load More for non-segregated buckets
+            extendedDays={extendedDays[bucketKey] || 3}
+            isLoading={loadingBuckets.has(bucketKey)}
+            scrollRef={(el) => {
+              if (el) {
+                scrollRefs.current.set(key, el);
+              } else {
+                scrollRefs.current.delete(key);
+              }
+            }}
+            isFilterExpanded={isFilterExpanded}
+            showDateOnCards={showDateOnCards}
+            dateField={BUCKETS[bucketKey].defaultSortField as DateFieldKey}
+            currentUserRole={currentUserRole}
+            currentUserEmail={currentUserEmail}
+            detailView={detailView}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -416,7 +516,10 @@ function BucketColumnWithSync({
           <div className="p-1.5 space-y-2 flex-1">
             {/* Group by Query Type: SEO Query -> New -> Ongoing -> On Hold */}
             {(() => {
-              const { alreadyAllocated: alreadyAllocatedQueries, regular: regularQueries } = splitAlreadyAllocated(queries, bucketKey);
+              const {
+                alreadyAllocated: alreadyAllocatedQueries,
+                regular: regularQueries,
+              } = splitAlreadyAllocated(queries, bucketKey);
 
               return (
                 <>
@@ -435,11 +538,17 @@ function BucketColumnWithSync({
                         key={`${bucketKey}-${groupName}`}
                         className={`rounded-lg border ${colors.border} ${colors.bg} overflow-hidden`}
                       >
-                        <div className={`flex items-center justify-between px-2 py-1 ${colors.bg}`}>
-                          <h4 className={`text-xs font-bold ${colors.text} uppercase tracking-wider`}>
+                        <div
+                          className={`flex items-center justify-between px-2 py-1 ${colors.bg}`}
+                        >
+                          <h4
+                            className={`text-xs font-bold ${colors.text} uppercase tracking-wider`}
+                          >
                             {groupName}
                           </h4>
-                          <span className={`${colors.text} text-xs font-bold px-2 py-0.5 rounded-full bg-white/50`}>
+                          <span
+                            className={`${colors.text} text-xs font-bold px-2 py-0.5 rounded-full bg-white/50`}
+                          >
                             {typeQueries.length}
                           </span>
                         </div>
@@ -472,16 +581,38 @@ function BucketColumnWithSync({
                     const qType = (q["Query Type"] || "").trim();
                     return !QUERY_TYPE_ORDER.includes(qType);
                   }).length > 0 && (
-                    <div className={`rounded-lg border ${typeColors.Other.border} ${typeColors.Other.bg} overflow-hidden`}>
-                      <div className={`flex items-center justify-between px-2 py-1 ${typeColors.Other.bg}`}>
-                        <h4 className={`text-xs font-bold ${typeColors.Other.text} uppercase tracking-wider`}>Other</h4>
-                        <span className={`${typeColors.Other.text} text-xs font-bold px-2 py-0.5 rounded-full bg-white/50`}>
-                          {regularQueries.filter((q) => !QUERY_TYPE_ORDER.includes((q["Query Type"] || "").trim())).length}
+                    <div
+                      className={`rounded-lg border ${typeColors.Other.border} ${typeColors.Other.bg} overflow-hidden`}
+                    >
+                      <div
+                        className={`flex items-center justify-between px-2 py-1 ${typeColors.Other.bg}`}
+                      >
+                        <h4
+                          className={`text-xs font-bold ${typeColors.Other.text} uppercase tracking-wider`}
+                        >
+                          Other
+                        </h4>
+                        <span
+                          className={`${typeColors.Other.text} text-xs font-bold px-2 py-0.5 rounded-full bg-white/50`}
+                        >
+                          {
+                            regularQueries.filter(
+                              (q) =>
+                                !QUERY_TYPE_ORDER.includes(
+                                  (q["Query Type"] || "").trim(),
+                                ),
+                            ).length
+                          }
                         </span>
                       </div>
                       <div className="p-2 space-y-1 bg-white">
                         {regularQueries
-                          .filter((q) => !QUERY_TYPE_ORDER.includes((q["Query Type"] || "").trim()))
+                          .filter(
+                            (q) =>
+                              !QUERY_TYPE_ORDER.includes(
+                                (q["Query Type"] || "").trim(),
+                              ),
+                          )
                           .map((query, idx) => (
                             <QueryCardCompact
                               key={`${bucketKey}-other-${query["Query ID"]}-${idx}`}

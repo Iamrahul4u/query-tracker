@@ -130,8 +130,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
   // Permission Check (from role-based-access-control.md)
   // - Senior/Admin/Pseudo Admin: Can edit ANY query
-  // - Junior: Can edit ONLY their own queries (assigned to them)
-  const canEdit = isAdminOrSenior || isAssignedToMe;
+  // - Junior: Can edit Bucket A queries (to add remarks, will self-assign) OR their own queries
+  const canEdit = isAdminOrSenior || query.Status === "A" || isAssignedToMe;
 
   const handleSave = () => {
     if (!canEdit) return;
@@ -139,8 +139,26 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     // Clear previous error
     setError("");
 
+    // Auto-assign for juniors moving from Bucket A to another bucket
+    let finalAssignedTo = assignedTo;
+    let finalFormData = { ...formData };
+
+    if (
+      !isAdminOrSenior &&
+      query.Status === "A" &&
+      status !== "A" &&
+      !assignedTo
+    ) {
+      // Junior moving from A to another bucket without assignment -> self-assign
+      finalAssignedTo = currentUser?.Email || "";
+      finalFormData = {
+        ...formData,
+        "Assigned To": finalAssignedTo,
+      };
+    }
+
     // Validation: Block status change from A to other buckets without assignment
-    if (status !== "A" && !assignedTo) {
+    if (status !== "A" && !finalAssignedTo) {
       setError("Please assign a user before moving to next status");
       setTimeout(() => {
         errorRef.current?.scrollIntoView({
@@ -151,15 +169,41 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
       return;
     }
 
+    // CRITICAL: Remove ALL audit trail fields from finalFormData before sending
+    // These fields should NEVER be overwritten by the edit modal - they're managed by backend
+    const protectedAuditFields = [
+      "Added By",
+      "Added Date Time",
+      "Assigned By",
+      "Assignment Date Time",
+      "Last Edited By",
+      "Last Edited Date Time",
+      "Remark Added By",
+      "Remark Added Date Time",
+      "Delete Requested By",
+      "Delete Requested Date Time",
+      "Delete Approved By",
+      "Delete Approved Date Time",
+      "Delete Rejected By",
+      "Delete Rejected Date Time",
+      "Last Activity Date Time",
+    ];
+
+    // Create clean data object without protected audit fields
+    const cleanFormData = { ...finalFormData };
+    protectedAuditFields.forEach((field) => {
+      delete cleanFormData[field as keyof Query];
+    });
+
     // Note: Event ID and Title are optional for E/F per Feb 5th meeting
     // (Previous validation requiring these fields has been removed)
 
     if (status !== query.Status) {
-      // Status Changed -> Use updateStatusOptimistic
-      updateStatusOptimistic(query["Query ID"], status, formData);
+      // Status Changed -> Use updateStatusOptimistic with clean form data
+      updateStatusOptimistic(query["Query ID"], status, cleanFormData);
     } else {
-      // Only fields changed -> Use editQueryOptimistic
-      editQueryOptimistic(query["Query ID"], formData);
+      // Only fields changed -> Use editQueryOptimistic with clean form data
+      editQueryOptimistic(query["Query ID"], cleanFormData);
     }
     onClose();
   };
@@ -226,9 +270,11 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     // Query Description should always be editable
     if (field === "Query Description") return true;
     // Query Type is visible in A-F per FRD (each bucket section lists "Query type" as visible field)
-    if (field === "Query Type") return ["A", "B", "C", "D", "E", "F"].includes(s);
+    if (field === "Query Type")
+      return ["A", "B", "C", "D", "E", "F"].includes(s);
     // Remarks editable in all buckets (A-H) by any role
-    if (field === "Remarks") return ["A", "B", "C", "D", "E", "F", "G", "H"].includes(s);
+    if (field === "Remarks")
+      return ["A", "B", "C", "D", "E", "F", "G", "H"].includes(s);
     if (field === "Whats Pending") return ["D", "E", "F"].includes(s);
     if (field === "Event ID in SF") return ["E", "F"].includes(s);
     if (field === "Event Title in SF") return ["E", "F"].includes(s);
@@ -311,29 +357,29 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
             </h4>
             <div className="grid grid-cols-2 gap-2">
               {/* Added Date - Show for all buckets */}
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    Added Date
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={
-                      formData["Added Date Time"]
-                        ? convertToDateTimeLocal(formData["Added Date Time"])
-                        : ""
-                    }
-                    onChange={(e) =>
-                      updateField(
-                        "Added Date Time",
-                        convertFromDateTimeLocal(e.target.value),
-                      )
-                    }
-                    className={getInputClass("Added Date Time", "text-xs")}
-                  />
-                </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">
+                  Added Date
+                </label>
+                <input
+                  type="datetime-local"
+                  value={
+                    formData["Added Date Time"]
+                      ? convertToDateTimeLocal(formData["Added Date Time"])
+                      : ""
+                  }
+                  onChange={(e) =>
+                    updateField(
+                      "Added Date Time",
+                      convertFromDateTimeLocal(e.target.value),
+                    )
+                  }
+                  className={getInputClass("Added Date Time", "text-xs")}
+                />
+              </div>
 
-
-              {/* Assigned Date - Show for all buckets */}
+              {/* Assigned Date - Show for B-H (not A) */}
+              {status !== "A" && (
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
                     Assigned Date
@@ -356,9 +402,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     className={getInputClass("Assignment Date Time", "text-xs")}
                   />
                 </div>
+              )}
 
-
-              {/* Proposal Sent Date - Show for all buckets */}
+              {/* Proposal Sent Date - Show for C-H (not A, B) */}
+              {!["A", "B"].includes(status) && (
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
                     Proposal Sent Date
@@ -384,8 +431,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     )}
                   />
                 </div>
+              )}
 
-              {/* SF Entry Date - Show for all buckets */}
+              {/* SF Entry Date - Show for E-H (not A, B, C, D) */}
+              {["E", "F", "G", "H"].includes(status) && (
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
                     SF Entry Date
@@ -411,6 +460,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     )}
                   />
                 </div>
+              )}
 
               {/* Discarded Date - Show only for G - Only seniors can access G */}
               {status === "G" && (
@@ -549,7 +599,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 Query Type
               </label>
               <div className="flex gap-2">
-                {QUERY_TYPE_ORDER.map((type) => (
+                {QUERY_TYPE_ORDER.filter(
+                  (type) => type !== "Already Allocated",
+                ).map((type) => (
                   <button
                     key={type}
                     type="button"
@@ -733,7 +785,12 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 onClick={handleSave}
                 className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 text-sm"
               >
-                Save Changes
+                {!isAdminOrSenior &&
+                query.Status === "A" &&
+                status !== "A" &&
+                !assignedTo
+                  ? "Self Assign & Save"
+                  : "Save Changes"}
               </button>
             )}
           </div>

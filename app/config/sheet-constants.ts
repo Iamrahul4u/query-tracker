@@ -135,4 +135,10 @@ export const BUCKETS: Record<string, BucketConfig> = {
 
 export const BUCKET_ORDER = Object.keys(BUCKETS);
 
-export const QUERY_TYPE_ORDER = ["SEO Query", "New", "Ongoing", "On Hold"];
+export const QUERY_TYPE_ORDER = [
+  "SEO Query",
+  "New",
+  "Ongoing",
+  "On Hold",
+  "Already Allocated", // Pseudo-type for Bucket B (Assignment Date < today 00:00)
+];

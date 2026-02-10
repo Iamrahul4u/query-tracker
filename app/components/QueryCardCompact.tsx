@@ -33,6 +33,7 @@ export const QueryCardCompact = memo(function QueryCardCompact({
   currentUserRole = "",
   currentUserEmail = "",
   detailView = false,
+  isUserView = false,
 }: {
   query: Query;
   users: User[];
@@ -47,6 +48,7 @@ export const QueryCardCompact = memo(function QueryCardCompact({
   currentUserRole?: string;
   currentUserEmail?: string;
   detailView?: boolean;
+  isUserView?: boolean;
 }) {
   const [showAssignDropdown, setShowAssignDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState(""); // Search filter for assign dropdown
@@ -277,15 +279,17 @@ export const QueryCardCompact = memo(function QueryCardCompact({
     !isGhost && (!isJunior || (bucketStatus === "A" && isTrulyUnassigned));
 
   // Edit button logic (from role-based-access-control.md):
-  // - Senior/Admin/Pseudo Admin: Can edit ANY query
-  // - Junior: Can edit ONLY their own queries (assigned to them) EXCEPT in G/H buckets
+  // - Bucket A: ALL users can edit (no restrictions)
+  // - Senior/Admin/Pseudo Admin: Can edit ANY query in any bucket
+  // - Junior: Can edit their own queries EXCEPT in G/H buckets
   // Ghost queries: NO actions allowed
   const isAdminOrSenior = ["admin", "pseudo admin", "senior"].includes(roleLC);
   // Reuse already-defined variables: userEmailLC, assignedToLC, isOwnQuery
 
   const showEditButton =
     !isGhost &&
-    (isAdminOrSenior || // Admin/Senior can edit all
+    (bucketStatus === "A" || // ALL users can edit Bucket A
+      isAdminOrSenior || // Admin/Senior can edit all buckets
       (isOwnQuery && bucketStatus !== "G" && bucketStatus !== "H")); // Junior can edit own except G/H
 
   // Dropdown content for AssignDropdown - search box stays close to trigger
@@ -516,8 +520,8 @@ export const QueryCardCompact = memo(function QueryCardCompact({
               </Tooltip>
             )}
 
-            {/* Compact mode: Display Name inline with description */}
-            {!detailView && assignedUser && (
+            {/* Compact mode: Display Name inline with description (hidden in User View) */}
+            {!detailView && !isUserView && assignedUser && (
               <span className="text-[10px] text-gray-500 flex items-center gap-0.5 flex-shrink-0">
                 <UserCheck className="w-3 h-3" />
                 <span>
@@ -528,8 +532,8 @@ export const QueryCardCompact = memo(function QueryCardCompact({
               </span>
             )}
 
-            {/* Detail mode: Display Name inline */}
-            {detailView && assignedUser && (
+            {/* Detail mode: Display Name inline (hidden in User View) */}
+            {detailView && !isUserView && assignedUser && (
               <span className="text-[10px] text-gray-500 flex items-center gap-1 flex-shrink-0">
                 <UserCheck className="w-3 h-3" />
                 <span>
@@ -664,9 +668,31 @@ export const QueryCardCompact = memo(function QueryCardCompact({
           </div>
         </div>
 
-        {/* Row 2: All Applicable Dates (Detail View Only) - Compact format */}
+        {/* Row 2: Remarks (Detail View) + All Applicable Dates (Detail View Only) - Compact format */}
         {detailView && (
-          <div className="flex items-center gap-1 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Remarks - Truncated to ~25 chars with full text on hover */}
+            {query.Remarks && query.Remarks.trim() && (
+              <>
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <span className="text-[10px] text-gray-600 italic truncate max-w-[200px] cursor-help">
+                      "{query.Remarks.substring(0, 25)}
+                      {query.Remarks.length > 25 ? "..." : ""}"
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs max-w-xs">"{query.Remarks}"</p>
+                  </TooltipContent>
+                </Tooltip>
+                {/* Hyphen separator between remarks and dates */}
+                {getApplicableDates().length > 0 && (
+                  <span className="text-[10px] text-gray-400">-</span>
+                )}
+              </>
+            )}
+
+            {/* All Applicable Dates */}
             {getApplicableDates().map((dateInfo, idx) => (
               <span
                 key={idx}

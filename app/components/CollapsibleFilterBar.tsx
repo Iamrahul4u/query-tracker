@@ -51,6 +51,9 @@ interface CollapsibleFilterBarProps {
   onHiddenBucketsChange?: (buckets: string[]) => void;
   hiddenUsers?: string[];
   onHiddenUsersChange?: (users: string[]) => void;
+  // Segregated Buckets filter (Bucket View only)
+  segregatedBuckets?: string[];
+  onSegregatedBucketsChange?: (buckets: string[]) => void;
   // All users for the user filter dropdown
   allUsers?: Array<{ email: string; name: string }>;
 }
@@ -89,6 +92,8 @@ export function CollapsibleFilterBar({
   onHiddenBucketsChange,
   hiddenUsers = [],
   onHiddenUsersChange,
+  segregatedBuckets = [],
+  onSegregatedBucketsChange,
   allUsers = [],
 }: CollapsibleFilterBarProps) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -97,7 +102,9 @@ export function CollapsibleFilterBar({
   const [hiddenBucketDropdownOpen, setHiddenBucketDropdownOpen] =
     useState(false);
   const [hiddenUserDropdownOpen, setHiddenUserDropdownOpen] = useState(false);
+  const [segregatedDropdownOpen, setSegregatedDropdownOpen] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [searchExpanded, setSearchExpanded] = useState(false);
 
   // Check if user is Junior (cannot access User View)
   const isJunior = currentUserRole.toLowerCase() === "junior";
@@ -571,6 +578,104 @@ export function CollapsibleFilterBar({
     </div>
   );
 
+  // Toggle segregated bucket selection
+  const toggleSegregatedBucket = (bucket: string) => {
+    if (!onSegregatedBucketsChange) return;
+    if (segregatedBuckets.includes(bucket)) {
+      onSegregatedBucketsChange(segregatedBuckets.filter((b) => b !== bucket));
+    } else {
+      onSegregatedBucketsChange([...segregatedBuckets, bucket]);
+    }
+  };
+
+  // Segregate Buckets Filter (for Bucket View only)
+  const SegregateFilter = () => (
+    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+      <span className="text-[10px] font-medium text-gray-600">SEGREGATE:</span>
+      <div className="relative">
+        <button
+          onClick={() => setSegregatedDropdownOpen(!segregatedDropdownOpen)}
+          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition flex items-center gap-0.5 ${segregatedBuckets.length > 0 ? "bg-purple-50 text-purple-700 hover:bg-purple-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
+          title="Split selected buckets by query type"
+        >
+          {segregatedBuckets.length > 0
+            ? `${segregatedBuckets.length} Bucket${segregatedBuckets.length > 1 ? "s" : ""}`
+            : "None"}
+          <svg
+            className="w-2.5 h-2.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+        {segregatedDropdownOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setSegregatedDropdownOpen(false)}
+            />
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]">
+              <div className="p-2 space-y-1">
+                {/* Hide All / Show All buttons */}
+                <div className="flex gap-1 mb-1">
+                  <button
+                    onClick={() => onSegregatedBucketsChange?.([])}
+                    className="flex-1 px-2 py-1 text-[10px] text-center text-red-600 hover:bg-red-50 rounded border border-red-200"
+                  >
+                    Hide All
+                  </button>
+                  <button
+                    onClick={() =>
+                      onSegregatedBucketsChange?.(AVAILABLE_BUCKETS)
+                    }
+                    className="flex-1 px-2 py-1 text-[10px] text-center text-blue-600 hover:bg-blue-50 rounded border border-blue-200"
+                  >
+                    Show All
+                  </button>
+                </div>
+                <div className="border-t border-gray-100 my-1" />
+                {AVAILABLE_BUCKETS.map((bucket) => {
+                  const bucketConfig = BUCKETS[bucket];
+                  const isSegregated = segregatedBuckets.includes(bucket);
+                  return (
+                    <label
+                      key={bucket}
+                      className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSegregated}
+                        onChange={() => toggleSegregatedBucket(bucket)}
+                        className="w-3 h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                      />
+                      <span
+                        className="w-4 h-4 rounded text-[9px] flex items-center justify-center text-white font-bold"
+                        style={{ backgroundColor: bucketConfig.color }}
+                      >
+                        {bucket}
+                      </span>
+                      <span className="text-[10px] font-medium text-gray-700">
+                        {bucketConfig.name.split(") ")[1]?.split(" - ")[0] ||
+                          bucketConfig.name}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
   // SearchInput is inlined to prevent focus loss on re-render
 
   return (
@@ -600,8 +705,8 @@ export function CollapsibleFilterBar({
       </div>
 
       {isExpanded && (
-        <div className="max-w-full mx-auto px-2 sm:px-3 lg:px-4 py-1">
-          <div className="flex flex-wrap items-center gap-1">
+        <div className="max-w-full mx-auto px-1 py-1">
+          <div className="flex flex-wrap items-center gap-0.5">
             {/* View Toggle - Complete white box with label + controls - Hide for juniors (only one view) */}
             {!isJunior && (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
@@ -661,6 +766,13 @@ export function CollapsibleFilterBar({
               </div>
             )}
 
+            {/* Segregate Buckets Filter - Individual (Bucket View only) */}
+            {viewMode === "bucket" && onSegregatedBucketsChange && (
+              <div className="hidden lg:block">
+                <SegregateFilter />
+              </div>
+            )}
+
             {/* Show/Hide Users Filter - Individual (User View only) */}
             {viewMode === "user" && onHiddenUsersChange && (
               <div className="hidden lg:block">
@@ -668,9 +780,10 @@ export function CollapsibleFilterBar({
               </div>
             )}
 
-            {/* Sort Filter - Individual */}
+            {/* Sort Filter - Individual - Hide when search is expanded */}
             {(viewMode === "bucket" || viewMode === "user") &&
-              onSortFieldChange && (
+              onSortFieldChange &&
+              !searchExpanded && (
                 <div className="hidden lg:block">
                   <SortFilter />
                 </div>
@@ -734,10 +847,17 @@ export function CollapsibleFilterBar({
                   Save
                 </button>
               )}
-              <div className="relative w-36">
-                <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+
+              {/* Collapsible Search */}
+              {!searchExpanded ? (
+                /* Collapsed: Just the search icon */
+                <button
+                  onClick={() => setSearchExpanded(true)}
+                  className="px-2 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-200 rounded transition"
+                  title="Search Description"
+                >
                   <svg
-                    className="h-3 w-3 text-gray-400"
+                    className="h-3.5 w-3.5"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -749,18 +869,47 @@ export function CollapsibleFilterBar({
                       d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                     />
                   </svg>
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => onSearchChange?.(e.target.value)}
-                  className="block w-full pl-6 pr-2 py-1 border border-gray-200 rounded text-[10px] bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition"
-                  placeholder="Search Description"
-                />
-                {searchQuery && (
+                </button>
+              ) : (
+                /* Expanded: Full search input */
+                <div className="relative w-48">
+                  <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                    <svg
+                      className="h-3 w-3 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => onSearchChange?.(e.target.value)}
+                    onBlur={() => {
+                      // Collapse if empty
+                      if (!searchQuery) {
+                        setSearchExpanded(false);
+                      }
+                    }}
+                    autoFocus
+                    className="block w-full pl-6 pr-7 py-1 border border-gray-200 rounded text-[10px] bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition"
+                    placeholder="Search Description"
+                  />
+                  {/* Close button - always visible when expanded */}
                   <button
-                    onClick={() => onSearchChange?.("")}
+                    onClick={() => {
+                      onSearchChange?.("");
+                      setSearchExpanded(false);
+                    }}
                     className="absolute inset-y-0 right-0 pr-2 flex items-center"
+                    title="Close search"
                   >
                     <svg
                       className="h-3 w-3 text-gray-400 hover:text-gray-600"
@@ -776,8 +925,8 @@ export function CollapsibleFilterBar({
                       />
                     </svg>
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Mobile Filter Button - Shows drawer with all hidden filters */}

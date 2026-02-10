@@ -7,6 +7,10 @@ import {
   BUCKET_ORDER,
   QUERY_TYPE_ORDER,
 } from "../config/sheet-constants";
+import {
+  groupQueriesByPrimaryAndSecondary,
+  getEffectiveQueryType,
+} from "../utils/queryFilters";
 import { X } from "lucide-react";
 
 interface UserExpandModalProps {
@@ -24,7 +28,7 @@ interface UserExpandModalProps {
   groupBy?: "bucket" | "type"; // NEW: controls grouping order
 }
 
-// Flow items for newspaper layout
+// Flow items for newspaper layout with nested grouping
 type FlowItem =
   | {
       type: "bucketHeader";
@@ -32,11 +36,13 @@ type FlowItem =
       bucketName: string;
       bucketColor: string;
       count: number;
+      isMainCategory: boolean; // true if primary grouping, false if sub-header
     }
   | {
       type: "typeHeader";
       typeName: string;
       count: number;
+      isMainCategory: boolean; // true if primary grouping, false if sub-header
     }
   | {
       type: "query";
@@ -58,97 +64,191 @@ export function UserExpandModal({
   currentUserEmail = "",
   groupBy = "bucket", // Default: bucket-first grouping
 }: UserExpandModalProps) {
-  // Type colors for type-first grouping
+  // Type colors for type headers
   const typeColors: Record<string, string> = {
     "SEO Query": "#9333ea",
     New: "#22c55e",
     Ongoing: "#3b82f6",
     "On Hold": "#dc2626",
+    "Already Allocated": "#f97316", // Orange for Already Allocated
     Other: "#6b7280",
   };
 
-  // Build flow items for newspaper layout based on groupBy mode
+  // Build flow items for newspaper layout with nested grouping
   const flowItems: FlowItem[] = [];
 
-  if (groupBy === "type") {
-    // TYPE-FIRST GROUPING
-    const typeGroups: Record<string, Query[]> = {};
-    queries.forEach((query) => {
-      const type = query["Query Type"] || "Other";
-      if (!typeGroups[type]) {
-        typeGroups[type] = [];
-      }
-      typeGroups[type].push(query);
-    });
+  // Create nested grouping based on groupBy mode
+  const nestedGroups = groupQueriesByPrimaryAndSecondary(
+    queries,
+    groupBy === "bucket" ? "bucket" : "type",
+    groupBy === "bucket" ? "type" : "bucket",
+  );
 
-    // Sort types
-    const typeOrder = ["SEO Query", "New", "Ongoing", "Other"];
-    const sortedTypes = Object.keys(typeGroups).sort((a, b) => {
-      const indexA = typeOrder.indexOf(a);
-      const indexB = typeOrder.indexOf(b);
-      if (indexA === -1 && indexB === -1) return a.localeCompare(b);
-      if (indexA === -1) return 1;
-      if (indexB === -1) return -1;
-      return indexA - indexB;
-    });
+  if (groupBy === "bucket") {
+    // PRIMARY: Bucket → SECONDARY: Type
+    BUCKET_ORDER.forEach((bucketKey) => {
+      const typeGroups = nestedGroups[bucketKey];
+      if (!typeGroups || Object.keys(typeGroups).length === 0) return;
 
-    sortedTypes.forEach((type) => {
-      const typeQueries = typeGroups[type];
-      if (typeQueries.length === 0) return;
+      const bucketConfig = BUCKETS[bucketKey];
+      if (!bucketConfig) return;
 
-      // Add type header
-      flowItems.push({
-        type: "typeHeader",
-        typeName: type,
-        count: typeQueries.length,
-      });
+      // Calculate total queries in this bucket
+      const totalQueries = Object.values(typeGroups).reduce(
+        (sum, queries) => sum + queries.length,
+        0,
+      );
 
-      // Add queries for this type (with their bucket color)
-      typeQueries.forEach((query) => {
-        const bucketConfig = BUCKETS[query.Status] || { color: "#6b7280" };
-        flowItems.push({
-          type: "query",
-          query,
-          bucketColor: bucketConfig.color,
-        });
-      });
-    });
-  } else {
-    // BUCKET-FIRST GROUPING (default)
-    const groupedByBucket: Record<string, Query[]> = {};
-    BUCKET_ORDER.forEach((bucket) => {
-      groupedByBucket[bucket] = queries.filter((q) => q.Status === bucket);
-    });
-
-    const nonEmptyBuckets = BUCKET_ORDER.filter(
-      (bucket) => groupedByBucket[bucket].length > 0,
-    );
-
-    nonEmptyBuckets.forEach((bucket) => {
-      const bucketQueries = groupedByBucket[bucket];
-      const bucketConfig = BUCKETS[bucket] || {
-        name: `Bucket ${bucket}`,
-        color: "#6b7280",
-      };
-
-      // Add bucket header
+      // Add bucket header (main category)
       flowItems.push({
         type: "bucketHeader",
-        bucketKey: bucket,
+        bucketKey,
         bucketName: bucketConfig.name,
         bucketColor: bucketConfig.color,
-        count: bucketQueries.length,
+        count: totalQueries,
+        isMainCategory: true,
       });
 
-      // Add queries for this bucket
-      bucketQueries.forEach((query) => {
+      // Add type sub-headers and queries
+      QUERY_TYPE_ORDER.forEach((typeName) => {
+        const typeQueries = typeGroups[typeName];
+        if (!typeQueries || typeQueries.length === 0) return;
+
+        // Add type sub-header
         flowItems.push({
-          type: "query",
-          query,
+          type: "typeHeader",
+          typeName,
+          count: typeQueries.length,
+          isMainCategory: false, // Sub-header
+        });
+
+        // Add queries
+        typeQueries.forEach((query) => {
+          flowItems.push({
+            type: "query",
+            query,
+            bucketColor: bucketConfig.color,
+          });
+        });
+      });
+
+      // Add "Other" types (not in QUERY_TYPE_ORDER)
+      Object.entries(typeGroups)
+        .filter(([typeName]) => !QUERY_TYPE_ORDER.includes(typeName))
+        .forEach(([typeName, typeQueries]) => {
+          // Add type sub-header
+          flowItems.push({
+            type: "typeHeader",
+            typeName,
+            count: typeQueries.length,
+            isMainCategory: false, // Sub-header
+          });
+
+          // Add queries
+          typeQueries.forEach((query) => {
+            flowItems.push({
+              type: "query",
+              query,
+              bucketColor: bucketConfig.color,
+            });
+          });
+        });
+    });
+  } else {
+    // PRIMARY: Type → SECONDARY: Bucket
+    QUERY_TYPE_ORDER.forEach((typeName) => {
+      const bucketGroups = nestedGroups[typeName];
+      if (!bucketGroups || Object.keys(bucketGroups).length === 0) return;
+
+      // Calculate total queries in this type
+      const totalQueries = Object.values(bucketGroups).reduce(
+        (sum, queries) => sum + queries.length,
+        0,
+      );
+
+      // Add type header (main category)
+      flowItems.push({
+        type: "typeHeader",
+        typeName,
+        count: totalQueries,
+        isMainCategory: true,
+      });
+
+      // Add bucket sub-headers and queries
+      BUCKET_ORDER.forEach((bucketKey) => {
+        const bucketQueries = bucketGroups[bucketKey];
+        if (!bucketQueries || bucketQueries.length === 0) return;
+
+        const bucketConfig = BUCKETS[bucketKey];
+        if (!bucketConfig) return;
+
+        // Add bucket sub-header
+        flowItems.push({
+          type: "bucketHeader",
+          bucketKey,
+          bucketName: bucketConfig.name,
           bucketColor: bucketConfig.color,
+          count: bucketQueries.length,
+          isMainCategory: false, // Sub-header
+        });
+
+        // Add queries
+        bucketQueries.forEach((query) => {
+          flowItems.push({
+            type: "query",
+            query,
+            bucketColor: bucketConfig.color,
+          });
         });
       });
     });
+
+    // Add "Other" types (not in QUERY_TYPE_ORDER)
+    Object.entries(nestedGroups)
+      .filter(([typeName]) => !QUERY_TYPE_ORDER.includes(typeName))
+      .forEach(([typeName, bucketGroups]) => {
+        // Calculate total queries in this type
+        const totalQueries = Object.values(bucketGroups).reduce(
+          (sum, queries) => sum + queries.length,
+          0,
+        );
+
+        // Add type header (main category)
+        flowItems.push({
+          type: "typeHeader",
+          typeName,
+          count: totalQueries,
+          isMainCategory: true,
+        });
+
+        // Add bucket sub-headers and queries
+        BUCKET_ORDER.forEach((bucketKey) => {
+          const bucketQueries = bucketGroups[bucketKey];
+          if (!bucketQueries || bucketQueries.length === 0) return;
+
+          const bucketConfig = BUCKETS[bucketKey];
+          if (!bucketConfig) return;
+
+          // Add bucket sub-header
+          flowItems.push({
+            type: "bucketHeader",
+            bucketKey,
+            bucketName: bucketConfig.name,
+            bucketColor: bucketConfig.color,
+            count: bucketQueries.length,
+            isMainCategory: false, // Sub-header
+          });
+
+          // Add queries
+          bucketQueries.forEach((query) => {
+            flowItems.push({
+              type: "query",
+              query,
+              bucketColor: bucketConfig.color,
+            });
+          });
+        });
+      });
   }
 
   // Count non-empty buckets for header display
@@ -204,12 +304,12 @@ export function UserExpandModal({
             >
               {flowItems.map((item, index) => {
                 if (item.type === "bucketHeader") {
-                  // Bucket header size depends on groupBy mode
-                  const isSubHeader = groupBy === "type";
+                  // Bucket header size depends on whether it's main category or sub-header
+                  const isMainCategory = item.isMainCategory;
                   return (
                     <div
                       key={`bucket-${index}`}
-                      className={`flex items-center justify-between mb-0.5 rounded-lg ${isSubHeader ? "px-2 py-1" : "px-3 py-2"}`}
+                      className={`flex items-center justify-between mb-0.5 rounded-lg ${isMainCategory ? "px-3 py-2" : "px-2 py-1"}`}
                       style={{
                         backgroundColor: item.bucketColor,
                         breakInside: "avoid",
@@ -217,12 +317,12 @@ export function UserExpandModal({
                     >
                       <div className="flex items-center gap-1.5">
                         <span
-                          className={`rounded bg-white/20 flex items-center justify-center text-white font-bold ${isSubHeader ? "w-4 h-4 text-[10px]" : "w-6 h-6 text-sm"}`}
+                          className={`rounded bg-white/20 flex items-center justify-center text-white font-bold ${isMainCategory ? "w-6 h-6 text-sm" : "w-4 h-4 text-[10px]"}`}
                         >
                           {item.bucketKey}
                         </span>
                         <span
-                          className={`font-bold uppercase tracking-wide text-white ${isSubHeader ? "text-[10px]" : "text-sm"}`}
+                          className={`font-bold uppercase tracking-wide text-white ${isMainCategory ? "text-sm" : "text-[10px]"}`}
                         >
                           {
                             item.bucketName
@@ -232,16 +332,15 @@ export function UserExpandModal({
                         </span>
                       </div>
                       <span
-                        className={`px-1.5 py-0.5 rounded-full font-bold bg-white/20 text-white ${isSubHeader ? "text-[9px]" : "text-xs"}`}
+                        className={`px-1.5 py-0.5 rounded-full font-bold bg-white/20 text-white ${isMainCategory ? "text-xs" : "text-[9px]"}`}
                       >
                         {item.count}
                       </span>
                     </div>
                   );
                 } else if (item.type === "typeHeader") {
-                  // Type header size depends on groupBy mode
-                  // BIG when main category (groupBy="type"), SMALL when sub-header (groupBy="bucket")
-                  const isMainCategory = groupBy === "type";
+                  // Type header size depends on whether it's main category or sub-header
+                  const isMainCategory = item.isMainCategory;
                   const typeColor = typeColors[item.typeName] || "#6b7280";
                   return (
                     <div
@@ -285,6 +384,7 @@ export function UserExpandModal({
                         currentUserRole={currentUserRole}
                         currentUserEmail={currentUserEmail}
                         detailView={false}
+                        isUserView={true}
                       />
                     </div>
                   );

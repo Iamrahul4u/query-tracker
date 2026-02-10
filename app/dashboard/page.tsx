@@ -60,6 +60,8 @@ function DashboardContent() {
     hiddenUsers,
     updateHiddenBuckets,
     updateHiddenUsers,
+    segregatedBuckets,
+    updateSegregatedBuckets,
     saveView,
     resetToDefaults,
     undoReset,
@@ -262,6 +264,8 @@ function DashboardContent() {
         onHiddenBucketsChange={updateHiddenBuckets}
         hiddenUsers={hiddenUsers}
         onHiddenUsersChange={updateHiddenUsers}
+        segregatedBuckets={segregatedBuckets}
+        onSegregatedBucketsChange={updateSegregatedBuckets}
         allUsers={users.map((u) => ({ email: u.Email, name: u.Name }))}
       />
 
@@ -300,6 +304,7 @@ function DashboardContent() {
             currentUserEmail={currentUser?.Email || ""}
             detailView={detailView}
             hiddenBuckets={hiddenBuckets}
+            segregatedBuckets={segregatedBuckets}
           />
         )}
 
