@@ -409,6 +409,10 @@ export class SyncManager {
     // Create optimistic queries with temp IDs
     const optimisticQueries: any[] = queriesData.map((queryData, index) => {
       const tempId = `temp_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // If query is assigned, set assignment audit trail optimistically
+      const isAssigned = !!queryData["Assigned To"];
+
       return {
         "Query ID": tempId,
         "Query Description": queryData["Query Description"] || "",
@@ -417,8 +421,8 @@ export class SyncManager {
         "Added By": currentUserEmail,
         "Added Date Time": now,
         "Assigned To": queryData["Assigned To"] || "",
-        "Assigned By": queryData["Assigned By"] || "",
-        "Assignment Date Time": queryData["Assignment Date Time"] || "",
+        "Assigned By": isAssigned ? queryData["Assigned To"] : "", // Self-assignment
+        "Assignment Date Time": isAssigned ? now : "",
         Remarks: "",
         "Proposal Sent Date Time": "",
         "Whats Pending": "",
@@ -572,6 +576,66 @@ export class SyncManager {
       return {
         success: false,
         error: error.message || "Failed to assign query",
+      };
+    }
+  }
+
+  /**
+   * Optimistic assign to call (Bucket A only, no status change)
+   * Updates "Assigned To Call", "Assigned To Call By", "Assigned To Call Time" - query stays in current bucket
+   */
+  async assignCallOptimistic(
+    queryId: string,
+    assignee: string,
+    currentQueries: Query[],
+    updateStore: (queries: Query[]) => void,
+    currentUserEmail: string,
+  ): Promise<SyncResult> {
+    const now = getISTDateTime();
+
+    // Step 1: Optimistic update (immediate UI change)
+    const optimisticQueries = currentQueries.map((q) => {
+      if (q["Query ID"] === queryId) {
+        return {
+          ...q,
+          "Assigned To Call": assignee,
+          "Assigned To Call By": assignee ? currentUserEmail : "",
+          "Assigned To Call Time": assignee ? now : "",
+          "Last Activity Date Time": now,
+          // NO status change - stays in current bucket
+        };
+      }
+      return q;
+    });
+
+    updateStore(optimisticQueries);
+
+    // Step 2: API call in background
+    try {
+      const response = await this.fetchWithRetry("/api/queries", {
+        action: "assignCall",
+        queryId,
+        data: { assignee, assignedBy: currentUserEmail },
+      });
+
+      if (!response.ok) {
+        throw new Error("Call assignment failed");
+      }
+
+      // Step 3: Success - Update cache
+      LocalStorageCache.saveQueries(optimisticQueries);
+
+      return {
+        success: true,
+        data: { message: "Call assigned successfully" },
+      };
+    } catch (error: any) {
+      // Step 4: Failure - Rollback
+      updateStore(currentQueries);
+
+      return {
+        success: false,
+        error: error.message || "Failed to assign call",
       };
     }
   }

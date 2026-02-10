@@ -24,6 +24,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   const [formData, setFormData] = useState<Partial<Query>>({ ...query });
   const [status, setStatus] = useState(query.Status);
   const [assignedTo, setAssignedTo] = useState(query["Assigned To"] || "");
+  const [callAssignedTo, setCallAssignedTo] = useState((query["Assigned To Call"] || "") as string);
   const [error, setError] = useState("");
 
   // Ref for scrollable content area
@@ -54,29 +55,27 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     setFormData((prev) => {
       const updates: Partial<Query> = { ...prev };
 
-      // Moving to B (Assigned) - set Assignment Date if empty
-      if (status === "B" && !prev["Assignment Date Time"]) {
+      // Auto-populate ALL intermediate date fields when skipping buckets forward
+      // e.g., A→C fills both Assignment Date AND Proposal Sent Date
+      // Each check uses !prev[...] guard to preserve existing values
+
+      // Moving to B or beyond - set Assignment Date if empty
+      if (["B", "C", "D", "E", "F", "G", "H"].includes(status) && !prev["Assignment Date Time"]) {
         updates["Assignment Date Time"] = now;
       }
 
-      // Moving to C or D (Proposal Sent) - set Proposal Sent Date if empty
-      if (
-        (status === "C" || status === "D") &&
-        !prev["Proposal Sent Date Time"]
-      ) {
+      // Moving to C/D or beyond - set Proposal Sent Date if empty
+      if (["C", "D", "E", "F", "G", "H"].includes(status) && !prev["Proposal Sent Date Time"]) {
         updates["Proposal Sent Date Time"] = now;
       }
 
-      // Moving to E or F (In SF) - set SF Entry Date if empty
-      if (
-        (status === "E" || status === "F") &&
-        !prev["Entered In SF Date Time"]
-      ) {
+      // Moving to E/F or beyond - set SF Entry Date if empty
+      if (["E", "F", "G", "H"].includes(status) && !prev["Entered In SF Date Time"]) {
         updates["Entered In SF Date Time"] = now;
       }
 
-      // Moving to G (Discarded) - set Discarded Date if empty
-      if (status === "G" && !prev["Discarded Date Time"]) {
+      // Moving to G - set Discarded Date if empty
+      if (["G"].includes(status) && !prev["Discarded Date Time"]) {
         updates["Discarded Date Time"] = now;
       }
 
@@ -188,6 +187,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
       "Delete Rejected By",
       "Delete Rejected Date Time",
       "Last Activity Date Time",
+      "Assigned To Call By",
+      "Assigned To Call Time",
     ];
 
     // Create clean data object without protected audit fields
@@ -348,6 +349,27 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                   ⚠️ Query must be assigned before moving to next status
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Assign to Call Section - Bucket A only, Admin/Senior only */}
+          {isAdminOrSenior && status === "A" && (
+            <div className="mb-4">
+              <UserSearchDropdown
+                users={users}
+                value={callAssignedTo}
+                onChange={(newAssignee) => {
+                  setCallAssignedTo(newAssignee);
+                  // Update local formData only — saved with the main Save button
+                  setFormData((prev) => ({
+                    ...prev,
+                    "Assigned To Call": newAssignee,
+                  }));
+                }}
+                label={callAssignedTo ? "Assigned To Call" : "Assign To Call"}
+                placeholder="-- Select User for Call --"
+                disabled={!canEdit}
+              />
             </div>
           )}
 
@@ -557,8 +579,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                   Seniors/Admins can access all buckets
               */}
               {Object.entries(BUCKETS).map(([key, config]) => {
-                // Hide only H from Juniors - they cannot delete directly, must use delete button
-                if (!isAdminOrSenior && key === "H") {
+                // Hide H from ALL roles - deletions must go through the delete button
+                // which properly sets Delete Requested By, Previous Status, etc.
+                // Only show H if the query is already in H (so user can see current status)
+                if (key === "H" && query.Status !== "H") {
                   return null;
                 }
                 return (

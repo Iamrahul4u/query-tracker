@@ -20,6 +20,7 @@ interface UserViewDefaultProps {
   columnCount: 2 | 3 | 4;
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
@@ -44,6 +45,7 @@ export function UserViewDefault({
   columnCount,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
@@ -86,6 +88,7 @@ export function UserViewDefault({
             users={users}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
+            onAssignCallQuery={onAssignCallQuery}
             onEditQuery={onEditQuery}
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
@@ -115,6 +118,7 @@ export function UserViewDefault({
           onClose={() => setExpandedUser(null)}
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
+          onAssignCallQuery={onAssignCallQuery}
           onEditQuery={onEditQuery}
           onApproveDelete={onApproveDelete}
           onRejectDelete={onRejectDelete}
@@ -136,6 +140,7 @@ function UserColumn({
   users,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
@@ -153,6 +158,7 @@ function UserColumn({
   users: User[];
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
@@ -320,6 +326,7 @@ function UserColumn({
                                     bucketColor={bucketConfig.color}
                                     onClick={() => onSelectQuery(query)}
                                     onAssign={onAssignQuery}
+                                    onAssignCall={onAssignCallQuery}
                                     onEdit={onEditQuery}
                                     onApproveDelete={onApproveDelete}
                                     onRejectDelete={onRejectDelete}
@@ -373,6 +380,7 @@ function UserColumn({
                                       bucketColor={bucketConfig.color}
                                       onClick={() => onSelectQuery(query)}
                                       onAssign={onAssignQuery}
+                                      onAssignCall={onAssignCallQuery}
                                       onEdit={onEditQuery}
                                       onApproveDelete={onApproveDelete}
                                       onRejectDelete={onRejectDelete}
@@ -476,6 +484,7 @@ function UserColumn({
                                     bucketColor={bucketConfig.color}
                                     onClick={() => onSelectQuery(query)}
                                     onAssign={onAssignQuery}
+                                    onAssignCall={onAssignCallQuery}
                                     onEdit={onEditQuery}
                                     onApproveDelete={onApproveDelete}
                                     onRejectDelete={onRejectDelete}
@@ -575,6 +584,7 @@ function UserColumn({
                                       bucketColor={bucketConfig.color}
                                       onClick={() => onSelectQuery(query)}
                                       onAssign={onAssignQuery}
+                                      onAssignCall={onAssignCallQuery}
                                       onEdit={onEditQuery}
                                       onApproveDelete={onApproveDelete}
                                       onRejectDelete={onRejectDelete}

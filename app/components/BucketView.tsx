@@ -13,10 +13,12 @@ interface BucketViewProps {
   viewMode: "default" | "linear";
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
   onLoadMore?: (bucketKey: string) => void;
+  onAddQuery?: () => void;
   extendedDays?: Record<string, number>;
   loadingBuckets?: Set<string>;
   isFilterExpanded?: boolean;
@@ -36,10 +38,12 @@ export function BucketView({
   viewMode,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
   onLoadMore,
+  onAddQuery,
   extendedDays = {},
   loadingBuckets = new Set(),
   isFilterExpanded = true,
@@ -85,10 +89,12 @@ export function BucketView({
             columnCount={columnCount}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
+            onAssignCallQuery={onAssignCallQuery}
             onEditQuery={onEditQuery}
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
             onLoadMore={onLoadMore}
+            onAddQuery={onAddQuery}
             extendedDays={extendedDays}
             loadingBuckets={loadingBuckets}
             isFilterExpanded={isFilterExpanded}
@@ -107,10 +113,12 @@ export function BucketView({
             columnCount={columnCount}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
+            onAssignCallQuery={onAssignCallQuery}
             onEditQuery={onEditQuery}
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
             onLoadMore={onLoadMore}
+            onAddQuery={onAddQuery}
             extendedDays={extendedDays}
             loadingBuckets={loadingBuckets}
             isFilterExpanded={isFilterExpanded}
@@ -136,10 +144,12 @@ export function BucketView({
             users={users}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
+            onAssignCallQuery={onAssignCallQuery}
             onEditQuery={onEditQuery}
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
             onLoadMore={onLoadMore}
+            onAddQuery={onAddQuery}
             extendedDays={extendedDays[activeTab] || 3}
             disableScroll={false}
             showDateOnCards={showDateOnCards}

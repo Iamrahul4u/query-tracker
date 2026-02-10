@@ -337,6 +337,31 @@ export function QueryDetailModal({
                   </div>
                 )}
 
+                {/* Call Assigned */}
+                {query["Assigned To Call"] && (
+                  <div className="flex justify-between items-center">
+                    <span>
+                      <span className="text-teal-600 font-medium">
+                        Call assigned
+                      </span>{" "}
+                      {query["Assigned To Call By"] ? (
+                        <>
+                          by{" "}
+                          <span className="font-medium text-gray-700">
+                            {displayName(query["Assigned To Call By"])}
+                          </span>
+                        </>
+                      ) : null}
+                      <span className="text-gray-500">
+                        {" "}
+                        → {displayName(query["Assigned To Call"])}
+                      </span>
+                    </span>
+                    <span className="text-gray-400 text-right">
+                      {formatAuditDate(query["Assigned To Call Time"])}
+                    </span>
+                  </div>
+                )}
                 {/* Proposal Sent */}
                 {query["Proposal Sent Date Time"] && (
                   <div className="flex justify-between items-center">

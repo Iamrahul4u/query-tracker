@@ -20,6 +20,7 @@ interface UserExpandModalProps {
   onClose: () => void;
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
@@ -57,6 +58,7 @@ export function UserExpandModal({
   onClose,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
@@ -376,6 +378,7 @@ export function UserExpandModal({
                         bucketColor={item.bucketColor}
                         onClick={() => onSelectQuery(item.query)}
                         onAssign={onAssignQuery}
+                        onAssignCall={onAssignCallQuery}
                         onEdit={onEditQuery}
                         onApproveDelete={onApproveDelete}
                         onRejectDelete={onRejectDelete}

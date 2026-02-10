@@ -74,6 +74,7 @@ function DashboardContent() {
     currentUser,
     isLoading,
     assignQueryOptimistic,
+    assignCallOptimistic,
     approveDeleteOptimistic,
     rejectDeleteOptimistic,
   } = useQueryStore();
@@ -174,6 +175,10 @@ function DashboardContent() {
   // Handlers
   const handleAssignQuery = (query: Query, assignee: string) => {
     assignQueryOptimistic(query["Query ID"], assignee);
+  };
+
+  const handleAssignCallQuery = (query: Query, assignee: string) => {
+    assignCallOptimistic(query["Query ID"], assignee);
   };
 
   const handleApproveDelete = (query: Query) => {
@@ -291,10 +296,12 @@ function DashboardContent() {
             viewMode={bucketViewMode}
             onSelectQuery={setSelectedQuery}
             onAssignQuery={handleAssignQuery}
+            onAssignCallQuery={handleAssignCallQuery}
             onEditQuery={setQueryToEdit}
             onApproveDelete={handleApproveDelete}
             onRejectDelete={handleRejectDelete}
             onLoadMore={handleLoadMore}
+            onAddQuery={() => setIsAddModalOpen(true)}
             extendedDays={extendedDays}
             loadingBuckets={loadingBuckets}
             isFilterExpanded={isFilterExpanded}
@@ -319,6 +326,7 @@ function DashboardContent() {
               viewMode={bucketViewMode}
               onSelectQuery={setSelectedQuery}
               onAssignQuery={handleAssignQuery}
+              onAssignCallQuery={handleAssignCallQuery}
               onEditQuery={setQueryToEdit}
               onApproveDelete={handleApproveDelete}
               onRejectDelete={handleRejectDelete}

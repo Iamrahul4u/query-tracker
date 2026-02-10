@@ -13,10 +13,12 @@ interface BucketViewDefaultProps {
   columnCount: 2 | 3 | 4;
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
   onLoadMore?: (bucketKey: string) => void;
+  onAddQuery?: () => void;
   extendedDays?: Record<string, number>;
   loadingBuckets?: Set<string>;
   isFilterExpanded?: boolean;
@@ -41,10 +43,12 @@ export function BucketViewDefault({
   columnCount,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
   onLoadMore,
+  onAddQuery,
   extendedDays = {},
   loadingBuckets = new Set(),
   isFilterExpanded = true,
@@ -182,10 +186,12 @@ export function BucketViewDefault({
             users={users}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
+            onAssignCallQuery={onAssignCallQuery}
             onEditQuery={onEditQuery}
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
             onLoadMore={typeName ? undefined : onLoadMore} // Only show Load More for non-segregated buckets
+            onAddQuery={bucketKey === "A" ? onAddQuery : undefined} // Only pass for Bucket A
             extendedDays={extendedDays[bucketKey] || 3}
             isLoading={loadingBuckets.has(bucketKey)}
             disableScroll={false}

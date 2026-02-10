@@ -7,7 +7,7 @@ import { useToast } from "../hooks/useToast";
 
 interface PendingAction {
   id: string;
-  type: "add" | "assign" | "updateStatus" | "edit" | "delete" | "batch";
+  type: "add" | "assign" | "assignCall" | "updateStatus" | "edit" | "delete" | "batch";
   data?: any;
   queryId?: string;
   previousState?: any;
@@ -54,6 +54,10 @@ interface QueryState {
     queryId: string,
     assignee: string,
     remarks?: string,
+  ) => Promise<void>;
+  assignCallOptimistic: (
+    queryId: string,
+    assignee: string,
   ) => Promise<void>;
   updateStatusOptimistic: (
     queryId: string,
@@ -373,6 +377,54 @@ export const useQueryStore = create<QueryState>()(
           useToast
             .getState()
             .showToast(result.error || "Failed to assign query", "error");
+        }
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // OPTIMISTIC ASSIGN TO CALL (Bucket A only, no status change)
+      // ═══════════════════════════════════════════════════════════════
+      assignCallOptimistic: async (queryId, assignee) => {
+        const syncManager = SyncManager.getInstance();
+        const currentQueries = get().queries;
+
+        // Add pending action to block background refresh
+        const pendingId = `assignCall_${queryId}_${Date.now()}`;
+        set((state) => {
+          state.pendingActions.push({
+            id: pendingId,
+            type: "assignCall",
+            queryId,
+            data: { assignee },
+            timestamp: Date.now(),
+            retries: 0,
+          });
+        });
+
+        const currentUserEmail = get().currentUser?.Email || "";
+
+        const result = await syncManager.assignCallOptimistic(
+          queryId,
+          assignee,
+          currentQueries,
+          (queries) => set({ queries }),
+          currentUserEmail,
+        );
+
+        // Remove pending action
+        set((state) => {
+          state.pendingActions = state.pendingActions.filter(
+            (a) => a.id !== pendingId,
+          );
+        });
+
+        if (result.success) {
+          useToast
+            .getState()
+            .showToast("Call assigned successfully", "success");
+        } else {
+          useToast
+            .getState()
+            .showToast(result.error || "Failed to assign call", "error");
         }
       },
 

@@ -16,10 +16,12 @@ interface BucketViewLinearProps {
   columnCount: 2 | 3 | 4;
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
   onLoadMore?: (bucketKey: string) => void;
+  onAddQuery?: () => void;
   extendedDays?: Record<string, number>;
   loadingBuckets?: Set<string>;
   isFilterExpanded?: boolean;
@@ -46,10 +48,12 @@ export function BucketViewLinear({
   columnCount,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
   onLoadMore,
+  onAddQuery,
   extendedDays = {},
   loadingBuckets = new Set(),
   isFilterExpanded = true,
@@ -148,6 +152,7 @@ export function BucketViewLinear({
           columnCount={columnCount}
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
+          onAssignCallQuery={onAssignCallQuery}
           onEditQuery={onEditQuery}
           onApproveDelete={onApproveDelete}
           onRejectDelete={onRejectDelete}
@@ -178,6 +183,7 @@ function SynchronizedRow({
   columnCount,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
@@ -197,6 +203,7 @@ function SynchronizedRow({
   columnCount: number;
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
@@ -362,10 +369,12 @@ function SynchronizedRow({
             users={users}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
+            onAssignCallQuery={onAssignCallQuery}
             onEditQuery={onEditQuery}
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
             onLoadMore={typeName ? undefined : onLoadMore} // Only show Load More for non-segregated buckets
+            onAddQuery={bucketKey === "A" ? onAddQuery : undefined}
             extendedDays={extendedDays[bucketKey] || 3}
             isLoading={loadingBuckets.has(bucketKey)}
             scrollRef={(el) => {
@@ -400,10 +409,12 @@ function BucketColumnWithSync({
   users,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
   onLoadMore,
+  onAddQuery,
   extendedDays = 3,
   isLoading = false,
   scrollRef,
@@ -420,10 +431,12 @@ function BucketColumnWithSync({
   users: User[];
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
   onLoadMore?: (bucketKey: string) => void;
+  onAddQuery?: () => void;
   extendedDays?: number;
   isLoading?: boolean;
   scrollRef: (el: HTMLDivElement | null) => void;
@@ -492,17 +505,44 @@ function BucketColumnWithSync({
             {config.name.split(") ")[1]}
           </span>
         </div>
-        {/* Clickable count badge to open expanded view */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            openExpandedModal("bucket", bucketKey);
-          }}
-          className="bg-white/20 px-3 py-1 rounded-full text-base font-bold ml-2 flex-shrink-0 hover:bg-white/40 hover:scale-110 transition-all cursor-pointer"
-          title="Click to expand view"
-        >
-          {queries.length}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Add Query Button - Only for Bucket A */}
+          {bucketKey === "A" && onAddQuery && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddQuery();
+              }}
+              className="bg-white/20 p-1.5 rounded-full hover:bg-white/40 hover:scale-110 transition-all flex-shrink-0"
+              title="Add new queries"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </button>
+          )}
+          {/* Clickable count badge to open expanded view */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openExpandedModal("bucket", bucketKey);
+            }}
+            className="bg-white/20 px-3 py-1 rounded-full text-base font-bold flex-shrink-0 hover:bg-white/40 hover:scale-110 transition-all cursor-pointer"
+            title="Click to expand view"
+          >
+            {queries.length}
+          </button>
+        </div>
       </div>
 
       {/* Scrollable Content */}
@@ -561,6 +601,7 @@ function BucketColumnWithSync({
                               bucketColor={config.color}
                               onClick={() => onSelectQuery(query)}
                               onAssign={onAssignQuery}
+                              onAssignCall={onAssignCallQuery}
                               onEdit={onEditQuery}
                               onApproveDelete={onApproveDelete}
                               onRejectDelete={onRejectDelete}
@@ -621,6 +662,7 @@ function BucketColumnWithSync({
                               bucketColor={config.color}
                               onClick={() => onSelectQuery(query)}
                               onAssign={onAssignQuery}
+                              onAssignCall={onAssignCallQuery}
                               onEdit={onEditQuery}
                               onApproveDelete={onApproveDelete}
                               onRejectDelete={onRejectDelete}
@@ -655,6 +697,7 @@ function BucketColumnWithSync({
                             bucketColor={config.color}
                             onClick={() => onSelectQuery(query)}
                             onAssign={onAssignQuery}
+                            onAssignCall={onAssignCallQuery}
                             onEdit={onEditQuery}
                             onApproveDelete={onApproveDelete}
                             onRejectDelete={onRejectDelete}
@@ -733,6 +776,7 @@ function BucketColumnWithSync({
           onSelectQuery(q);
         }}
         onAssignQuery={onAssignQuery}
+        onAssignCallQuery={onAssignCallQuery}
         onEditQuery={onEditQuery}
         onApproveDelete={onApproveDelete}
         onRejectDelete={onRejectDelete}

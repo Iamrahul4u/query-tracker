@@ -9,6 +9,7 @@ import {
   X,
   MessageSquare,
   Quote,
+  Phone,
 } from "lucide-react";
 import { Query, User } from "../utils/sheets";
 import { DateFieldKey } from "../utils/queryFilters";
@@ -25,6 +26,7 @@ export const QueryCardCompact = memo(function QueryCardCompact({
   bucketColor,
   onClick,
   onAssign,
+  onAssignCall,
   onEdit,
   onApproveDelete,
   onRejectDelete,
@@ -40,6 +42,7 @@ export const QueryCardCompact = memo(function QueryCardCompact({
   bucketColor: string;
   onClick: () => void;
   onAssign?: (query: Query, assignee: string) => void;
+  onAssignCall?: (query: Query, assignee: string) => void;
   onEdit?: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
@@ -51,7 +54,9 @@ export const QueryCardCompact = memo(function QueryCardCompact({
   isUserView?: boolean;
 }) {
   const [showAssignDropdown, setShowAssignDropdown] = useState(false);
+  const [showCallDropdown, setShowCallDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState(""); // Search filter for assign dropdown
+  const [callSearchQuery, setCallSearchQuery] = useState(""); // Search filter for call assign dropdown
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Role-based variables (used in multiple places)
@@ -264,6 +269,21 @@ export const QueryCardCompact = memo(function QueryCardCompact({
     : null;
   const isAssigned = !!query["Assigned To"];
 
+  // Get call-assigned user info (Bucket A only)
+  const callAssignedEmail = (query["Assigned To Call"] || "") as string;
+  const callAssignedUser = callAssignedEmail
+    ? users.find((u) => u.Email === callAssignedEmail)
+    : null;
+  const isCallAssigned = !!callAssignedEmail;
+  const callAssignedInitials = callAssignedUser
+    ? (callAssignedUser["Display Name"] || callAssignedUser.Name || callAssignedUser.Email.split("@")[0])
+        .split(" ")
+        .map((w: string) => w[0])
+        .join("")
+        .toUpperCase()
+        .substring(0, 2)
+    : callAssignedEmail ? callAssignedEmail.substring(0, 2).toUpperCase() : "";
+
   // Role-based assign button visibility
   const userEmailLC = currentUserEmail.toLowerCase();
   const assignedToLC = (query["Assigned To"] || "").toLowerCase().trim();
@@ -284,6 +304,10 @@ export const QueryCardCompact = memo(function QueryCardCompact({
   // - Junior: Can edit their own queries EXCEPT in G/H buckets
   // Ghost queries: NO actions allowed
   const isAdminOrSenior = ["admin", "pseudo admin", "senior"].includes(roleLC);
+
+  // Call assign button: Bucket A only, Admin/Senior/Pseudo Admin only (not Junior)
+  const showCallAssignButton =
+    !isGhost && bucketStatus === "A" && isAdminOrSenior && !!onAssignCall;
   // Reuse already-defined variables: userEmailLC, assignedToLC, isOwnQuery
 
   const showEditButton =
@@ -441,6 +465,119 @@ export const QueryCardCompact = memo(function QueryCardCompact({
     );
   };
 
+  // Call assign dropdown content (reuses similar pattern)
+  const renderCallDropdownContent = (
+    placement?: string,
+  ) => {
+    const opensUp = placement?.startsWith("top");
+
+    const SearchBox = () => (
+      <div
+        className={`p-2 ${opensUp ? "border-t" : "border-b"} border-gray-100`}
+      >
+        <input
+          type="text"
+          placeholder="Search users..."
+          value={callSearchQuery}
+          onChange={(e) => setCallSearchQuery(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500"
+          autoFocus
+        />
+      </div>
+    );
+
+    const UserList = () => (
+      <div
+        className="p-1 max-h-48 overflow-y-auto"
+        style={{ overscrollBehavior: "contain" }}
+      >
+        {/* Clear call assignment option */}
+        {isCallAssigned && (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onAssignCall) onAssignCall(query, "");
+                setShowCallDropdown(false);
+                setCallSearchQuery("");
+              }}
+              className="flex items-center gap-1.5 w-full text-left px-3 py-2 text-xs hover:bg-red-50 rounded text-red-600 font-medium"
+            >
+              <X className="w-3 h-3" />
+              Remove call assignment
+            </button>
+            <div className="border-t border-gray-200 my-1" />
+          </>
+        )}
+        {users
+          .filter((user) => {
+            if (!callSearchQuery.trim()) return true;
+            const search = callSearchQuery.toLowerCase();
+            const displayName = user["Display Name"] || "";
+            const displayFirstName = displayName.split(" ")[0].toLowerCase();
+            const name = user.Name || "";
+            const nameFirstName = name.split(" ")[0].toLowerCase();
+            return (
+              displayFirstName.startsWith(search) ||
+              nameFirstName.startsWith(search)
+            );
+          })
+          .map((user) => {
+            const isCurrentlyCallAssigned = callAssignedEmail === user.Email;
+            return (
+              <button
+                key={user.Email}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onAssignCall) onAssignCall(query, user.Email);
+                  setShowCallDropdown(false);
+                  setCallSearchQuery("");
+                }}
+                className={`
+                  flex items-center justify-between w-full text-left px-3 py-2 text-xs hover:bg-gray-100 rounded
+                  ${isCurrentlyCallAssigned ? "bg-teal-50" : ""}
+                `}
+              >
+                <span className="truncate">
+                  {user["Display Name"] ||
+                    user.Name ||
+                    user.Email.split("@")[0]}
+                </span>
+                {isCurrentlyCallAssigned && (
+                  <span className="text-teal-600 ml-2 flex-shrink-0">✓</span>
+                )}
+              </button>
+            );
+          })}
+        {users.filter((user) => {
+          if (!callSearchQuery.trim()) return true;
+          const search = callSearchQuery.toLowerCase();
+          const displayName = user["Display Name"] || "";
+          const displayFirstName = displayName.split(" ")[0].toLowerCase();
+          const name = user.Name || "";
+          const nameFirstName = name.split(" ")[0].toLowerCase();
+          return (
+            displayFirstName.startsWith(search) ||
+            nameFirstName.startsWith(search)
+          );
+        }).length === 0 && (
+          <div className="px-3 py-2 text-xs text-gray-400 text-center">
+            No users found
+          </div>
+        )}
+      </div>
+    );
+
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-[240px]">
+        {!opensUp && <SearchBox />}
+        <UserList />
+        {opensUp && <SearchBox />}
+      </div>
+    );
+  };
+
   return (
     <div
       ref={cardRef}
@@ -516,6 +653,21 @@ export const QueryCardCompact = memo(function QueryCardCompact({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-xs max-w-xs">{query.Remarks}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Call Assigned Badge - Bucket A only, inline with description */}
+            {bucketStatus === "A" && isCallAssigned && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-medium flex-shrink-0 cursor-help">
+                    <Phone className="w-2.5 h-2.5" />
+                    {callAssignedInitials}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Call assigned to: {callAssignedUser?.["Display Name"] || callAssignedUser?.Name || callAssignedEmail}</p>
                 </TooltipContent>
               </Tooltip>
             )}
@@ -625,6 +777,35 @@ export const QueryCardCompact = memo(function QueryCardCompact({
                   }
                 >
                   {(placement) => renderDropdownContent(true, placement)}
+                </AssignDropdown>
+              )}
+
+              {/* Assign to Call Button - Bucket A only, Admin/Senior only */}
+              {showCallAssignButton && (
+                <AssignDropdown
+                  isOpen={showCallDropdown}
+                  onOpenChange={setShowCallDropdown}
+                  trigger={
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!showCallDropdown) {
+                          setCallSearchQuery("");
+                        }
+                        setShowCallDropdown(!showCallDropdown);
+                      }}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+                        isCallAssigned
+                          ? "bg-teal-100 hover:bg-teal-200 text-teal-700"
+                          : "bg-teal-50 hover:bg-teal-100 text-teal-600"
+                      }`}
+                      title={isCallAssigned ? `Call assigned to: ${callAssignedUser?.["Display Name"] || callAssignedEmail}` : "Assign to call"}
+                    >
+                      <Phone className="w-3 h-3" />
+                    </button>
+                  }
+                >
+                  {(placement) => renderCallDropdownContent(placement)}
                 </AssignDropdown>
               )}
 

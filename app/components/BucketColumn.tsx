@@ -13,10 +13,12 @@ export function BucketColumn({
   users,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
   onLoadMore,
+  onAddQuery,
   extendedDays = 3,
   isLoading = false,
   disableScroll = false,
@@ -33,10 +35,12 @@ export function BucketColumn({
   users: User[];
   onSelectQuery: (q: Query) => void;
   onAssignQuery?: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery?: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
   onLoadMore?: (bucketKey: string) => void;
+  onAddQuery?: () => void;
   extendedDays?: number;
   isLoading?: boolean;
   disableScroll?: boolean;
@@ -96,11 +100,7 @@ export function BucketColumn({
   };
 
   // Always use 90vh height when maxHeight is provided (Default view)
-  const heightClass = disableScroll
-    ? ""
-    : maxHeight
-      ? "h-[90vh]"
-      : "h-[90vh]";
+  const heightClass = disableScroll ? "" : maxHeight ? "h-[90vh]" : "h-[90vh]";
 
   return (
     <div
@@ -126,17 +126,44 @@ export function BucketColumn({
             {config.name.split(") ")[1]}
           </span>
         </div>
-        {/* Clickable count badge to open expanded view */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation(); // Don't trigger collapse
-            setIsExpanded(true);
-          }}
-          className="bg-white/20 px-3 py-1 rounded-full text-base font-bold ml-2 flex-shrink-0 hover:bg-white/40 hover:scale-110 transition-all cursor-pointer"
-          title="Click to expand view"
-        >
-          {queries.length}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Add Query Button - Only for Bucket A */}
+          {bucketKey === "A" && onAddQuery && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Don't trigger collapse
+                onAddQuery();
+              }}
+              className="bg-white/20 p-1.5 rounded-full hover:bg-white/40 hover:scale-110 transition-all flex-shrink-0"
+              title="Add new queries"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </button>
+          )}
+          {/* Clickable count badge to open expanded view */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Don't trigger collapse
+              setIsExpanded(true);
+            }}
+            className="bg-white/20 px-3 py-1 rounded-full text-base font-bold flex-shrink-0 hover:bg-white/40 hover:scale-110 transition-all cursor-pointer"
+            title="Click to expand view"
+          >
+            {queries.length}
+          </button>
+        </div>
       </div>
 
       {/* Content Area */}
@@ -146,11 +173,14 @@ export function BucketColumn({
         {queries.length === 0 ? (
           <p className="p-4 text-gray-400 text-sm text-center">No queries</p>
         ) : (
-        <div className="p-1.5 space-y-2">
+          <div className="p-1.5 space-y-2">
             {/* Group by Query Type: SEO Query -> New -> Ongoing -> On Hold (per FRD) */}
             {/* For Bucket B: queries with assigned date before today 00:00 go to "Already Allocated" */}
             {(() => {
-              const { alreadyAllocated: alreadyAllocatedQueries, regular: regularQueries } = splitAlreadyAllocated(queries, bucketKey);
+              const {
+                alreadyAllocated: alreadyAllocatedQueries,
+                regular: regularQueries,
+              } = splitAlreadyAllocated(queries, bucketKey);
 
               return (
                 <>
@@ -177,9 +207,13 @@ export function BucketColumn({
                         >
                           <div className="flex items-center gap-1">
                             {isTypeCollapsed ? (
-                              <ChevronRight className={`w-3 h-3 ${colors.text}`} />
+                              <ChevronRight
+                                className={`w-3 h-3 ${colors.text}`}
+                              />
                             ) : (
-                              <ChevronDown className={`w-3 h-3 ${colors.text}`} />
+                              <ChevronDown
+                                className={`w-3 h-3 ${colors.text}`}
+                              />
                             )}
                             <h4
                               className={`text-[10px] font-bold ${colors.text} uppercase tracking-wider`}
@@ -205,6 +239,7 @@ export function BucketColumn({
                                 bucketColor={config.color}
                                 onClick={() => onSelectQuery(query)}
                                 onAssign={onAssignQuery}
+                                onAssignCall={onAssignCallQuery}
                                 onEdit={onEditQuery}
                                 onApproveDelete={onApproveDelete}
                                 onRejectDelete={onRejectDelete}
@@ -278,6 +313,7 @@ export function BucketColumn({
                                 bucketColor={config.color}
                                 onClick={() => onSelectQuery(query)}
                                 onAssign={onAssignQuery}
+                                onAssignCall={onAssignCallQuery}
                                 onEdit={onEditQuery}
                                 onApproveDelete={onApproveDelete}
                                 onRejectDelete={onRejectDelete}
@@ -329,6 +365,7 @@ export function BucketColumn({
                               bucketColor={config.color}
                               onClick={() => onSelectQuery(query)}
                               onAssign={onAssignQuery}
+                              onAssignCall={onAssignCallQuery}
                               onEdit={onEditQuery}
                               onApproveDelete={onApproveDelete}
                               onRejectDelete={onRejectDelete}
@@ -408,6 +445,7 @@ export function BucketColumn({
           onSelectQuery(q);
         }}
         onAssignQuery={onAssignQuery}
+        onAssignCallQuery={onAssignCallQuery}
         onEditQuery={onEditQuery}
         onApproveDelete={onApproveDelete}
         onRejectDelete={onRejectDelete}

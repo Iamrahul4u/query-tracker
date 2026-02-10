@@ -3,7 +3,7 @@ export const SPREADSHEET_ID = "1Itpin1gPmJIy0KK6kBDklfhgOnNapvqywgypZ0h2bqA";
 // In previous view of route.ts, SPREADSHEET_ID was hardcoded or imported. Let's check route.ts first to be safe, but for now I will define the ranges.
 
 export const SHEET_RANGES = {
-  QUERIES: "Queries!A:AD", // Extended to AD to include rejection and remark audit fields (AA-AD)
+  QUERIES: "Queries!A:AG", // Extended to AG to include Assigned To Call (AE), Assigned To Call By (AF), Assigned To Call Time (AG)
   USERS: "Users!A:F",
   PREFERENCES: "Preferences!A:D", // Updated: A=Email, B=PreferredView, C=BucketViewPrefs (JSON), D=UserViewPrefs (JSON)
 };

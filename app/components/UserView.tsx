@@ -20,6 +20,7 @@ interface UserViewProps {
   viewMode: "default" | "linear";
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
@@ -39,6 +40,7 @@ export function UserView({
   viewMode,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
@@ -176,6 +178,7 @@ export function UserView({
             columnCount={columnCount}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
+            onAssignCallQuery={onAssignCallQuery}
             onEditQuery={onEditQuery}
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
@@ -195,6 +198,7 @@ export function UserView({
             columnCount={columnCount}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
+            onAssignCallQuery={onAssignCallQuery}
             onEditQuery={onEditQuery}
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
@@ -218,6 +222,7 @@ export function UserView({
             currentUser={currentUser}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
+            onAssignCallQuery={onAssignCallQuery}
             onEditQuery={onEditQuery}
             showDateOnCards={showDateOnCards}
             dateField={dateField}
@@ -240,6 +245,7 @@ function MobileUserColumn({
   currentUser,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   showDateOnCards = false,
   dateField = "Added Date Time",
@@ -251,6 +257,7 @@ function MobileUserColumn({
   currentUser: User | null;
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   showDateOnCards?: boolean;
   dateField?: DateFieldKey;
@@ -287,6 +294,7 @@ function MobileUserColumn({
             bucketColor={BUCKETS[q.Status]?.color || "#gray"}
             onClick={() => onSelectQuery(q)}
             onAssign={onAssignQuery}
+            onAssignCall={onAssignCallQuery}
             onEdit={onEditQuery}
             showDate={showDateOnCards}
             dateField={dateField}

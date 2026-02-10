@@ -34,14 +34,8 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
 
   // Get last selected user from localStorage for defaults
   const getLastSelectedUser = () => {
-    // Juniors cannot assign queries, so always return empty for them
-    const roleLC = (currentUser?.Role || "").toLowerCase();
-    const isJunior = roleLC === "junior";
-
-    if (isJunior) {
-      return ""; // Juniors always leave queries unassigned
-    }
-
+    // For juniors, they can now self-assign, so read from localStorage
+    // (it will be their email if self-assigned, or empty if unassigned)
     if (typeof window !== "undefined") {
       return localStorage.getItem("lastSelectedUser") || "";
     }
@@ -640,6 +634,48 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                         );
                       }}
                     </AssignDropdown>
+                  )}
+
+                  {/* Self Assign Button - For Juniors only */}
+                  {!canAllocate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Toggle self-assignment
+                        const isSelfAssigned =
+                          row.assignedTo === currentUser?.Email;
+                        const newValue = isSelfAssigned
+                          ? ""
+                          : currentUser?.Email || "";
+
+                        // Update this row
+                        updateRow(row.id, "assignedTo", newValue);
+
+                        // Save to localStorage so new rows inherit this selection
+                        if (typeof window !== "undefined") {
+                          localStorage.setItem("lastSelectedUser", newValue);
+                        }
+                      }}
+                      className={`flex items-center justify-center gap-1 border rounded px-2 py-1 text-[10px] font-medium transition-colors ${
+                        row.assignedTo === currentUser?.Email
+                          ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+                          : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                      }`}
+                      title={
+                        row.assignedTo === currentUser?.Email
+                          ? "Click to unassign"
+                          : "Click to self-assign"
+                      }
+                    >
+                      {row.assignedTo === currentUser?.Email ? (
+                        <>
+                          <Check className="w-3 h-3" />
+                          <span>Self Assigned</span>
+                        </>
+                      ) : (
+                        <span>Self Assign</span>
+                      )}
+                    </button>
                   )}
 
                   {/* Action buttons - minimal */}

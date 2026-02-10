@@ -233,6 +233,8 @@ export async function POST(request: NextRequest) {
         return await handleRejectDelete(sheets, queryId, data?.rejectedBy);
       case "batchAdd":
         return await handleBatchAdd(sheets, data?.queries || []);
+      case "assignCall":
+        return await handleAssignCall(sheets, queryId, data);
       default:
         console.error(`[POST] Invalid action: ${action}`);
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
@@ -338,6 +340,9 @@ const COL_MAP: Record<string, string> = {
   "Delete Rejected Date Time": "AB",
   "Remark Added By": "AC",
   "Remark Added Date Time": "AD",
+  "Assigned To Call": "AE",
+  "Assigned To Call By": "AF",
+  "Assigned To Call Time": "AG",
 };
 
 /**
@@ -760,6 +765,17 @@ async function handleEdit(sheets: any, queryId: string, data: any) {
     console.log(`  ✗ NOT setting remark audit trail`);
   }
 
+  // If "Assigned To Call" is being updated, set call audit trail
+  if (data["Assigned To Call"] !== undefined && data["Last Edited By"]) {
+    updates["Assigned To Call By"] = data["Assigned To Call"]
+      ? data["Last Edited By"]
+      : ""; // Clear if un-assigning
+    updates["Assigned To Call Time"] = data["Assigned To Call"] ? now : "";
+    console.log(
+      `  ✓ Setting call assignment audit: by="${data["Last Edited By"]}" at="${now}"`,
+    );
+  }
+
   await updateRowCells(sheets, rowIndex, updates);
   return NextResponse.json({ success: true });
 }
@@ -782,9 +798,10 @@ async function handleAdd(sheets: any, data: Query) {
     "Last Edited By": data["Added By"] || "",
   };
 
-  // If assigned, set assignment date
+  // If assigned, set assignment audit trail fields
   if (enrichedData["Assigned To"]) {
     enrichedData["Assignment Date Time"] = now;
+    enrichedData["Assigned By"] = enrichedData["Assigned To"]; // Self-assignment: Assigned By = Assigned To
   }
 
   // Helper function to convert column letter to number for proper sorting
@@ -876,9 +893,10 @@ async function handleBatchAdd(sheets: any, queries: Query[]) {
       "Last Edited By": data["Added By"] || "",
     };
 
-    // If assigned, set assignment date
+    // If assigned, set assignment audit trail fields
     if (enrichedData["Assigned To"]) {
       enrichedData["Assignment Date Time"] = now;
+      enrichedData["Assigned By"] = enrichedData["Assigned To"]; // Self-assignment: Assigned By = Assigned To
     }
 
     // Construct row in correct column order
@@ -1118,4 +1136,32 @@ async function handleRejectDelete(
   );
 
   return NextResponse.json({ success: true, restoredStatus: previousStatus });
+}
+
+// --- ASSIGN TO CALL (Bucket A only, no status change) ---
+
+async function handleAssignCall(
+  sheets: any,
+  queryId: string,
+  data: { assignee: string; assignedBy?: string },
+) {
+  const rowIndex = await findRowIndex(sheets, queryId);
+  if (!rowIndex)
+    return NextResponse.json({ error: "Query not found" }, { status: 404 });
+
+  const now = getISTDateTime();
+
+  const updates: Record<string, string> = {
+    "Assigned To Call": data.assignee || "",
+    "Assigned To Call By": data.assignedBy || "",
+    "Assigned To Call Time": data.assignee ? now : "", // Clear time if un-assigning
+    "Last Activity Date Time": now,
+  };
+
+  console.log(
+    `[handleAssignCall] Query ${queryId}: Assigning call to "${data.assignee}" by "${data.assignedBy}"`,
+  );
+
+  await updateRowCells(sheets, rowIndex, updates);
+  return NextResponse.json({ success: true });
 }

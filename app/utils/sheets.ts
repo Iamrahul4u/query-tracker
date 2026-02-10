@@ -31,6 +31,10 @@ export interface Query {
   // Remark audit trail
   "Remark Added By"?: string; // User who added/modified remark
   "Remark Added Date Time"?: string; // When remark was added/modified
+  // Call assignment
+  "Assigned To Call"?: string; // User email assigned to call this query
+  "Assigned To Call By"?: string; // Who assigned the call
+  "Assigned To Call Time"?: string; // When the call was assigned
   // Internal flags (not in sheet)
   _isGhostInOriginalBucket?: boolean; // True when showing pending deletion in original bucket (grayed out)
   [key: string]: string | undefined | boolean;

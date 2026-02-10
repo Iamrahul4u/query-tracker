@@ -21,6 +21,7 @@ interface UserViewLinearProps {
   columnCount: 2 | 3 | 4;
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
@@ -45,6 +46,7 @@ export function UserViewLinear({
   columnCount,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
@@ -87,6 +89,7 @@ export function UserViewLinear({
             columnCount={columnCount}
             onSelectQuery={onSelectQuery}
             onAssignQuery={onAssignQuery}
+            onAssignCallQuery={onAssignCallQuery}
             onEditQuery={onEditQuery}
             onApproveDelete={onApproveDelete}
             onRejectDelete={onRejectDelete}
@@ -110,6 +113,7 @@ export function UserViewLinear({
           onClose={closeExpandedModal}
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
+          onAssignCallQuery={onAssignCallQuery}
           onEditQuery={onEditQuery}
           onApproveDelete={onApproveDelete}
           onRejectDelete={onRejectDelete}
@@ -133,6 +137,7 @@ function SynchronizedUserRow({
   columnCount,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
@@ -150,6 +155,7 @@ function SynchronizedUserRow({
   columnCount: number;
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
@@ -300,6 +306,7 @@ function SynchronizedUserRow({
           users={users}
           onSelectQuery={onSelectQuery}
           onAssignQuery={onAssignQuery}
+          onAssignCallQuery={onAssignCallQuery}
           onEditQuery={onEditQuery}
           onApproveDelete={onApproveDelete}
           onRejectDelete={onRejectDelete}
@@ -335,6 +342,7 @@ function UserColumnWithSync({
   users,
   onSelectQuery,
   onAssignQuery,
+  onAssignCallQuery,
   onEditQuery,
   onApproveDelete,
   onRejectDelete,
@@ -352,6 +360,7 @@ function UserColumnWithSync({
   users: User[];
   onSelectQuery: (query: Query) => void;
   onAssignQuery: (query: Query, assignee: string) => void;
+  onAssignCallQuery?: (query: Query, assignee: string) => void;
   onEditQuery: (query: Query) => void;
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
@@ -522,6 +531,7 @@ function UserColumnWithSync({
                                     bucketColor={bucketConfig.color}
                                     onClick={() => onSelectQuery(query)}
                                     onAssign={onAssignQuery}
+                                    onAssignCall={onAssignCallQuery}
                                     onEdit={onEditQuery}
                                     onApproveDelete={onApproveDelete}
                                     onRejectDelete={onRejectDelete}
@@ -575,6 +585,7 @@ function UserColumnWithSync({
                                       bucketColor={bucketConfig.color}
                                       onClick={() => onSelectQuery(query)}
                                       onAssign={onAssignQuery}
+                                      onAssignCall={onAssignCallQuery}
                                       onEdit={onEditQuery}
                                       onApproveDelete={onApproveDelete}
                                       onRejectDelete={onRejectDelete}
@@ -678,6 +689,7 @@ function UserColumnWithSync({
                                     bucketColor={bucketConfig.color}
                                     onClick={() => onSelectQuery(query)}
                                     onAssign={onAssignQuery}
+                                    onAssignCall={onAssignCallQuery}
                                     onEdit={onEditQuery}
                                     onApproveDelete={onApproveDelete}
                                     onRejectDelete={onRejectDelete}
@@ -777,6 +789,7 @@ function UserColumnWithSync({
                                       bucketColor={bucketConfig.color}
                                       onClick={() => onSelectQuery(query)}
                                       onAssign={onAssignQuery}
+                                      onAssignCall={onAssignCallQuery}
                                       onEdit={onEditQuery}
                                       onApproveDelete={onApproveDelete}
                                       onRejectDelete={onRejectDelete}
