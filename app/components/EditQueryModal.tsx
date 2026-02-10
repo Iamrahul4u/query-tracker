@@ -227,8 +227,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     if (field === "Query Description") return true;
     // Query Type is visible in A-F per FRD (each bucket section lists "Query type" as visible field)
     if (field === "Query Type") return ["A", "B", "C", "D", "E", "F"].includes(s);
-    // Remarks entered during assignment (B) but should remain visible/editable in subsequent buckets
-    if (field === "Remarks") return ["B", "C", "D", "E", "F"].includes(s);
+    // Remarks editable in all buckets (A-H) by any role
+    if (field === "Remarks") return ["A", "B", "C", "D", "E", "F", "G", "H"].includes(s);
     if (field === "Whats Pending") return ["D", "E", "F"].includes(s);
     if (field === "Event ID in SF") return ["E", "F"].includes(s);
     if (field === "Event Title in SF") return ["E", "F"].includes(s);
@@ -310,8 +310,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               Date Fields
             </h4>
             <div className="grid grid-cols-2 gap-2">
-              {/* Added Date - Show for all buckets except G and H */}
-              {!["G", "H"].includes(status) && (
+              {/* Added Date - Show for all buckets */}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
                     Added Date
@@ -332,10 +331,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     className={getInputClass("Added Date Time", "text-xs")}
                   />
                 </div>
-              )}
 
-              {/* Assigned Date - Show for B, C, D, E, F */}
-              {["B", "C", "D", "E", "F"].includes(status) && (
+
+              {/* Assigned Date - Show for all buckets */}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
                     Assigned Date
@@ -358,10 +356,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     className={getInputClass("Assignment Date Time", "text-xs")}
                   />
                 </div>
-              )}
 
-              {/* Proposal Sent Date - Show for C, D, E, F - Juniors CAN edit */}
-              {["C", "D", "E", "F"].includes(status) && (
+
+              {/* Proposal Sent Date - Show for all buckets */}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
                     Proposal Sent Date
@@ -387,10 +384,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     )}
                   />
                 </div>
-              )}
 
-              {/* SF Entry Date - Show for E, F - Juniors CAN edit */}
-              {["E", "F"].includes(status) && (
+              {/* SF Entry Date - Show for all buckets */}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
                     SF Entry Date
@@ -416,7 +411,6 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     )}
                   />
                 </div>
-              )}
 
               {/* Discarded Date - Show only for G - Only seniors can access G */}
               {status === "G" && (

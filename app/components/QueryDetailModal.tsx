@@ -18,7 +18,7 @@ const BUCKET_NAMES: Record<string, string> = {
   E: "Partial Proposal + In SF",
   F: "Full Proposal + In SF",
   G: "Discarded",
-  H: "Deleted (Pending Approval)",
+  H: "Deleted",
 };
 
 /**
@@ -197,24 +197,31 @@ export function QueryDetailModal({
               <p className="font-medium text-gray-800">
                 {displayName(query["Assigned To"])}
               </p>
-              {query["Remarks"] && (
-                <div className="text-sm text-gray-600 mt-2">
-                  <span className="italic">&quot;{query["Remarks"]}&quot;</span>
-                  {query["Remark Added By"] && (
-                    <span className="text-xs text-gray-500 ml-2">
-                      —{" "}
-                      <span className="font-medium">
-                        {displayName(query["Remark Added By"])}
-                      </span>
-                      {query["Remark Added Date Time"] && (
-                        <span className="ml-1">
-                          @ {formatAuditDate(query["Remark Added Date Time"])}
-                        </span>
-                      )}
+            </div>
+          )}
+
+          {/* Remarks - shown in ALL buckets when present */}
+          {query["Remarks"] && (
+            <div className="mb-6 p-3 bg-amber-50 rounded-lg">
+              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+                Remarks
+              </p>
+              <div className="text-sm text-gray-600">
+                <span className="italic">&quot;{query["Remarks"]}&quot;</span>
+                {query["Remark Added By"] && (
+                  <span className="text-xs text-gray-500 ml-2">
+                    —{" "}
+                    <span className="font-medium">
+                      {displayName(query["Remark Added By"])}
                     </span>
-                  )}
-                </div>
-              )}
+                    {query["Remark Added Date Time"] && (
+                      <span className="ml-1">
+                        @ {formatAuditDate(query["Remark Added Date Time"])}
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
             </div>
           )}
 

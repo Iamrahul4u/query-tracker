@@ -510,7 +510,6 @@ function UserColumnWithSync({
                       key={`${displayUser.email}-${groupName}`}
                       className={`rounded-lg border ${colors.border} ${colors.bg} overflow-hidden`}
                     >
-                      {/* Type Header */}
                       <div
                         className={`flex items-center justify-between px-2 py-1 ${colors.bg}`}
                       >
@@ -525,8 +524,6 @@ function UserColumnWithSync({
                           {typeQueries.length}
                         </span>
                       </div>
-
-                      {/* Type Content */}
                       <div className="p-1 space-y-0.5 bg-white">
                         {typeQueries.map((query, idx) => (
                           <QueryCardCompact

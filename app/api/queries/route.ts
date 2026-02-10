@@ -570,9 +570,7 @@ async function handleUpdateStatus(
       forceClear("Assigned To");
       forceClear("Assigned By");
       forceClear("Assignment Date Time");
-      forceClear("Remarks");
-      forceClear("Remark Added By");
-      forceClear("Remark Added Date Time");
+
       forceClear("Proposal Sent Date Time");
       forceClear("Whats Pending");
       forceClear("Entered In SF Date Time");
@@ -588,7 +586,7 @@ async function handleUpdateStatus(
     // Moving to B: Keep Assignment + Remarks, clear proposal/SF/discard/deletion fields
     else if (data.newStatus === "B") {
       // Conditional clear - these CAN exist in B, preserve if user provided
-      clearIfNotProvided("Remarks");
+
       // Force clear - these fields DON'T belong in B
       forceClear("Proposal Sent Date Time");
       forceClear("Whats Pending");

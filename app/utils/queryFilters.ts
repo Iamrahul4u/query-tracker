@@ -118,8 +118,29 @@ export function groupQueriesByUser(queries: Query[]): Record<string, Query[]> {
 
   queries.forEach((q) => {
     const user = q["Assigned To"] || "Unassigned";
+
+    // Check if this is a PENDING deletion query (same logic as groupQueriesByBucket)
+    const isPendingDeletion = !!(
+      q["Delete Requested By"] &&
+      !q["Delete Approved By"] &&
+      q["Delete Rejected"] !== "true" &&
+      q["Previous Status"] &&
+      q["Previous Status"] !== "H"
+    );
+
     if (!grouped[user]) grouped[user] = [];
     grouped[user].push(q);
+
+    // If pending deletion and in H bucket, also add ghost to assigned user's group
+    // with the Previous Status so it shows greyed out in the original bucket within user view
+    if (isPendingDeletion && q.Status === "H") {
+      // The ghost copy should appear under the assigned user with previous bucket status
+      grouped[user].push({
+        ...q,
+        Status: q["Previous Status"]!, // Show in original bucket
+        _isGhostInOriginalBucket: true,
+      } as Query);
+    }
   });
 
   return grouped;
@@ -195,6 +216,35 @@ function parseDateRobust(dateStr: string): Date | null {
 }
 
 /**
+ * Check if a Bucket B query is "Already Allocated" (assigned date older than today 00:00)
+ * Used as a virtual type grouping for Bucket B only.
+ */
+export function isAlreadyAllocated(q: Query, bucketKey: string): boolean {
+  if (bucketKey !== "B") return false;
+  const dateStr = q["Assignment Date Time"];
+  if (!dateStr) return false;
+  const d = parseDateRobust(dateStr);
+  if (!d) return false;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  return d < todayStart;
+}
+
+/**
+ * Split queries into already-allocated and regular for Bucket B display.
+ * For non-B buckets, all queries go to regular.
+ */
+export function splitAlreadyAllocated(
+  queries: Query[],
+  bucketKey: string
+): { alreadyAllocated: Query[]; regular: Query[] } {
+  if (bucketKey !== "B") return { alreadyAllocated: [], regular: queries };
+  const alreadyAllocated = queries.filter((q) => isAlreadyAllocated(q, bucketKey));
+  const regular = queries.filter((q) => !isAlreadyAllocated(q, bucketKey));
+  return { alreadyAllocated, regular };
+}
+
+/**
  * Calculate dashboard statistics for all 7 buckets
  */
 export function calculateStats(queries: Query[]): Record<string, number> {
@@ -231,6 +281,9 @@ export function filterBySearch(queries: Query[], searchTerm: string): Query[] {
   const term = searchTerm.toLowerCase().trim();
 
   return queries.filter((q) => {
+    // Ghost queries (pending deletion shown in original bucket) are always visible regardless of search
+    if ((q as any)._isGhostInOriginalBucket) return true;
+
     const queryId = (q["Query ID"] || "").toLowerCase();
     const description = (q["Query Description"] || "").toLowerCase();
 
@@ -345,6 +398,12 @@ export function sortQueriesForBucket(
     applyCustomSort && customAscending !== undefined ? customAscending : false; // Default: newest first
 
   return [...queries].sort((a, b) => {
+    // Ghost queries (pending deletion) always sort to end
+    const aIsGhost = !!(a as any)._isGhostInOriginalBucket;
+    const bIsGhost = !!(b as any)._isGhostInOriginalBucket;
+    if (aIsGhost && !bIsGhost) return 1;
+    if (!aIsGhost && bIsGhost) return -1;
+
     // Try sort field first
     let dateA = parseDate(a[sortField]);
     let dateB = parseDate(b[sortField]);

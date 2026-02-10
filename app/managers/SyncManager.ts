@@ -926,9 +926,7 @@ export class SyncManager {
             updated["Assigned To"] = "";
             updated["Assigned By"] = "";
             updated["Assignment Date Time"] = "";
-            updated["Remarks"] = "";
-            updated["Remark Added By"] = "";
-            updated["Remark Added Date Time"] = "";
+
             updated["Proposal Sent Date Time"] = "";
             updated["Whats Pending"] = "";
             updated["Entered In SF Date Time"] = "";

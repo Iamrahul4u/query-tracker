@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { BucketConfig, QUERY_TYPE_ORDER } from "../config/sheet-constants";
 import { Query, User } from "../utils/sheets";
 import { QueryCardCompact } from "./QueryCardCompact";
-import { DateFieldKey } from "../utils/queryFilters";
+import { DateFieldKey, splitAlreadyAllocated } from "../utils/queryFilters";
 import { ExpandedBucketModal } from "./ExpandedBucketModal";
 
 export function BucketColumn({
@@ -146,145 +146,206 @@ export function BucketColumn({
         {queries.length === 0 ? (
           <p className="p-4 text-gray-400 text-sm text-center">No queries</p>
         ) : (
-          <div className="p-1.5 space-y-2">
+        <div className="p-1.5 space-y-2">
             {/* Group by Query Type: SEO Query -> New -> Ongoing -> On Hold (per FRD) */}
-            {QUERY_TYPE_ORDER.map((groupName) => {
-              const typeQueries = queries.filter((q) => {
-                const qType = (q["Query Type"] || "").trim();
-                return qType === groupName;
-              });
-              if (typeQueries.length === 0) return null;
-
-              const isTypeCollapsed = collapsedTypes.has(groupName);
-              const colors = typeColors[groupName];
+            {/* For Bucket B: queries with assigned date before today 00:00 go to "Already Allocated" */}
+            {(() => {
+              const { alreadyAllocated: alreadyAllocatedQueries, regular: regularQueries } = splitAlreadyAllocated(queries, bucketKey);
 
               return (
-                <div
-                  key={`${bucketKey}-${groupName}`}
-                  className={`rounded-lg border ${colors.border} ${colors.bg} overflow-hidden`}
-                >
-                  {/* Type Header - Collapsible */}
-                  <div
-                    className={`flex items-center justify-between px-2 py-1 cursor-pointer hover:brightness-95 transition ${colors.bg}`}
-                    onClick={() => toggleTypeCollapse(groupName)}
-                  >
-                    <div className="flex items-center gap-1">
-                      {isTypeCollapsed ? (
-                        <ChevronRight className={`w-3 h-3 ${colors.text}`} />
-                      ) : (
-                        <ChevronDown className={`w-3 h-3 ${colors.text}`} />
-                      )}
-                      <h4
-                        className={`text-[10px] font-bold ${colors.text} uppercase tracking-wider`}
-                      >
-                        {groupName}
-                      </h4>
-                    </div>
-                    <span
-                      className={`${colors.text} text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/50`}
-                    >
-                      {typeQueries.length}
-                    </span>
-                  </div>
+                <>
+                  {/* Regular query type groups */}
+                  {QUERY_TYPE_ORDER.map((groupName) => {
+                    const typeQueries = regularQueries.filter((q) => {
+                      const qType = (q["Query Type"] || "").trim();
+                      return qType === groupName;
+                    });
+                    if (typeQueries.length === 0) return null;
 
-                  {/* Type Content */}
-                  {!isTypeCollapsed && (
-                    <div className="p-1 space-y-0.5 bg-white">
-                      {typeQueries.map((query, idx) => (
-                        <QueryCardCompact
-                          key={`${bucketKey}-${groupName}-${query["Query ID"]}-${idx}`}
-                          query={query}
-                          users={users}
-                          bucketColor={config.color}
-                          onClick={() => onSelectQuery(query)}
-                          onAssign={onAssignQuery}
-                          onEdit={onEditQuery}
-                          onApproveDelete={onApproveDelete}
-                          onRejectDelete={onRejectDelete}
-                          showDate={showDateOnCards}
-                          dateField={config.defaultSortField}
-                          currentUserRole={currentUserRole}
-                          currentUserEmail={currentUserEmail}
-                          detailView={detailView}
-                        />
-                      ))}
+                    const isTypeCollapsed = collapsedTypes.has(groupName);
+                    const colors = typeColors[groupName];
+
+                    return (
+                      <div
+                        key={`${bucketKey}-${groupName}`}
+                        className={`rounded-lg border ${colors.border} ${colors.bg} overflow-hidden`}
+                      >
+                        {/* Type Header - Collapsible */}
+                        <div
+                          className={`flex items-center justify-between px-2 py-1 cursor-pointer hover:brightness-95 transition ${colors.bg}`}
+                          onClick={() => toggleTypeCollapse(groupName)}
+                        >
+                          <div className="flex items-center gap-1">
+                            {isTypeCollapsed ? (
+                              <ChevronRight className={`w-3 h-3 ${colors.text}`} />
+                            ) : (
+                              <ChevronDown className={`w-3 h-3 ${colors.text}`} />
+                            )}
+                            <h4
+                              className={`text-[10px] font-bold ${colors.text} uppercase tracking-wider`}
+                            >
+                              {groupName}
+                            </h4>
+                          </div>
+                          <span
+                            className={`${colors.text} text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/50`}
+                          >
+                            {typeQueries.length}
+                          </span>
+                        </div>
+
+                        {/* Type Content */}
+                        {!isTypeCollapsed && (
+                          <div className="p-1 space-y-0.5 bg-white">
+                            {typeQueries.map((query, idx) => (
+                              <QueryCardCompact
+                                key={`${bucketKey}-${groupName}-${query["Query ID"]}-${idx}`}
+                                query={query}
+                                users={users}
+                                bucketColor={config.color}
+                                onClick={() => onSelectQuery(query)}
+                                onAssign={onAssignQuery}
+                                onEdit={onEditQuery}
+                                onApproveDelete={onApproveDelete}
+                                onRejectDelete={onRejectDelete}
+                                showDate={showDateOnCards}
+                                dateField={config.defaultSortField}
+                                currentUserRole={currentUserRole}
+                                currentUserEmail={currentUserEmail}
+                                detailView={detailView}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Other types (fallback for any unknown types) */}
+                  {regularQueries.filter((q) => {
+                    const qType = (q["Query Type"] || "").trim();
+                    return !QUERY_TYPE_ORDER.includes(qType);
+                  }).length > 0 && (
+                    <div
+                      className={`rounded-lg border ${typeColors.Other.border} ${typeColors.Other.bg} overflow-hidden`}
+                    >
+                      {/* Type Header - Collapsible */}
+                      <div
+                        className={`flex items-center justify-between px-2 py-1 cursor-pointer hover:brightness-95 transition ${typeColors.Other.bg}`}
+                        onClick={() => toggleTypeCollapse("Other")}
+                      >
+                        <div className="flex items-center gap-1">
+                          {collapsedTypes.has("Other") ? (
+                            <ChevronRight
+                              className={`w-3 h-3 ${typeColors.Other.text}`}
+                            />
+                          ) : (
+                            <ChevronDown
+                              className={`w-3 h-3 ${typeColors.Other.text}`}
+                            />
+                          )}
+                          <h4
+                            className={`text-[10px] font-bold ${typeColors.Other.text} uppercase tracking-wider`}
+                          >
+                            Other
+                          </h4>
+                        </div>
+                        <span
+                          className={`${typeColors.Other.text} text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/50`}
+                        >
+                          {
+                            regularQueries.filter((q) => {
+                              const qType = (q["Query Type"] || "").trim();
+                              return !QUERY_TYPE_ORDER.includes(qType);
+                            }).length
+                          }
+                        </span>
+                      </div>
+
+                      {/* Type Content */}
+                      {!collapsedTypes.has("Other") && (
+                        <div className="p-1 space-y-0.5 bg-white">
+                          {regularQueries
+                            .filter((q) => {
+                              const qType = (q["Query Type"] || "").trim();
+                              return !QUERY_TYPE_ORDER.includes(qType);
+                            })
+                            .map((query, idx) => (
+                              <QueryCardCompact
+                                key={`${bucketKey}-other-${query["Query ID"]}-${idx}`}
+                                query={query}
+                                users={users}
+                                bucketColor={config.color}
+                                onClick={() => onSelectQuery(query)}
+                                onAssign={onAssignQuery}
+                                onEdit={onEditQuery}
+                                onApproveDelete={onApproveDelete}
+                                onRejectDelete={onRejectDelete}
+                                showDate={showDateOnCards}
+                                dateField={config.defaultSortField}
+                                currentUserRole={currentUserRole}
+                                currentUserEmail={currentUserEmail}
+                                detailView={detailView}
+                              />
+                            ))}
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              );
-            })}
 
-            {/* Other types (fallback for any unknown types) */}
-            {queries.filter((q) => {
-              const qType = (q["Query Type"] || "").trim();
-              return !QUERY_TYPE_ORDER.includes(qType);
-            }).length > 0 && (
-              <div
-                className={`rounded-lg border ${typeColors.Other.border} ${typeColors.Other.bg} overflow-hidden`}
-              >
-                {/* Type Header - Collapsible */}
-                <div
-                  className={`flex items-center justify-between px-2 py-1 cursor-pointer hover:brightness-95 transition ${typeColors.Other.bg}`}
-                  onClick={() => toggleTypeCollapse("Other")}
-                >
-                  <div className="flex items-center gap-1">
-                    {collapsedTypes.has("Other") ? (
-                      <ChevronRight
-                        className={`w-3 h-3 ${typeColors.Other.text}`}
-                      />
-                    ) : (
-                      <ChevronDown
-                        className={`w-3 h-3 ${typeColors.Other.text}`}
-                      />
-                    )}
-                    <h4
-                      className={`text-[10px] font-bold ${typeColors.Other.text} uppercase tracking-wider`}
+                  {/* Already Allocated section (Bucket B only) - shown after all regular types */}
+                  {alreadyAllocatedQueries.length > 0 && (
+                    <div
+                      className={`rounded-lg border border-orange-200 bg-orange-50 overflow-hidden`}
                     >
-                      Other
-                    </h4>
-                  </div>
-                  <span
-                    className={`${typeColors.Other.text} text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/50`}
-                  >
-                    {
-                      queries.filter((q) => {
-                        const qType = (q["Query Type"] || "").trim();
-                        return !QUERY_TYPE_ORDER.includes(qType);
-                      }).length
-                    }
-                  </span>
-                </div>
+                      {/* Type Header - Collapsible */}
+                      <div
+                        className={`flex items-center justify-between px-2 py-1 cursor-pointer hover:brightness-95 transition bg-orange-50`}
+                        onClick={() => toggleTypeCollapse("Already Allocated")}
+                      >
+                        <div className="flex items-center gap-1">
+                          {collapsedTypes.has("Already Allocated") ? (
+                            <ChevronRight className="w-3 h-3 text-orange-700" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3 text-orange-700" />
+                          )}
+                          <h4 className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
+                            Already Allocated
+                          </h4>
+                        </div>
+                        <span className="text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/50">
+                          {alreadyAllocatedQueries.length}
+                        </span>
+                      </div>
 
-                {/* Type Content */}
-                {!collapsedTypes.has("Other") && (
-                  <div className="p-1 space-y-0.5 bg-white">
-                    {queries
-                      .filter((q) => {
-                        const qType = (q["Query Type"] || "").trim();
-                        return !QUERY_TYPE_ORDER.includes(qType);
-                      })
-                      .map((query, idx) => (
-                        <QueryCardCompact
-                          key={`${bucketKey}-other-${query["Query ID"]}-${idx}`}
-                          query={query}
-                          users={users}
-                          bucketColor={config.color}
-                          onClick={() => onSelectQuery(query)}
-                          onAssign={onAssignQuery}
-                          onEdit={onEditQuery}
-                          onApproveDelete={onApproveDelete}
-                          onRejectDelete={onRejectDelete}
-                          showDate={showDateOnCards}
-                          dateField={config.defaultSortField}
-                          currentUserRole={currentUserRole}
-                          currentUserEmail={currentUserEmail}
-                          detailView={detailView}
-                        />
-                      ))}
-                  </div>
-                )}
-              </div>
-            )}
+                      {/* Type Content */}
+                      {!collapsedTypes.has("Already Allocated") && (
+                        <div className="p-1 space-y-0.5 bg-white">
+                          {alreadyAllocatedQueries.map((query, idx) => (
+                            <QueryCardCompact
+                              key={`${bucketKey}-already-allocated-${query["Query ID"]}-${idx}`}
+                              query={query}
+                              users={users}
+                              bucketColor={config.color}
+                              onClick={() => onSelectQuery(query)}
+                              onAssign={onAssignQuery}
+                              onEdit={onEditQuery}
+                              onApproveDelete={onApproveDelete}
+                              onRejectDelete={onRejectDelete}
+                              showDate={showDateOnCards}
+                              dateField={config.defaultSortField}
+                              currentUserRole={currentUserRole}
+                              currentUserEmail={currentUserEmail}
+                              detailView={detailView}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
 

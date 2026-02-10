@@ -117,7 +117,7 @@ export const BUCKETS: Record<string, BucketConfig> = {
     evaporateAfterDays: 3,
   },
   H: {
-    name: "H) Deleted (Pending Approval)",
+    name: "H) Deleted",
     description: "Delete requested, awaiting Admin approval",
     color: "#795548",
     defaultSortField: "Delete Requested Date Time", // Per FRD: Sort by Deleted Date (newest first)
