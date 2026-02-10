@@ -169,19 +169,20 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
       return;
     }
 
-    // CRITICAL: Remove ALL audit trail fields from finalFormData before sending
-    // These fields should NEVER be overwritten by the edit modal - they're managed by backend
+    // CRITICAL: Remove ONLY true audit trail fields from finalFormData before sending
+    // Audit trail = WHO did something (system-managed)
+    // User-editable date fields = WHEN something should happen (user can edit)
     const protectedAuditFields = [
       "Added By",
-      "Added Date Time",
+      // NOTE: "Added Date Time" is user-editable, not protected
       "Assigned By",
-      "Assignment Date Time",
+      // NOTE: "Assignment Date Time" is user-editable, not protected
       "Last Edited By",
       "Last Edited Date Time",
       "Remark Added By",
       "Remark Added Date Time",
       "Delete Requested By",
-      "Delete Requested Date Time",
+      // NOTE: "Delete Requested Date Time" is user-editable, not protected
       "Delete Approved By",
       "Delete Approved Date Time",
       "Delete Rejected By",
