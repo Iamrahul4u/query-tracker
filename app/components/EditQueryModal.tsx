@@ -168,7 +168,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     }
 
     // Validation: Block status change from A to other buckets without assignment
-    if (status !== "A" && !finalAssignedTo) {
+    // EXCEPTION: Bucket H (Deleted) never requires assignment (can delete from A directly)
+    if (status !== "A" && status !== "H" && !finalAssignedTo) {
       setError("Please assign a user before moving to next status");
       setTimeout(() => {
         errorRef.current?.scrollIntoView({
