@@ -7,7 +7,14 @@ import { useToast } from "../hooks/useToast";
 
 interface PendingAction {
   id: string;
-  type: "add" | "assign" | "assignCall" | "updateStatus" | "edit" | "delete" | "batch";
+  type:
+    | "add"
+    | "assign"
+    | "assignCall"
+    | "updateStatus"
+    | "edit"
+    | "delete"
+    | "batch";
   data?: any;
   queryId?: string;
   previousState?: any;
@@ -55,10 +62,7 @@ interface QueryState {
     assignee: string,
     remarks?: string,
   ) => Promise<void>;
-  assignCallOptimistic: (
-    queryId: string,
-    assignee: string,
-  ) => Promise<void>;
+  assignCallOptimistic: (queryId: string, assignee: string) => Promise<void>;
   updateStatusOptimistic: (
     queryId: string,
     newStatus: string,
@@ -76,6 +80,8 @@ interface QueryState {
   ) => Promise<void>;
   approveDeleteOptimistic: (queryId: string) => Promise<void>;
   rejectDeleteOptimistic: (queryId: string) => Promise<void>;
+  approveAllDeletesOptimistic: () => Promise<void>;
+  rejectAllDeletesOptimistic: () => Promise<void>;
   savePreferences: (prefs: Partial<Preferences>) => Promise<void>;
 
   // Sync Actions (Background)
@@ -323,7 +329,10 @@ export const useQueryStore = create<QueryState>()(
         if (result.success) {
           useToast
             .getState()
-            .showToast(`${queriesData.length} queries added successfully`, "success");
+            .showToast(
+              `${queriesData.length} queries added successfully`,
+              "success",
+            );
         } else {
           useToast
             .getState()
@@ -620,6 +629,60 @@ export const useQueryStore = create<QueryState>()(
           useToast
             .getState()
             .showToast(result.error || "Failed to reject deletion", "error");
+        }
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // APPROVE ALL DELETES (Admin/Pseudo Admin only)
+      // ═══════════════════════════════════════════════════════════════
+      approveAllDeletesOptimistic: async () => {
+        const syncManager = SyncManager.getInstance();
+        const currentQueries = get().queries;
+        const currentUser = get().currentUser;
+
+        const result = await syncManager.approveAllDeletesOptimistic(
+          currentQueries,
+          (queries) => set({ queries }),
+          currentUser?.Email || "",
+        );
+
+        if (result.success) {
+          const message = result.data?.message || "All deletions approved";
+          useToast.getState().showToast(message, "success");
+        } else {
+          useToast
+            .getState()
+            .showToast(
+              result.error || "Failed to approve all deletions",
+              "error",
+            );
+        }
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // REJECT ALL DELETES (Admin/Pseudo Admin only)
+      // ═══════════════════════════════════════════════════════════════
+      rejectAllDeletesOptimistic: async () => {
+        const syncManager = SyncManager.getInstance();
+        const currentQueries = get().queries;
+        const currentUser = get().currentUser;
+
+        const result = await syncManager.rejectAllDeletesOptimistic(
+          currentQueries,
+          (queries) => set({ queries }),
+          currentUser?.Email || "",
+        );
+
+        if (result.success) {
+          const message = result.data?.message || "All deletions rejected";
+          useToast.getState().showToast(message, "success");
+        } else {
+          useToast
+            .getState()
+            .showToast(
+              result.error || "Failed to reject all deletions",
+              "error",
+            );
         }
       },
 

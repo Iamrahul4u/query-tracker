@@ -231,6 +231,10 @@ export async function POST(request: NextRequest) {
         return await handleApproveDelete(sheets, queryId, data?.approvedBy);
       case "rejectDelete":
         return await handleRejectDelete(sheets, queryId, data?.rejectedBy);
+      case "approveAllDeletes":
+        return await handleApproveAllDeletes(sheets, data?.approvedBy);
+      case "rejectAllDeletes":
+        return await handleRejectAllDeletes(sheets, data?.rejectedBy);
       case "batchAdd":
         return await handleBatchAdd(sheets, data?.queries || []);
       case "assignCall":
@@ -1136,6 +1140,231 @@ async function handleRejectDelete(
   );
 
   return NextResponse.json({ success: true, restoredStatus: previousStatus });
+}
+
+/**
+ * Approve ALL pending deletions (Admin/Pseudo Admin only)
+ * Processes all queries with "Delete Requested By" but no approval/rejection
+ */
+async function handleApproveAllDeletes(sheets: any, approvedBy?: string) {
+  console.log(
+    `[handleApproveAllDeletes] Starting batch approval by ${approvedBy}`,
+  );
+
+  // Authorization check - only Admin and Pseudo Admin can approve deletions
+  if (!approvedBy) {
+    return NextResponse.json(
+      { error: "Missing approvedBy parameter" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    // Fetch all queries to find pending deletions
+    const queriesRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: SHEET_RANGES.QUERIES,
+    });
+
+    const queries = parseQueries(queriesRes.data.values || []);
+
+    // Filter pending deletions (has Delete Requested By, but no approval/rejection)
+    const pendingDeletions = queries.filter(
+      (q) =>
+        q["Delete Requested By"] &&
+        !q["Delete Approved By"] &&
+        !q["Delete Rejected"],
+    );
+
+    if (pendingDeletions.length === 0) {
+      console.log(`[handleApproveAllDeletes] No pending deletions found`);
+      return NextResponse.json({
+        success: true,
+        approved: 0,
+        failed: 0,
+        message: "No pending deletions to approve",
+      });
+    }
+
+    console.log(
+      `[handleApproveAllDeletes] Found ${pendingDeletions.length} pending deletions`,
+    );
+
+    const now = getISTDateTime();
+    let approvedCount = 0;
+    let failedCount = 0;
+    const errors: string[] = [];
+
+    // Process each pending deletion
+    for (const query of pendingDeletions) {
+      try {
+        const rowIndex = await findRowIndex(sheets, query["Query ID"]);
+        if (!rowIndex) {
+          console.error(
+            `[handleApproveAllDeletes] Query not found: ${query["Query ID"]}`,
+          );
+          failedCount++;
+          errors.push(`Query ${query["Query ID"]} not found`);
+          continue;
+        }
+
+        const updates: Record<string, string> = {
+          Status: "H", // Move to deleted bucket
+          "Delete Approved By": approvedBy,
+          "Delete Approved Date Time": now,
+          "Last Activity Date Time": now,
+        };
+
+        await updateRowCells(sheets, rowIndex, updates);
+        approvedCount++;
+        console.log(
+          `[handleApproveAllDeletes] Approved query ${query["Query ID"]}`,
+        );
+      } catch (error: any) {
+        console.error(
+          `[handleApproveAllDeletes] Failed to approve ${query["Query ID"]}:`,
+          error,
+        );
+        failedCount++;
+        errors.push(`${query["Query ID"]}: ${error.message}`);
+      }
+    }
+
+    rowIndexCache.clear();
+
+    console.log(
+      `[handleApproveAllDeletes] Completed: ${approvedCount} approved, ${failedCount} failed`,
+    );
+
+    return NextResponse.json({
+      success: true,
+      approved: approvedCount,
+      failed: failedCount,
+      total: pendingDeletions.length,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error: any) {
+    console.error(`[handleApproveAllDeletes] Fatal error:`, error);
+    return NextResponse.json(
+      { error: "Failed to approve deletions", details: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * Reject ALL pending deletions (Admin/Pseudo Admin only)
+ * Processes all queries with "Delete Requested By" but no approval/rejection
+ */
+async function handleRejectAllDeletes(sheets: any, rejectedBy?: string) {
+  console.log(
+    `[handleRejectAllDeletes] Starting batch rejection by ${rejectedBy}`,
+  );
+
+  // Authorization check - only Admin and Pseudo Admin can reject deletions
+  if (!rejectedBy) {
+    return NextResponse.json(
+      { error: "Missing rejectedBy parameter" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    // Fetch all queries to find pending deletions
+    const queriesRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: SHEET_RANGES.QUERIES,
+    });
+
+    const queries = parseQueries(queriesRes.data.values || []);
+
+    // Filter pending deletions (has Delete Requested By, but no approval/rejection)
+    const pendingDeletions = queries.filter(
+      (q) =>
+        q["Delete Requested By"] &&
+        !q["Delete Approved By"] &&
+        !q["Delete Rejected"],
+    );
+
+    if (pendingDeletions.length === 0) {
+      console.log(`[handleRejectAllDeletes] No pending deletions found`);
+      return NextResponse.json({
+        success: true,
+        rejected: 0,
+        failed: 0,
+        message: "No pending deletions to reject",
+      });
+    }
+
+    console.log(
+      `[handleRejectAllDeletes] Found ${pendingDeletions.length} pending deletions`,
+    );
+
+    const now = getISTDateTime();
+    let rejectedCount = 0;
+    let failedCount = 0;
+    const errors: string[] = [];
+
+    // Process each pending deletion
+    for (const query of pendingDeletions) {
+      try {
+        const rowIndex = await findRowIndex(sheets, query["Query ID"]);
+        if (!rowIndex) {
+          console.error(
+            `[handleRejectAllDeletes] Query not found: ${query["Query ID"]}`,
+          );
+          failedCount++;
+          errors.push(`Query ${query["Query ID"]} not found`);
+          continue;
+        }
+
+        // Get previous status to restore
+        const previousStatus = query["Previous Status"] || "A";
+
+        const updates: Record<string, string> = {
+          Status: previousStatus, // Return to previous status
+          "Previous Status": "", // Clear previous status
+          "Delete Rejected": "true", // Mark as rejected
+          "Delete Rejected By": rejectedBy,
+          "Delete Rejected Date Time": now,
+          "Last Activity Date Time": now,
+        };
+
+        await updateRowCells(sheets, rowIndex, updates);
+        rejectedCount++;
+        console.log(
+          `[handleRejectAllDeletes] Rejected query ${query["Query ID"]}, restored to ${previousStatus}`,
+        );
+      } catch (error: any) {
+        console.error(
+          `[handleRejectAllDeletes] Failed to reject ${query["Query ID"]}:`,
+          error,
+        );
+        failedCount++;
+        errors.push(`${query["Query ID"]}: ${error.message}`);
+      }
+    }
+
+    rowIndexCache.clear();
+
+    console.log(
+      `[handleRejectAllDeletes] Completed: ${rejectedCount} rejected, ${failedCount} failed`,
+    );
+
+    return NextResponse.json({
+      success: true,
+      rejected: rejectedCount,
+      failed: failedCount,
+      total: pendingDeletions.length,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error: any) {
+    console.error(`[handleRejectAllDeletes] Fatal error:`, error);
+    return NextResponse.json(
+      { error: "Failed to reject deletions", details: error.message },
+      { status: 500 },
+    );
+  }
 }
 
 // --- ASSIGN TO CALL (Bucket A only, no status change) ---

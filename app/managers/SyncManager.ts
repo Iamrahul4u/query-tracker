@@ -929,6 +929,167 @@ export class SyncManager {
   }
 
   /**
+   * Approve ALL pending deletions (Admin/Pseudo Admin only)
+   * Batch operation with optimistic updates
+   */
+  async approveAllDeletesOptimistic(
+    currentQueries: Query[],
+    updateStore: (queries: Query[]) => void,
+    currentUserEmail: string,
+  ): Promise<SyncResult> {
+    const now = getISTDateTime();
+
+    // Find all pending deletions
+    const pendingDeletions = currentQueries.filter(
+      (q) =>
+        q["Delete Requested By"] &&
+        !q["Delete Approved By"] &&
+        !q["Delete Rejected"],
+    );
+
+    if (pendingDeletions.length === 0) {
+      return {
+        success: true,
+        data: { message: "No pending deletions to approve", approved: 0 },
+      };
+    }
+
+    // Optimistic update: approve all pending deletions
+    const optimisticQueries = currentQueries.map((q) => {
+      const isPending = pendingDeletions.some(
+        (pd) => pd["Query ID"] === q["Query ID"],
+      );
+      if (isPending) {
+        return {
+          ...q,
+          Status: "H",
+          "Delete Approved By": currentUserEmail,
+          "Delete Approved Date Time": now,
+          "Last Activity Date Time": now,
+        };
+      }
+      return q;
+    });
+
+    updateStore(optimisticQueries);
+
+    try {
+      const response = await this.fetchWithRetry("/api/queries", {
+        action: "approveAllDeletes",
+        data: { approvedBy: currentUserEmail },
+      });
+
+      if (!response.ok) {
+        throw new Error("Approve all deletions failed");
+      }
+
+      const result = await response.json();
+
+      LocalStorageCache.saveQueries(optimisticQueries);
+
+      return {
+        success: true,
+        data: {
+          message: `Approved ${result.approved} deletion(s)`,
+          approved: result.approved,
+          failed: result.failed,
+          total: result.total,
+        },
+      };
+    } catch (error: any) {
+      // Rollback on failure
+      updateStore(currentQueries);
+
+      return {
+        success: false,
+        error: error.message || "Failed to approve all deletions",
+      };
+    }
+  }
+
+  /**
+   * Reject ALL pending deletions (Admin/Pseudo Admin only)
+   * Batch operation with optimistic updates
+   */
+  async rejectAllDeletesOptimistic(
+    currentQueries: Query[],
+    updateStore: (queries: Query[]) => void,
+    currentUserEmail: string,
+  ): Promise<SyncResult> {
+    const now = getISTDateTime();
+
+    // Find all pending deletions
+    const pendingDeletions = currentQueries.filter(
+      (q) =>
+        q["Delete Requested By"] &&
+        !q["Delete Approved By"] &&
+        !q["Delete Rejected"],
+    );
+
+    if (pendingDeletions.length === 0) {
+      return {
+        success: true,
+        data: { message: "No pending deletions to reject", rejected: 0 },
+      };
+    }
+
+    // Optimistic update: reject all pending deletions
+    const optimisticQueries = currentQueries.map((q) => {
+      const pendingQuery = pendingDeletions.find(
+        (pd) => pd["Query ID"] === q["Query ID"],
+      );
+      if (pendingQuery) {
+        const previousStatus = q["Previous Status"] || "A";
+        return {
+          ...q,
+          Status: previousStatus,
+          "Previous Status": "",
+          "Delete Rejected": "true",
+          "Delete Rejected By": currentUserEmail,
+          "Delete Rejected Date Time": now,
+          "Last Activity Date Time": now,
+        };
+      }
+      return q;
+    });
+
+    updateStore(optimisticQueries);
+
+    try {
+      const response = await this.fetchWithRetry("/api/queries", {
+        action: "rejectAllDeletes",
+        data: { rejectedBy: currentUserEmail },
+      });
+
+      if (!response.ok) {
+        throw new Error("Reject all deletions failed");
+      }
+
+      const result = await response.json();
+
+      LocalStorageCache.saveQueries(optimisticQueries);
+
+      return {
+        success: true,
+        data: {
+          message: `Rejected ${result.rejected} deletion(s)`,
+          rejected: result.rejected,
+          failed: result.failed,
+          total: result.total,
+        },
+      };
+    } catch (error: any) {
+      // Rollback on failure
+      updateStore(currentQueries);
+
+      return {
+        success: false,
+        error: error.message || "Failed to reject all deletions",
+      };
+    }
+  }
+
+  /**
    * Optimistic status update
    */
   async updateStatusOptimistic(

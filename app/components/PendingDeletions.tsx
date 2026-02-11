@@ -3,6 +3,7 @@
 import { Check, X, Trash2 } from "lucide-react";
 import { Query, User } from "../utils/sheets";
 import { useQueryStore } from "../stores/queryStore";
+import { useState } from "react";
 
 interface PendingDeletionsProps {
   queries: Query[];
@@ -66,12 +67,27 @@ function formatDate(dateStr: string | undefined): string {
   }
 }
 
+/**
+ * Truncate text with ellipsis
+ */
+function truncateText(text: string | undefined, maxLength: number): string {
+  if (!text) return "-";
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + "...";
+}
+
 export function PendingDeletions({
   queries,
   users,
   currentUserRole,
 }: PendingDeletionsProps) {
-  const { approveDeleteOptimistic, rejectDeleteOptimistic } = useQueryStore();
+  const {
+    approveDeleteOptimistic,
+    rejectDeleteOptimistic,
+    approveAllDeletesOptimistic,
+    rejectAllDeletesOptimistic,
+  } = useQueryStore();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Only show for Admin and Pseudo Admin (NOT Senior or Junior)
   const isAdminOrPseudoAdmin = ["admin", "pseudo admin"].includes(
@@ -89,51 +105,115 @@ export function PendingDeletions({
 
   if (pendingDeletions.length === 0) return null;
 
+  const handleApproveAll = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await approveAllDeletesOptimistic();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRejectAll = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await rejectAllDeletesOptimistic();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-      <div className="flex items-center gap-2 mb-2">
-        <Trash2 className="w-4 h-4 text-red-600" />
-        <h3 className="text-sm font-semibold text-red-800">
-          Pending Deletions ({pendingDeletions.length})
-        </h3>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Trash2 className="w-4 h-4 text-red-600" />
+          <h3 className="text-sm font-semibold text-red-800">
+            Pending Deletions ({pendingDeletions.length})
+          </h3>
+        </div>
+
+        {/* Batch Action Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleApproveAll}
+            disabled={isProcessing}
+            className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Approve all pending deletions"
+          >
+            <Check className="w-3 h-3" />
+            Approve All
+          </button>
+          <button
+            onClick={handleRejectAll}
+            disabled={isProcessing}
+            className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Reject all pending deletions"
+          >
+            <X className="w-3 h-3" />
+            Reject All
+          </button>
+        </div>
       </div>
 
       <div className="space-y-1.5">
         {pendingDeletions.map((query) => (
           <div
             key={query["Query ID"]}
-            className="flex items-center justify-between bg-white rounded-md px-2.5 py-1.5 border border-red-100 gap-3"
+            className="flex flex-col bg-white rounded-md px-2.5 py-1.5 border border-red-100 gap-1"
           >
-            <div className="flex-1 min-w-0 flex items-center gap-2">
-              <p className="text-xs font-medium text-gray-900 truncate">
-                {query["Query Description"]}
-              </p>
-              <span className="text-xs text-gray-400">•</span>
-              <p className="text-xs text-gray-500 whitespace-nowrap">
-                Requested by{" "}
-                {getDisplayName(query["Delete Requested By"], users)} on{" "}
-                {formatDate(query["Delete Requested Date Time"])}
-              </p>
+            {/* First Row: Query Description + Individual Actions */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <p className="text-xs font-medium text-gray-900 truncate">
+                  {query["Query Description"]}
+                </p>
+                <span className="text-xs text-gray-400">•</span>
+                <p className="text-xs text-gray-500 whitespace-nowrap">
+                  Requested by{" "}
+                  {getDisplayName(query["Delete Requested By"], users)} on{" "}
+                  {formatDate(query["Delete Requested Date Time"])}
+                </p>
+              </div>
+
+              <div className="flex gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => approveDeleteOptimistic(query["Query ID"])}
+                  disabled={isProcessing}
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition disabled:opacity-50"
+                  title="Approve deletion"
+                >
+                  <Check className="w-3 h-3" />
+                  Approve
+                </button>
+                <button
+                  onClick={() => rejectDeleteOptimistic(query["Query ID"])}
+                  disabled={isProcessing}
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition disabled:opacity-50"
+                  title="Reject deletion"
+                >
+                  <X className="w-3 h-3" />
+                  Reject
+                </button>
+              </div>
             </div>
 
-            <div className="flex gap-1.5 flex-shrink-0">
-              <button
-                onClick={() => approveDeleteOptimistic(query["Query ID"])}
-                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition"
-                title="Approve deletion"
-              >
-                <Check className="w-3 h-3" />
-                Approve
-              </button>
-              <button
-                onClick={() => rejectDeleteOptimistic(query["Query ID"])}
-                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition"
-                title="Reject deletion"
-              >
-                <X className="w-3 h-3" />
-                Reject
-              </button>
-            </div>
+            {/* Second Row: Remarks (if present) */}
+            {query.Remarks && query.Remarks.trim() && (
+              <div className="flex items-start gap-1.5 pl-1">
+                <span className="text-xs font-medium text-gray-600 flex-shrink-0">
+                  Remarks:
+                </span>
+                <p
+                  className="text-xs text-gray-700 flex-1"
+                  title={query.Remarks}
+                >
+                  {truncateText(query.Remarks, 100)}
+                </p>
+              </div>
+            )}
           </div>
         ))}
       </div>
