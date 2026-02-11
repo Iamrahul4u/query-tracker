@@ -24,7 +24,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   const [formData, setFormData] = useState<Partial<Query>>({ ...query });
   const [status, setStatus] = useState(query.Status);
   const [assignedTo, setAssignedTo] = useState(query["Assigned To"] || "");
-  const [callAssignedTo, setCallAssignedTo] = useState((query["Assigned To Call"] || "") as string);
+  const [callAssignedTo, setCallAssignedTo] = useState(
+    (query["Assigned To Call"] || "") as string,
+  );
   const [error, setError] = useState("");
 
   // Ref for scrollable content area
@@ -60,17 +62,26 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
       // Each check uses !prev[...] guard to preserve existing values
 
       // Moving to B or beyond - set Assignment Date if empty
-      if (["B", "C", "D", "E", "F", "G", "H"].includes(status) && !prev["Assignment Date Time"]) {
+      if (
+        ["B", "C", "D", "E", "F", "G", "H"].includes(status) &&
+        !prev["Assignment Date Time"]
+      ) {
         updates["Assignment Date Time"] = now;
       }
 
       // Moving to C/D or beyond - set Proposal Sent Date if empty
-      if (["C", "D", "E", "F", "G", "H"].includes(status) && !prev["Proposal Sent Date Time"]) {
+      if (
+        ["C", "D", "E", "F", "G", "H"].includes(status) &&
+        !prev["Proposal Sent Date Time"]
+      ) {
         updates["Proposal Sent Date Time"] = now;
       }
 
       // Moving to E/F or beyond - set SF Entry Date if empty
-      if (["E", "F", "G", "H"].includes(status) && !prev["Entered In SF Date Time"]) {
+      if (
+        ["E", "F", "G", "H"].includes(status) &&
+        !prev["Entered In SF Date Time"]
+      ) {
         updates["Entered In SF Date Time"] = now;
       }
 
@@ -196,6 +207,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     protectedAuditFields.forEach((field) => {
       delete cleanFormData[field as keyof Query];
     });
+
+    // CRITICAL: Ensure Status in cleanFormData matches the status state variable
+    // This prevents mismatch between formData.Status and status state
+    cleanFormData.Status = status;
 
     // Note: Event ID and Title are optional for E/F per Feb 5th meeting
     // (Previous validation requiring these fields has been removed)
