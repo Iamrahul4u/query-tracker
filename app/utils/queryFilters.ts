@@ -273,6 +273,10 @@ export function filterByHistoryDays(
  */
 export function isAlreadyAllocated(q: Query, bucketKey: string): boolean {
   if (bucketKey !== "B") return false;
+  // Only "New" and "SEO Query" types move to Already Allocated
+  // "Ongoing" and "On Hold" keep their original type
+  const queryType = (q["Query Type"] || "").trim();
+  if (queryType !== "New" && queryType !== "SEO Query") return false;
   const dateStr = q["Assignment Date Time"];
   if (!dateStr) return false;
   const d = parseDateRobust(dateStr);
