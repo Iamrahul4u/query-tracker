@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { SyncStatus } from "./SyncStatus";
 import { DashboardStats } from "./DashboardStats";
 import { UserMenu } from "./UserMenu";
@@ -23,13 +24,19 @@ export function DashboardHeader({
   currentViewMode = "bucket",
 }: DashboardHeaderProps) {
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
+    <header className="bg-white shadow-sm sticky    top-0 z-50 border-b border-gray-200">
       <div className="w-full px-2 py-1 sm:px-3">
         <div className="flex items-center justify-between h-8 sm:h-10">
           {/* Logo & Title - Compact for Mobile */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-              <span className="text-sm sm:text-lg font-bold text-white">Q</span>
+            <div className="w-[82px] h-[82px] relative flex-shrink-0">
+              <Image
+                src="/Black Hat - Logo jpg.jpg"
+                alt="Query Tracker Logo"
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
             <h1 className="text-xs sm:text-base font-semibold text-gray-800">
               Query Tracker

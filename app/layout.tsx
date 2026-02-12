@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Query Tracker",
   description: "Manage your queries efficiently",
+  icons: {
+    icon: "/download.png",
+  },
 };
 
 export default function RootLayout({

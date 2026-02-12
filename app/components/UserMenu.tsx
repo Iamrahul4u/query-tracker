@@ -20,18 +20,15 @@ const ROLES = [
   { value: "Junior", label: "Junior", icon: UserIcon, color: "text-green-600" },
 ];
 
-export function UserMenu({
-  currentUser,
-  onLogout,
-}: UserMenuProps) {
+export function UserMenu({ currentUser, onLogout }: UserMenuProps) {
   const currentRoleInfo =
     ROLES.find((r) => r.value === currentUser?.Role) || ROLES[2];
   const RoleIcon = currentRoleInfo.icon;
 
   return (
     <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-        <span className="text-sm font-medium text-white">
+      <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+        <span className="text-xl font-medium text-white">
           {currentUser?.Name?.charAt(0).toUpperCase() || "?"}
         </span>
       </div>
@@ -40,7 +37,9 @@ export function UserMenu({
           {currentUser?.Name || "User"}
         </p>
         {/* Role display - static in production */}
-        <div className={`text-xs flex items-center gap-1 ${currentRoleInfo.color}`}>
+        <div
+          className={`text-xs flex items-center gap-1 ${currentRoleInfo.color}`}
+        >
           <RoleIcon className="w-3 h-3" />
           <span>{currentUser?.Role || "Guest"}</span>
         </div>
