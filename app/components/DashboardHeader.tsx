@@ -29,12 +29,13 @@ export function DashboardHeader({
         <div className="flex items-center justify-between h-8 sm:h-10">
           {/* Logo & Title - Compact for Mobile */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="w-[82px] h-[82px] relative flex-shrink-0">
+            <div className="w-[75px] h-[75px] flex items-center justify-center flex-shrink-0 overflow-hidden">
               <Image
                 src="/Black Hat - Logo jpg.jpg"
                 alt="Query Tracker Logo"
-                fill
-                className="object-contain"
+                width={60}
+                height={60}
+                className="object-contain max-w-full max-h-full"
                 priority
               />
             </div>
