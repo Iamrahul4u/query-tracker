@@ -159,7 +159,7 @@ export function groupQueriesByBucket(
           bucket === "F"
             ? q["Entered In SF Date Time"]
             : q["Discarded Date Time"];
-        if (!dateStr) return false;
+        if (!dateStr) return true; // Show queries without dates (newly moved to bucket)
 
         const d = parseDateRobust(dateStr);
         if (d) {
@@ -253,7 +253,7 @@ export function filterByHistoryDays(
           ? q["Discarded Date Time"]
           : q["Delete Approved Date Time"]; // H bucket uses approval date
 
-    if (!dateStr) return false;
+    if (!dateStr) return true; // Show queries without dates (newly moved to bucket)
 
     // Parse date: "DD/MM/YYYY, HH:MM:SS"
     const d = parseDateRobust(dateStr);

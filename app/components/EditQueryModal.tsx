@@ -66,13 +66,19 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
         updates["Assignment Date Time"] = now;
       }
 
-      // Moving to C - set Proposal Sent Date if empty
-      if (status === "C" && !prev["Proposal Sent Date Time"]) {
+      // Moving to C or D - set Proposal Sent Date if empty (both buckets share this field)
+      if (
+        (status === "C" || status === "D") &&
+        !prev["Proposal Sent Date Time"]
+      ) {
         updates["Proposal Sent Date Time"] = now;
       }
 
-      // Moving to E - set SF Entry Date if empty
-      if (status === "E" && !prev["Entered In SF Date Time"]) {
+      // Moving to E or F - set SF Entry Date if empty (both buckets share this field)
+      if (
+        (status === "E" || status === "F") &&
+        !prev["Entered In SF Date Time"]
+      ) {
         updates["Entered In SF Date Time"] = now;
       }
 
