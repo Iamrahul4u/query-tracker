@@ -66,6 +66,16 @@ export function AuditTooltipContent({
   query,
   users,
 }: AuditTooltipContentProps) {
+  // DEBUG: Log to see if Discarded By is present
+  console.log(
+    "[AuditTooltipContent] query['Discarded By']:",
+    query["Discarded By"],
+  );
+  console.log(
+    "[AuditTooltipContent] query['Discarded Date Time']:",
+    query["Discarded Date Time"],
+  );
+
   // Build audit items in chronological order per 5th Feb meeting requirements
   // Order: Added → Assigned → Proposal Sent → SF Entry → Discarded → Last Edited → Remark Added
   const allAuditItems = [
@@ -92,10 +102,9 @@ export function AuditTooltipContent({
       isDateOnly: true,
     },
     {
-      label: "Discarded",
-      value: null,
+      label: "Discarded By",
+      value: query["Discarded By"],
       time: query["Discarded Date Time"],
-      isDateOnly: true,
     },
     {
       label: "Last Edited By",

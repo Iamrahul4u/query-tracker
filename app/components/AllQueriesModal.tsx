@@ -515,7 +515,6 @@ export function AllQueriesModal({
                   "SEO Query": "#7c3aed",
                   New: "#22c55e",
                   Ongoing: "#3b82f6",
-                  "On Hold": "#dc2626",
                 };
                 const typeColor = typeColors[item.typeName] || "#6b7280";
 

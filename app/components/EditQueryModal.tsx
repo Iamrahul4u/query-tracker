@@ -37,7 +37,8 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   const originalValues = query;
 
   // Auto-populate date fields when status changes to a new bucket
-  // This ensures the relevant date is set to current datetime when transitioning
+  // IMPORTANT: Only set the date for the DESTINATION bucket, not intermediate buckets
+  // This prevents false audit trail when skipping buckets (e.g., A→G shouldn't fill B/C/D/E/F dates)
   useEffect(() => {
     if (status === query.Status) return; // No status change
 
@@ -57,36 +58,26 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     setFormData((prev) => {
       const updates: Partial<Query> = { ...prev };
 
-      // Auto-populate ALL intermediate date fields when skipping buckets forward
-      // e.g., A→C fills both Assignment Date AND Proposal Sent Date
-      // Each check uses !prev[...] guard to preserve existing values
+      // Only set the date for the DESTINATION bucket (not intermediate buckets)
+      // This ensures accurate audit trail - only buckets actually visited get timestamps
 
-      // Moving to B or beyond - set Assignment Date if empty
-      if (
-        ["B", "C", "D", "E", "F", "G", "H"].includes(status) &&
-        !prev["Assignment Date Time"]
-      ) {
+      // Moving to B - set Assignment Date if empty
+      if (status === "B" && !prev["Assignment Date Time"]) {
         updates["Assignment Date Time"] = now;
       }
 
-      // Moving to C/D or beyond - set Proposal Sent Date if empty
-      if (
-        ["C", "D", "E", "F", "G", "H"].includes(status) &&
-        !prev["Proposal Sent Date Time"]
-      ) {
+      // Moving to C - set Proposal Sent Date if empty
+      if (status === "C" && !prev["Proposal Sent Date Time"]) {
         updates["Proposal Sent Date Time"] = now;
       }
 
-      // Moving to E/F or beyond - set SF Entry Date if empty
-      if (
-        ["E", "F", "G", "H"].includes(status) &&
-        !prev["Entered In SF Date Time"]
-      ) {
+      // Moving to E - set SF Entry Date if empty
+      if (status === "E" && !prev["Entered In SF Date Time"]) {
         updates["Entered In SF Date Time"] = now;
       }
 
       // Moving to G - set Discarded Date if empty
-      if (["G"].includes(status) && !prev["Discarded Date Time"]) {
+      if (status === "G" && !prev["Discarded Date Time"]) {
         updates["Discarded Date Time"] = now;
       }
 
@@ -168,8 +159,14 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     }
 
     // Validation: Block status change from A to other buckets without assignment
-    // EXCEPTION: Bucket H (Deleted) never requires assignment (can delete from A directly)
-    if (status !== "A" && status !== "H" && !finalAssignedTo) {
+    // EXCEPTION: Bucket G (Discarded) and H (Deleted) never require assignment
+    // - Can discard/delete from A directly without assignment
+    if (
+      status !== "A" &&
+      status !== "G" &&
+      status !== "H" &&
+      !finalAssignedTo
+    ) {
       setError("Please assign a user before moving to next status");
       setTimeout(() => {
         errorRef.current?.scrollIntoView({
@@ -201,6 +198,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
       "Last Activity Date Time",
       "Assigned To Call By",
       "Assigned To Call Time",
+      "Discarded By",
     ];
 
     // Create clean data object without protected audit fields
@@ -212,6 +210,84 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     // CRITICAL: Ensure Status in cleanFormData matches the status state variable
     // This prevents mismatch between formData.Status and status state
     cleanFormData.Status = status;
+
+    // CRITICAL: When moving backwards, remove fields that don't belong in the target bucket
+    // The backend will forceClear these, but we shouldn't send them in the first place
+    // This prevents the backend from seeing them as "user-provided" values
+    const bucketOrder = ["A", "B", "C", "D", "E", "F", "G", "H"];
+    const oldIndex = bucketOrder.indexOf(query.Status);
+    const newIndex = bucketOrder.indexOf(status);
+
+    if (newIndex >= 0 && oldIndex >= 0 && newIndex < oldIndex) {
+      // Moving backwards - remove fields that don't belong in target bucket
+      const fieldsToRemove: (keyof Query)[] = [];
+
+      if (status === "A") {
+        // Moving to A: Remove ALL fields except Query Description, Type, Added By/Date, Remarks
+        fieldsToRemove.push(
+          "Assigned To",
+          "Assigned By",
+          "Assignment Date Time",
+          "Proposal Sent Date Time",
+          "Whats Pending",
+          "Entered In SF Date Time",
+          "Event ID in SF",
+          "Event Title in SF",
+          "GmIndicator",
+          "Discarded Date Time",
+          "Discarded By",
+          "Delete Requested By",
+          "Delete Requested Date Time",
+          "Previous Status",
+          "Delete Rejected",
+        );
+      } else if (status === "B") {
+        // Moving to B: Remove proposal/SF/discard/deletion fields
+        fieldsToRemove.push(
+          "Proposal Sent Date Time",
+          "Whats Pending",
+          "Entered In SF Date Time",
+          "Event ID in SF",
+          "Event Title in SF",
+          "GmIndicator",
+          "Discarded Date Time",
+          "Discarded By",
+          "Delete Requested By",
+          "Delete Requested Date Time",
+          "Previous Status",
+          "Delete Rejected",
+        );
+      } else if (["C", "D"].includes(status)) {
+        // Moving to C/D: Remove SF/discard/deletion fields
+        fieldsToRemove.push(
+          "Entered In SF Date Time",
+          "Event ID in SF",
+          "Event Title in SF",
+          "GmIndicator",
+          "Discarded Date Time",
+          "Discarded By",
+          "Delete Requested By",
+          "Delete Requested Date Time",
+          "Previous Status",
+          "Delete Rejected",
+        );
+      } else if (["E", "F"].includes(status)) {
+        // Moving to E/F: Remove discard/deletion fields
+        fieldsToRemove.push(
+          "Discarded Date Time",
+          "Discarded By",
+          "Delete Requested By",
+          "Delete Requested Date Time",
+          "Previous Status",
+          "Delete Rejected",
+        );
+      }
+
+      // Remove the fields
+      fieldsToRemove.forEach((field) => {
+        delete cleanFormData[field];
+      });
+    }
 
     // Note: Event ID and Title are optional for E/F per Feb 5th meeting
     // (Previous validation requiring these fields has been removed)

@@ -1151,6 +1151,7 @@ export class SyncManager {
         }
         if (newStatus === "G") {
           updated["Discarded Date Time"] = now;
+          updated["Discarded By"] = currentUserEmail;
         }
 
         // Clear fields when moving BACKWARDS to earlier buckets
@@ -1175,6 +1176,7 @@ export class SyncManager {
             updated["Event Title in SF"] = "";
             updated["GmIndicator"] = "";
             updated["Discarded Date Time"] = "";
+            updated["Discarded By"] = "";
             updated["Delete Requested By"] = "";
             updated["Delete Requested Date Time"] = "";
             updated["Previous Status"] = "";
@@ -1189,6 +1191,7 @@ export class SyncManager {
             updated["Event Title in SF"] = "";
             updated["GmIndicator"] = "";
             updated["Discarded Date Time"] = "";
+            updated["Discarded By"] = "";
             updated["Delete Requested By"] = "";
             updated["Delete Requested Date Time"] = "";
             updated["Previous Status"] = "";
@@ -1201,6 +1204,7 @@ export class SyncManager {
             updated["Event Title in SF"] = "";
             updated["GmIndicator"] = "";
             updated["Discarded Date Time"] = "";
+            updated["Discarded By"] = "";
             updated["Delete Requested By"] = "";
             updated["Delete Requested Date Time"] = "";
             updated["Previous Status"] = "";
@@ -1209,6 +1213,7 @@ export class SyncManager {
           // Moving to E or F: Clear discard and deletion fields
           else if (["E", "F"].includes(newStatus)) {
             updated["Discarded Date Time"] = "";
+            updated["Discarded By"] = "";
             updated["Delete Requested By"] = "";
             updated["Delete Requested Date Time"] = "";
             updated["Previous Status"] = "";

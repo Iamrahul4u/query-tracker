@@ -15,6 +15,7 @@ export interface Query {
   "Event ID in SF": string;
   "Event Title in SF": string;
   "Discarded Date Time": string;
+  "Discarded By"?: string; // User who discarded the query (moved to G)
   GmIndicator: string;
   "Delete Requested Date Time": string;
   "Delete Requested By": string;
@@ -81,6 +82,7 @@ export function parseQueries(rows: string[][]): Query[] {
     });
     // Fallback ID if missing
     if (!query["Query ID"]) query["Query ID"] = `ROW-${index + 2}`;
+
     return query;
   });
 }

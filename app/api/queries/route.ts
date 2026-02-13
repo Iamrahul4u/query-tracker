@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
     const [queriesRes, usersRes, prefsRes] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: SHEET_RANGES.QUERIES, // "Queries!A:AD" - includes all audit fields
+        range: SHEET_RANGES.QUERIES, // "Queries!A:AH" - includes all audit fields including Discarded By
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -312,7 +312,8 @@ function invalidateCacheEntry(queryId: string) {
 // P=Discarded Date Time, Q=GmIndicator, R=Delete Requested Date Time, S=Delete Requested By,
 // T=Last Edited Date Time, U=Last Edited By, V=Last Activity Date Time, W=Previous Status,
 // X=Delete Approved By, Y=Delete Approved Date Time, Z=Delete Rejected,
-// AA=Delete Rejected By, AB=Delete Rejected Date Time, AC=Remark Added By, AD=Remark Added Date Time
+// AA=Delete Rejected By, AB=Delete Rejected Date Time, AC=Remark Added By, AD=Remark Added Date Time,
+// AE=Assigned To Call, AF=Assigned To Call By, AG=Assigned To Call Time, AH=Discarded By
 const COL_MAP: Record<string, string> = {
   "Query ID": "A",
   "Query Description": "B",
@@ -347,6 +348,7 @@ const COL_MAP: Record<string, string> = {
   "Assigned To Call": "AE",
   "Assigned To Call By": "AF",
   "Assigned To Call Time": "AG",
+  "Discarded By": "AH",
 };
 
 /**
@@ -611,6 +613,14 @@ async function handleUpdateStatus(
     updates["Remark Added Date Time"] = now;
   }
 
+  // If moving TO status G (Discarded), set "Discarded By" audit trail
+  if (data.newStatus === "G" && currentStatus !== "G" && lastEditedBy) {
+    console.log(
+      `[handleUpdateStatus] Moving to G (Discarded), setting Discarded By`,
+    );
+    updates["Discarded By"] = lastEditedBy;
+  }
+
   // Check for backward transition and clear fields that don't apply to the target bucket
   // Two types of clearing:
   // 1. FORCE clear: Fields that CANNOT exist in the target bucket (always clear, ignore user input)
@@ -652,6 +662,7 @@ async function handleUpdateStatus(
       forceClear("Event Title in SF");
       forceClear("GmIndicator");
       forceClear("Discarded Date Time");
+      forceClear("Discarded By");
       forceClear("Delete Requested By");
       forceClear("Delete Requested Date Time");
       forceClear("Previous Status");
@@ -669,6 +680,7 @@ async function handleUpdateStatus(
       forceClear("Event Title in SF");
       forceClear("GmIndicator");
       forceClear("Discarded Date Time");
+      forceClear("Discarded By");
       forceClear("Delete Requested By");
       forceClear("Delete Requested Date Time");
       forceClear("Previous Status");
@@ -685,6 +697,7 @@ async function handleUpdateStatus(
       forceClear("Event Title in SF");
       forceClear("GmIndicator");
       forceClear("Discarded Date Time");
+      forceClear("Discarded By");
       forceClear("Delete Requested By");
       forceClear("Delete Requested Date Time");
       forceClear("Previous Status");
@@ -698,6 +711,7 @@ async function handleUpdateStatus(
       clearIfNotProvided("Event Title in SF");
       // Force clear - these fields DON'T belong in E/F
       forceClear("Discarded Date Time");
+      forceClear("Discarded By");
       forceClear("Delete Requested By");
       forceClear("Delete Requested Date Time");
       forceClear("Previous Status");

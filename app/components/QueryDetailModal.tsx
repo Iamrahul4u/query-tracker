@@ -438,6 +438,14 @@ export function QueryDetailModal({
                       <span className="text-red-600 font-medium">
                         Discarded
                       </span>
+                      {query["Discarded By"] && (
+                        <>
+                          {" by "}
+                          <span className="font-medium text-gray-700">
+                            {displayName(query["Discarded By"])}
+                          </span>
+                        </>
+                      )}
                     </span>
                     <span className="text-gray-400 text-right">
                       {formatAuditDate(query["Discarded Date Time"])}
