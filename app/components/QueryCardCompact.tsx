@@ -275,14 +275,13 @@ export const QueryCardCompact = memo(function QueryCardCompact({
     ? users.find((u) => u.Email === callAssignedEmail)
     : null;
   const isCallAssigned = !!callAssignedEmail;
-  const callAssignedInitials = callAssignedUser
-    ? (callAssignedUser["Display Name"] || callAssignedUser.Name || callAssignedUser.Email.split("@")[0])
-        .split(" ")
-        .map((w: string) => w[0])
-        .join("")
-        .toUpperCase()
-        .substring(0, 2)
-    : callAssignedEmail ? callAssignedEmail.substring(0, 2).toUpperCase() : "";
+  const callAssignedDisplayName = callAssignedUser
+    ? callAssignedUser["Display Name"] ||
+      callAssignedUser.Name ||
+      callAssignedUser.Email.split("@")[0]
+    : callAssignedEmail
+      ? callAssignedEmail.split("@")[0]
+      : "";
 
   // Role-based assign button visibility
   const userEmailLC = currentUserEmail.toLowerCase();
@@ -466,9 +465,7 @@ export const QueryCardCompact = memo(function QueryCardCompact({
   };
 
   // Call assign dropdown content (reuses similar pattern)
-  const renderCallDropdownContent = (
-    placement?: string,
-  ) => {
+  const renderCallDropdownContent = (placement?: string) => {
     const opensUp = placement?.startsWith("top");
 
     const SearchBox = () => (
@@ -663,11 +660,16 @@ export const QueryCardCompact = memo(function QueryCardCompact({
                 <TooltipTrigger asChild>
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-medium flex-shrink-0 cursor-help">
                     <Phone className="w-2.5 h-2.5" />
-                    {callAssignedInitials}
+                    {callAssignedDisplayName}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">Call assigned to: {callAssignedUser?.["Display Name"] || callAssignedUser?.Name || callAssignedEmail}</p>
+                  <p className="text-xs">
+                    Call assigned to:{" "}
+                    {callAssignedUser?.["Display Name"] ||
+                      callAssignedUser?.Name ||
+                      callAssignedEmail}
+                  </p>
                 </TooltipContent>
               </Tooltip>
             )}
@@ -799,7 +801,11 @@ export const QueryCardCompact = memo(function QueryCardCompact({
                           ? "bg-teal-100 hover:bg-teal-200 text-teal-700"
                           : "bg-teal-50 hover:bg-teal-100 text-teal-600"
                       }`}
-                      title={isCallAssigned ? `Call assigned to: ${callAssignedUser?.["Display Name"] || callAssignedEmail}` : "Assign to call"}
+                      title={
+                        isCallAssigned
+                          ? `Call assigned to: ${callAssignedUser?.["Display Name"] || callAssignedEmail}`
+                          : "Assign to call"
+                      }
                     >
                       <Phone className="w-3 h-3" />
                     </button>
