@@ -3,6 +3,9 @@
  *
  * Centralized token refresh logic that can be used by SyncManager
  * and other parts of the application when API calls fail with 401.
+ *
+ * The refresh_token is stored as an HTTP-only cookie (set during login),
+ * so the browser sends it automatically with every request to /api/auth/refresh.
  */
 
 /**
@@ -14,24 +17,16 @@ export interface RefreshResult {
 }
 
 /**
- * Attempt to refresh the access token using the stored refresh token.
+ * Attempt to refresh the access token using the refresh token cookie.
+ * The HTTP-only cookie is sent automatically by the browser.
  * Returns an object indicating success, token value, and whether logout is required.
  */
 export async function refreshAccessToken(): Promise<RefreshResult> {
-  const refreshToken = localStorage.getItem("refresh_token");
-
-  if (!refreshToken) {
-    console.warn("⚠️ [TOKEN-REFRESH] No refresh token available");
-    return { token: null, wasRevoked: true }; // No refresh token = must login
-  }
-
   try {
-    console.log("🔄 [TOKEN-REFRESH] Attempting token refresh...");
+    console.log("🔄 [TOKEN-REFRESH] Attempting token refresh via cookie...");
 
     const response = await fetch("/api/auth/refresh", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
     });
 
     if (response.ok) {
@@ -41,6 +36,12 @@ export async function refreshAccessToken(): Promise<RefreshResult> {
       localStorage.setItem("auth_token", data.access_token);
       const newExpiry = Date.now() + data.expires_in * 1000;
       localStorage.setItem("token_expiry", String(newExpiry));
+
+      // Restore user identity from refresh response
+      if (data.email) {
+        localStorage.setItem("user_email", data.email);
+        localStorage.setItem("user_name", data.name || data.email);
+      }
 
       console.log(
         `✅ [TOKEN-REFRESH] Token refreshed! Expires at ${new Date(newExpiry).toLocaleTimeString()}`
@@ -67,11 +68,11 @@ export async function refreshAccessToken(): Promise<RefreshResult> {
 }
 
 /**
- * Clear all authentication data and redirect to login
+ * Clear all authentication data (localStorage only).
+ * The HTTP-only refresh token cookie is cleared by calling /api/auth/logout.
  */
 export function clearAllAuth(): void {
   localStorage.removeItem("auth_token");
-  localStorage.removeItem("refresh_token");
   localStorage.removeItem("token_expiry");
   localStorage.removeItem("user_email");
 }
@@ -86,3 +87,4 @@ export function isTokenExpiringSoon(): boolean {
   const timeUntilExpiry = Number(tokenExpiry) - Date.now();
   return timeUntilExpiry < 5 * 60 * 1000; // Less than 5 minutes
 }
+

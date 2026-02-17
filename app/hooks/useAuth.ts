@@ -8,7 +8,7 @@ import { useToast } from "./useToast";
  * Custom hook to handle authentication flow
  * - Checks URL token (from Chrome extension)
  * - Validates localStorage token
- * - Implements automatic token refresh using refresh_token
+ * - Implements automatic token refresh using HTTP-only cookie
  * - Initializes data loading with cache
  * - Redirects to login if invalid
  */
@@ -52,24 +52,24 @@ export function useAuth() {
 
       // 2. Check localStorage token
       const storedToken = localStorage.getItem("auth_token");
-      const refreshToken = localStorage.getItem("refresh_token");
       const tokenExpiry = localStorage.getItem("token_expiry");
 
       console.log("🔐 [AUTH-CHECK] LocalStorage check:");
       console.log(`  - auth_token: ${storedToken ? "EXISTS" : "MISSING"}`);
       console.log(
-        `  - refresh_token: ${refreshToken ? "EXISTS ✅" : "MISSING ❌"}`,
-      );
-      console.log(
         `  - token_expiry: ${tokenExpiry ? new Date(Number(tokenExpiry)).toLocaleTimeString() : "MISSING"}`,
       );
+      console.log("  - refresh_token: stored as HTTP-only cookie (not visible to JS)");
 
       if (!storedToken) {
-        console.log(
-          "❌ [AUTH-CHECK] No auth token found, redirecting to login",
-        );
-        router.replace("/");
-        return;
+        // No access token — try refreshing via cookie
+        console.log("🔐 [AUTH-CHECK] No auth token, attempting cookie-based refresh...");
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+          console.log("❌ [AUTH-CHECK] No auth token and refresh failed, redirecting to login");
+          router.replace("/");
+          return;
+        }
       }
 
       // 3. Check if token is expired
@@ -83,17 +83,7 @@ export function useAuth() {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
           console.log("❌ [AUTH-CHECK] Token refresh failed");
-          // Check if we have a refresh token - if yes, it's likely a network error
-          const hasRefreshToken = localStorage.getItem("refresh_token");
-          if (hasRefreshToken) {
-            showToast(
-              "Unable to refresh session. Please check your connection.",
-              "error",
-            );
-          } else {
-            showToast("Session expired. Please login again.", "error");
-          }
-          // Only clear auth tokens, not refresh token (user can retry)
+          showToast("Session expired. Please login again.", "error");
           localStorage.removeItem("auth_token");
           localStorage.removeItem("token_expiry");
           router.replace("/");
@@ -159,12 +149,6 @@ export function useAuth() {
         console.log(
           `⏰ [REFRESH-TIMER] Token expiring in ${minutesUntilExpiry.toFixed(1)} min, refreshing...`,
         );
-        const refreshToken = localStorage.getItem("refresh_token");
-        if (!refreshToken) {
-          console.error(
-            "❌ [REFRESH-TIMER] No refresh token available! User will be logged out.",
-          );
-        }
         await refreshAccessToken();
       }
 
@@ -232,58 +216,14 @@ export function useAuth() {
   }, [authChecked, showToast]);
 
   // Refresh access token using server-side refresh endpoint
+  // The refresh_token is stored as an HTTP-only cookie, sent automatically by the browser
   const refreshAccessToken = async (): Promise<boolean> => {
-    const refreshToken = localStorage.getItem("refresh_token");
+    console.log("🔄 [TOKEN-REFRESH] Starting token refresh via cookie...");
 
-    console.log("🔄 [TOKEN-REFRESH] Starting token refresh...");
-
-    // If no refresh token, try to validate current token (extension flow)
-    if (!refreshToken) {
-      console.warn(
-        "⚠️ [TOKEN-REFRESH] No refresh token available (extension flow or missing)",
-      );
-      const currentToken = localStorage.getItem("auth_token");
-      if (!currentToken) {
-        console.error(
-          "❌ [TOKEN-REFRESH] No auth token either, refresh failed",
-        );
-        return false;
-      }
-
-      try {
-        console.log(
-          "🔄 [TOKEN-REFRESH] Validating current token with Google...",
-        );
-        const response = await fetch(
-          `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${currentToken}`,
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          const expiresIn = data.expires_in || 3600;
-          // For extension tokens, just update expiry if still valid
-          const newExpiry = Date.now() + expiresIn * 1000;
-          localStorage.setItem("token_expiry", String(newExpiry));
-          console.log(
-            `✅ [TOKEN-REFRESH] Token validated. Expires in ${expiresIn}s at ${new Date(newExpiry).toLocaleTimeString()}`,
-          );
-          return true;
-        }
-        console.error("❌ [TOKEN-REFRESH] Token validation failed");
-        return false;
-      } catch (error) {
-        console.error("❌ [TOKEN-REFRESH] Token validation error:", error);
-        return false;
-      }
-    }
-
-    // Use server-side refresh endpoint
     try {
       console.log("🔄 [TOKEN-REFRESH] Calling /api/auth/refresh...");
       const response = await fetch("/api/auth/refresh", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: refreshToken }),
       });
 
       if (response.ok) {
@@ -294,6 +234,12 @@ export function useAuth() {
         const newExpiry = Date.now() + data.expires_in * 1000;
         localStorage.setItem("token_expiry", String(newExpiry));
 
+        // Restore user identity from refresh response
+        if (data.email) {
+          localStorage.setItem("user_email", data.email);
+          localStorage.setItem("user_name", data.name || data.email);
+        }
+
         console.log(
           `✅ [TOKEN-REFRESH] Token refreshed! New token expires in ${data.expires_in}s at ${new Date(newExpiry).toLocaleTimeString()}`,
         );
@@ -303,26 +249,20 @@ export function useAuth() {
         console.error("❌ [TOKEN-REFRESH] Refresh failed:", error);
 
         if (error.requireReauth || response.status === 401) {
-          // Refresh token is invalid/revoked - ONLY NOW clear it
           console.error(
-            "❌ [TOKEN-REFRESH] Refresh token invalid/revoked - clearing refresh token",
+            "❌ [TOKEN-REFRESH] Refresh token invalid/revoked",
           );
-          localStorage.removeItem("refresh_token");
-          localStorage.removeItem("user_email");
           return false;
         }
-        // Other errors (500, etc.) - keep refresh token, might be temporary
+        // Other errors (500, etc.) - might be temporary
         console.warn(
-          "⚠️ [TOKEN-REFRESH] Server error, keeping refresh token for retry",
+          "⚠️ [TOKEN-REFRESH] Server error, will retry later",
         );
         return false;
       }
     } catch (error) {
       console.error("❌ [TOKEN-REFRESH] Network/server error:", error);
-      console.warn(
-        "⚠️ [TOKEN-REFRESH] Network error - keeping refresh token, user can retry",
-      );
-      // Network error - KEEP refresh token, user can retry when network is back
+      // Network error - user can retry when network is back
       return false;
     }
   };
@@ -335,10 +275,12 @@ export function useAuth() {
     syncManager.stopBackgroundRefresh();
     syncManager.clearCache();
 
+    // Clear server-side refresh token cookie
+    fetch("/api/auth/logout", { method: "POST" });
+
     console.log("🚪 [LOGOUT] Clearing auth-related localStorage...");
     // Clear auth-related localStorage only (preserve drafts)
     localStorage.removeItem("auth_token");
-    localStorage.removeItem("refresh_token");
     localStorage.removeItem("token_expiry");
     localStorage.removeItem("user_email");
 

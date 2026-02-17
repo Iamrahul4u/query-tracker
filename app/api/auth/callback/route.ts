@@ -94,15 +94,29 @@ export async function POST(request: NextRequest) {
     // Token refresh will handle renewal before expiry
     const expiresIn = tokens.expires_in || 3600; // Use Google's actual expiry
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
       expires_in: expiresIn, // seconds until access token expires
       token_type: tokens.token_type,
       email: userInfo.email,
       name: userInfo.name || userInfo.email,
       has_refresh_token: !!tokens.refresh_token, // Flag for frontend validation
     });
+
+    // Store refresh token as HTTP-only cookie (30 days)
+    // This survives browser cleanup, extension interference, and localStorage clearing
+    if (tokens.refresh_token) {
+      response.cookies.set("refresh_token", tokens.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+      });
+      console.log("🍪 [AUTH-CALLBACK] Refresh token stored as HTTP-only cookie (30 days)");
+    }
+
+    return response;
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },

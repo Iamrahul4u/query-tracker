@@ -100,24 +100,14 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
 
     // 2. Check LocalStorage for existing session
     const token = localStorage.getItem("auth_token");
-    const refreshToken = localStorage.getItem("refresh_token");
     const tokenExpiry = localStorage.getItem("token_expiry");
 
-    // Helper function to attempt token refresh
+    // Helper function to attempt token refresh via HTTP-only cookie
     const attemptRefresh = async () => {
-      if (!refreshToken) {
-        console.warn("⚠️ [LOGIN-PAGE] No refresh token available");
-        setStatus("Sign in to access Query Tracker");
-        setIsLoading(false);
-        return;
-      }
-
       setStatus("Refreshing session...");
       try {
         const res = await fetch("/api/auth/refresh", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh_token: refreshToken }),
         });
 
         if (res.ok) {
@@ -128,18 +118,21 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
             "token_expiry",
             String(Date.now() + data.expires_in * 1000),
           );
+          // Restore user identity from refresh response
+          if (data.email) {
+            localStorage.setItem("user_email", data.email);
+            localStorage.setItem("user_name", data.name || data.email);
+          }
           setStatus("Redirecting to dashboard...");
           router.push("/dashboard");
         } else {
           const error = await res.json();
 
-          // Only clear refresh token if it's actually invalid (401/revoked)
           if (error.requireReauth || res.status === 401) {
             console.error(
-              "❌ [LOGIN-PAGE] Refresh token invalid/revoked, clearing all auth",
+              "❌ [LOGIN-PAGE] Refresh token invalid/revoked, clearing auth",
             );
             localStorage.removeItem("auth_token");
-            localStorage.removeItem("refresh_token");
             localStorage.removeItem("token_expiry");
             localStorage.removeItem("user_email");
             setStatus("Session expired. Please sign in again.");
@@ -173,14 +166,11 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
         return;
       }
 
-      // Token expired, try to refresh
-      attemptRefresh();
-    } else if (refreshToken) {
-      // No auth_token but have refresh_token - try to refresh
+      // Token expired, try to refresh via cookie
       attemptRefresh();
     } else {
-      setStatus("Sign in to access Query Tracker");
-      setIsLoading(false);
+      // No auth_token — try refresh via cookie (may have one from previous session)
+      attemptRefresh();
     }
   }, [router, searchParams]);
 
@@ -230,9 +220,8 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
             console.log("🔐 [LOGIN] Token exchange response:");
             console.log(`  - access_token: ${data.access_token ? "✅" : "❌"}`);
             console.log(
-              `  - refresh_token: ${data.refresh_token ? "✅" : "❌"}`,
+              `  - has_refresh_token (cookie): ${data.has_refresh_token ? "✅" : "❌"}`,
             );
-            console.log(`  - has_refresh_token: ${data.has_refresh_token}`);
             console.log(`  - expires_in: ${data.expires_in}s`);
             console.log(`  - email: ${data.email}`);
 
@@ -241,10 +230,9 @@ function HomeContent({ gsiLoaded }: { gsiLoaded: boolean }) {
             localStorage.setItem("user_email", data.email);
             localStorage.setItem("user_name", data.name || data.email);
 
-            // Store refresh token for silent refresh
-            if (data.refresh_token) {
-              localStorage.setItem("refresh_token", data.refresh_token);
-              console.log("✅ [LOGIN] Refresh token stored in localStorage");
+            // Refresh token is stored server-side as HTTP-only cookie
+            if (data.has_refresh_token) {
+              console.log("✅ [LOGIN] Refresh token stored as HTTP-only cookie");
             } else {
               console.warn(
                 "⚠️ [LOGIN] No refresh token received - session will expire after 1 hour",
