@@ -721,6 +721,7 @@ export class SyncManager {
     updateStore: (queries: Query[]) => void,
     requestedBy: string,
     isAdmin: boolean = false,
+    deletionRemarks: string = "",
   ): Promise<SyncResult> {
     const now = getISTDateTime();
 
@@ -776,6 +777,8 @@ export class SyncManager {
           isAdmin,
           // HYBRID APPROACH: Send current status to avoid extra API call
           _currentStatus: queryToMove.Status,
+          // Pass deletion remarks (auto-populated from Remarks if empty in handleDelete)
+          deletionRemarks: deletionRemarks || queryToMove["Remarks"] || "",
         },
       });
 

@@ -535,7 +535,7 @@ export const useQueryStore = create<QueryState>()(
       // ═══════════════════════════════════════════════════════════════
       // OPTIMISTIC DELETE (Using SyncManager)
       // ═══════════════════════════════════════════════════════════════
-      deleteQueryOptimistic: async (queryId, requestedBy, isAdmin = false) => {
+      deleteQueryOptimistic: async (queryId, requestedBy, isAdmin = false, deletionRemarks = "") => {
         const syncManager = SyncManager.getInstance();
         const currentQueries = get().queries;
 
@@ -557,6 +557,7 @@ export const useQueryStore = create<QueryState>()(
           (queries) => set({ queries }),
           requestedBy,
           isAdmin,
+          deletionRemarks,
         );
 
         // Remove pending action

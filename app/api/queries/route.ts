@@ -349,6 +349,7 @@ const COL_MAP: Record<string, string> = {
   "Assigned To Call By": "AF",
   "Assigned To Call Time": "AG",
   "Discarded By": "AH",
+  "Deletion Remarks": "AI",
 };
 
 /**
@@ -667,6 +668,7 @@ async function handleUpdateStatus(
       forceClear("Delete Requested Date Time");
       forceClear("Previous Status");
       forceClear("Delete Rejected");
+      forceClear("Deletion Remarks");
     }
     // Moving to B: Keep Assignment + Remarks, clear proposal/SF/discard/deletion fields
     else if (data.newStatus === "B") {
@@ -685,6 +687,7 @@ async function handleUpdateStatus(
       forceClear("Delete Requested Date Time");
       forceClear("Previous Status");
       forceClear("Delete Rejected");
+      forceClear("Deletion Remarks");
     }
     // Moving to C or D: Keep proposal fields, clear SF/discard/deletion fields
     else if (["C", "D"].includes(data.newStatus)) {
@@ -702,6 +705,7 @@ async function handleUpdateStatus(
       forceClear("Delete Requested Date Time");
       forceClear("Previous Status");
       forceClear("Delete Rejected");
+      forceClear("Deletion Remarks");
     }
     // Moving to E or F: Keep SF fields, clear discard/deletion fields
     else if (["E", "F"].includes(data.newStatus)) {
@@ -716,6 +720,7 @@ async function handleUpdateStatus(
       forceClear("Delete Requested Date Time");
       forceClear("Previous Status");
       forceClear("Delete Rejected");
+      forceClear("Deletion Remarks");
     }
     // Moving to G: Clear deletion fields only
     else if (data.newStatus === "G") {
@@ -724,6 +729,7 @@ async function handleUpdateStatus(
       forceClear("Delete Requested Date Time");
       forceClear("Previous Status");
       forceClear("Delete Rejected");
+      forceClear("Deletion Remarks");
     }
   }
 
@@ -961,7 +967,13 @@ async function handleBatchAdd(sheets: any, queries: Query[]) {
 async function handleDelete(
   sheets: any,
   queryId: string,
-  data: { requestedBy: string; isAdmin?: boolean; _currentStatus?: string },
+  data: {
+    requestedBy: string;
+    isAdmin?: boolean;
+    _currentStatus?: string;
+    deletionRemarks?: string;
+    _currentRemarks?: string;
+  },
 ) {
   console.log(`[handleDelete] Starting delete for query ${queryId}`, data);
 
@@ -1015,22 +1027,27 @@ async function handleDelete(
 
   if (data.isAdmin) {
     // Admin: Auto-approve - goes directly to H as "deleted" (not pending)
-    // Sets Delete Approved By fields so it won't show as pending approval
     updates = {
       ...baseUpdates,
       "Delete Requested Date Time": now,
       "Delete Requested By": data.requestedBy,
-      "Delete Approved By": data.requestedBy, // Auto-approved by self
+      "Delete Approved By": data.requestedBy,
       "Delete Approved Date Time": now,
     };
   } else {
-    // Junior: Pending approval - shows in "Pending Deletions" for admin to approve
+    // Junior/Senior: Pending approval
     updates = {
       ...baseUpdates,
       "Delete Requested Date Time": now,
       "Delete Requested By": data.requestedBy,
-      // Don't set Delete Approved fields - leave them empty for pending state
     };
+  }
+
+  // Save Deletion Remarks (auto-fill from existing Remarks if not provided)
+  const deletionRemarks =
+    data.deletionRemarks ?? data._currentRemarks ?? "";
+  if (deletionRemarks) {
+    updates["Deletion Remarks"] = deletionRemarks;
   }
 
   console.log(`[handleDelete] Applying updates:`, updates);
@@ -1137,9 +1154,10 @@ async function handleRejectDelete(
     "Previous Status": "", // Clear previous status
     // KEEP "Delete Requested Date Time" and "Delete Requested By" for audit trail
     "Delete Rejected": "true", // Mark as rejected (shows "Del-Rej" indicator)
-    "Delete Rejected By": rejectedBy || "", // For audit trail
-    "Delete Rejected Date Time": now, // For audit trail
+    "Delete Rejected By": rejectedBy || "",
+    "Delete Rejected Date Time": now,
     "Last Activity Date Time": now,
+    "Deletion Remarks": "", // Clear deletion remarks when restoring
   };
 
   console.log(

@@ -168,9 +168,27 @@ export const QueryCardCompact = memo(function QueryCardCompact({
     return `${day}/${month}/${year}`;
   };
 
-  // Get date value for display (single date mode) - always show in compact mode
+  // Bucket-to-primary-date mapping: defines which date to show as the main date on a card
+  // This matches the FRD requirement: User View should show bucket-relevant date, not just Added Date
+  const BUCKET_PRIMARY_DATE: Record<string, keyof Query> = {
+    A: "Added Date Time",
+    B: "Assignment Date Time",
+    C: "Proposal Sent Date Time",
+    D: "Proposal Sent Date Time",
+    E: "Entered In SF Date Time",
+    F: "Entered In SF Date Time",
+    G: "Discarded Date Time",
+    H: "Delete Requested Date Time",
+  };
+
+  // Get date value for display (single date mode)
+  // Uses bucket-specific primary date when in User View; falls back to dateField prop otherwise
   const getDateDisplay = () => {
-    return formatDateDisplay(query[dateField]);
+    const resolvedField =
+      isUserView
+        ? (BUCKET_PRIMARY_DATE[query.Status] ?? dateField)
+        : dateField;
+    return formatDateDisplay(query[resolvedField] as string | undefined);
   };
 
   // Get all applicable dates for this bucket (detail view Row 2)

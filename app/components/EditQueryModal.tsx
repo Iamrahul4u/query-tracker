@@ -36,6 +36,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   } | null>(null);
   // Flag to skip remarks check after modal confirms discard
   const [skipRemarksCheck, setSkipRemarksCheck] = useState(false);
+  // Deletion Remarks - separate field captured when moving to G or H
+  const [deletionRemarks, setDeletionRemarks] = useState(
+    (query["Deletion Remarks"] || "") as string,
+  );
 
   // Ref for scrollable content area
   const contentRef = useRef<HTMLDivElement>(null);
@@ -319,7 +323,16 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
     if (status !== query.Status) {
       // Status Changed -> Use updateStatusOptimistic with clean form data
-      updateStatusOptimistic(query["Query ID"], status, cleanFormData);
+      // When moving to G, pass deletionRemarks (auto-filled to Remarks if empty)
+      const extraFields: Record<string, string> = {};
+      if (status === "G" || status === "H") {
+        const finalDeletionRemarks =
+          deletionRemarks.trim() || (cleanFormData["Remarks"] || "").trim();
+        if (finalDeletionRemarks) {
+          extraFields["Deletion Remarks"] = finalDeletionRemarks;
+        }
+      }
+      updateStatusOptimistic(query["Query ID"], status, { ...cleanFormData, ...extraFields });
     } else {
       // Only fields changed -> Use editQueryOptimistic with clean form data
       editQueryOptimistic(query["Query ID"], cleanFormData);
@@ -340,14 +353,15 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     const isAdminOrPseudoAdmin = ["admin", "pseudo admin"].includes(role);
 
     if (confirmModal.type === "delete") {
-      // Save remarks first if provided and different from current
-      if (remarks.trim() && remarks.trim() !== (query["Remarks"] || "").trim()) {
-        editQueryOptimistic(query["Query ID"], { Remarks: remarks.trim() });
-      }
+      // Determine final deletion remarks:
+      // Use explicit deletionRemarks if set, otherwise fall back to provided remarks
+      const finalDeletionRemarks =
+        deletionRemarks.trim() || remarks.trim() || (query["Remarks"] || "").trim();
       deleteQueryOptimistic(
         query["Query ID"],
         currentUser?.Email || "",
         isAdminOrPseudoAdmin,
+        finalDeletionRemarks,
       );
       setConfirmModal(null);
       onClose();
@@ -886,6 +900,30 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
             </div>
           )}
 
+          {/* Deletion Remarks (G or H) - separate from general Remarks */}
+          {["G", "H"].includes(status) && (
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                Deletion Remarks
+                <span className="text-xs text-gray-400 ml-2">
+                  (auto-filled from Remarks if left empty)
+                </span>
+              </label>
+              <textarea
+                value={deletionRemarks}
+                onChange={(e) => setDeletionRemarks(e.target.value)}
+                disabled={!canEdit}
+                rows={2}
+                placeholder={`Reason for ${status === "G" ? "discarding" : "deleting"}...`}
+                className={`w-full border rounded-md p-2 text-sm ${
+                  deletionRemarks && deletionRemarks !== (query["Deletion Remarks"] || "")
+                    ? "border-blue-500 text-blue-700 bg-blue-50"
+                    : "border-gray-300"
+                }`}
+              />
+            </div>
+          )}
+
           {error && (
             <div
               ref={errorRef}
@@ -913,19 +951,19 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
         </div>
 
         <div className="bg-gray-50 px-4 py-3 flex justify-between items-center border-t border-gray-100">
-          {/* Delete Button (Senior/Admin/Pseudo Admin can delete directly, Junior requests deletion) */}
-          {/* Don't show delete button if already in deleted bucket (H) or discarded bucket (G) */}
+          {/* Delete Button - shown for non-H queries that the user can edit.
+               G-bucket queries CAN be deleted from here (Fix: removed G from block list) */}
           {(isAdminOrSenior || isAssignedToMe) &&
-            !["G", "H"].includes(query.Status) && (
+            query.Status !== "H" && (
               <button
                 onClick={handleDelete}
                 className="text-red-500 text-sm hover:text-red-700 font-medium"
               >
-                {isAdminOrSenior ? "Delete Query" : "Delete Query"}
+                {query.Status === "G" ? "Delete (from Discarded)" : "Delete Query"}
               </button>
             )}
           {(!isAdminOrSenior && !isAssignedToMe) ||
-          ["G", "H"].includes(query.Status) ? (
+          query.Status === "H" ? (
             <div></div>
           ) : null}
 
