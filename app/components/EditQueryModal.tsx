@@ -29,6 +29,14 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   );
   const [error, setError] = useState("");
 
+  // Confirm modal state for delete / discard remarks enforcement
+  const [confirmModal, setConfirmModal] = useState<{
+    type: "delete" | "discard";
+    remarks: string;
+  } | null>(null);
+  // Flag to skip remarks check after modal confirms discard
+  const [skipRemarksCheck, setSkipRemarksCheck] = useState(false);
+
   // Ref for scrollable content area
   const contentRef = useRef<HTMLDivElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -140,7 +148,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   // - Junior: Can edit Bucket A queries (to add remarks, will self-assign) OR their own queries
   const canEdit = isAdminOrSenior || query.Status === "A" || isAssignedToMe;
 
-  const handleSave = () => {
+  const handleSave = (overrideSkip = false) => {
     if (!canEdit) return;
 
     // Clear previous error
@@ -182,6 +190,17 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
       }, 100);
       return;
     }
+
+    // Enforce remarks when discarding (moving to G)
+    if (status === "G" && !overrideSkip && !skipRemarksCheck) {
+      const currentRemarks = (finalFormData["Remarks"] || "").trim();
+      if (!currentRemarks) {
+        setConfirmModal({ type: "discard", remarks: "" });
+        return;
+      }
+    }
+    // Reset skip flag after use
+    setSkipRemarksCheck(false);
 
     // CRITICAL: Remove ONLY true audit trail fields from finalFormData before sending
     // Audit trail = WHO did something (system-managed)
@@ -309,20 +328,36 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
   };
 
   const handleDelete = () => {
-    // Check if user is Admin or Pseudo Admin (ONLY these two get auto-approval)
+    // Open remarks modal instead of native browser confirm()
+    setConfirmModal({
+      type: "delete",
+      remarks: (formData["Remarks"] || ""),
+    });
+  };
+
+  const handleConfirmAction = (remarks: string) => {
+    if (!confirmModal) return;
     const isAdminOrPseudoAdmin = ["admin", "pseudo admin"].includes(role);
 
-    const confirmMessage = isAdminOrPseudoAdmin
-      ? "Are you sure you want to delete this query? It will move to Bucket H (Deleted) and be automatically approved."
-      : "Are you sure you want to delete this query? It will move to Bucket H (Deleted) and require admin approval.";
-
-    if (confirm(confirmMessage)) {
+    if (confirmModal.type === "delete") {
+      // Save remarks first if provided and different from current
+      if (remarks.trim() && remarks.trim() !== (query["Remarks"] || "").trim()) {
+        editQueryOptimistic(query["Query ID"], { Remarks: remarks.trim() });
+      }
       deleteQueryOptimistic(
         query["Query ID"],
         currentUser?.Email || "",
-        isAdminOrPseudoAdmin, // Admin/Pseudo Admin = auto-approve, Senior/Junior = pending approval
+        isAdminOrPseudoAdmin,
       );
+      setConfirmModal(null);
       onClose();
+    } else {
+      // Discard: inject remarks into formData then re-trigger save
+      setFormData((prev) => ({ ...prev, Remarks: remarks.trim() }));
+      setConfirmModal(null);
+      setSkipRemarksCheck(true);
+      // Use setTimeout so state updates flush before handleSave runs
+      setTimeout(() => handleSave(true), 0);
     }
   };
 
@@ -905,7 +940,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
             {canEdit && (
               <button
                 type="button"
-                onClick={handleSave}
+                onClick={() => handleSave()}
                 className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 text-sm"
               >
                 {!isAdminOrSenior &&
@@ -917,6 +952,155 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               </button>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Remarks confirmation modal for delete / discard */}
+      {confirmModal && (
+        <RemarksConfirmModal
+          type={confirmModal.type}
+          initialRemarks={confirmModal.remarks}
+          onConfirm={handleConfirmAction}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Remarks Confirmation Modal
+// ─────────────────────────────────────────────────────────────────────────────
+
+function RemarksConfirmModal({
+  type,
+  initialRemarks,
+  onConfirm,
+  onCancel,
+}: {
+  type: "delete" | "discard";
+  initialRemarks: string;
+  onConfirm: (remarks: string) => void;
+  onCancel: () => void;
+}) {
+  const [remarks, setRemarks] = useState(initialRemarks);
+  const isDelete = type === "delete";
+
+  const accentColor = isDelete ? "red" : "amber";
+  const title = isDelete ? "Delete Query" : "Discard Query";
+  const description = isDelete
+    ? "Please provide a reason for deleting this query. This will be recorded and shown in the deletion notification."
+    : "Please provide a reason for discarding this query. Remarks are required before discarding.";
+  const confirmLabel = isDelete ? "Delete" : "Discard";
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-[120]"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          className={`px-5 py-4 border-b ${
+            isDelete
+              ? "border-red-100 bg-red-50"
+              : "border-amber-100 bg-amber-50"
+          } flex items-center gap-3`}
+        >
+          <div
+            className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+              isDelete ? "bg-red-100" : "bg-amber-100"
+            }`}
+          >
+            {isDelete ? (
+              <svg
+                className="w-5 h-5 text-red-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-5 h-5 text-amber-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            )}
+          </div>
+          <div>
+            <h3
+              className={`font-semibold text-base ${
+                isDelete ? "text-red-800" : "text-amber-800"
+              }`}
+            >
+              {title}
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            Remarks
+            <span className="text-red-500 ml-0.5">*</span>
+          </label>
+          <textarea
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            placeholder="Enter reason..."
+            rows={3}
+            autoFocus
+            className={`w-full border rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 ${
+              isDelete
+                ? "focus:ring-red-300 focus:border-red-400"
+                : "focus:ring-amber-300 focus:border-amber-400"
+            } border-gray-300`}
+          />
+          {!remarks.trim() && (
+            <p className="text-xs text-gray-400 mt-1">Remarks are required to proceed.</p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-100 text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm(remarks)}
+            disabled={!remarks.trim()}
+            className={`px-4 py-2 font-medium rounded-md text-sm text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              isDelete
+                ? "bg-red-600 hover:bg-red-700"
+                : "bg-amber-500 hover:bg-amber-600"
+            }`}
+          >
+            {confirmLabel}
+          </button>
         </div>
       </div>
     </div>
