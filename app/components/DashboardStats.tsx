@@ -51,9 +51,9 @@ export function DashboardStats({
           return (
             <Fragment key={bucket}>
               <div
-                className={`text-center px-2 py-1 rounded-lg ${
+                className={`text-center px-2 py-1 rounded-lg border border-transparent ${
                   onBucketClick
-                    ? "cursor-pointer hover:opacity-80 hover:scale-105 transition-all"
+                    ? "cursor-pointer hover:opacity-80 transition-opacity"
                     : ""
                 }`}
                 style={{ backgroundColor: `${config.color}15` }}
@@ -81,9 +81,9 @@ export function DashboardStats({
               {/* Add Total after bucket F - Clickable */}
               {bucket === "F" && (
                 <div
-                  className={`text-center px-2 py-1 rounded-lg bg-gray-100 border-2 border-gray-300 ${
+                  className={`text-center px-2 py-1 rounded-lg bg-gray-100 border border-gray-300 ${
                     onTotalClick
-                      ? "cursor-pointer hover:bg-gray-200 hover:border-blue-400 hover:scale-105 transition-all"
+                      ? "cursor-pointer hover:bg-gray-200 hover:border-blue-400 transition-colors"
                       : ""
                   }`}
                   onClick={onTotalClick}

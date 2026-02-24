@@ -698,89 +698,97 @@ export function CollapsibleFilterBar({
       {isExpanded && (
         <div className="max-w-full mx-auto px-1 py-1">
           {/* Single scrollable row — all controls visible on all screen sizes */}
-          <div className="flex items-center lg:justify-center gap-0.5 overflow-x-auto no-scrollbar pb-1">
-            {/* View Toggle - Hide for juniors (only one view) */}
-            {!isJunior && (
-              <div className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-white border border-gray-200 rounded">
-                <span className="text-[8px] sm:text-[10px] font-medium text-gray-600">VIEW:</span>
-                <div className="flex bg-gray-50 rounded p-0.5">
-                  <button
-                    onClick={() => setViewMode("bucket")}
-                    className={`px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-medium rounded transition ${viewMode === "bucket" ? "bg-white text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                  >
-                    Bucket
-                  </button>
-                  <button
-                    onClick={() => setViewMode("user")}
-                    className={`px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-medium rounded transition ${viewMode === "user" ? "bg-white text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                  >
-                    User
-                  </button>
-                </div>
-              </div>
-            )}
+          {/* Three-column flex layout to safely center filters while pinning right-actions */}
+          <div className="flex items-center justify-between w-full overflow-x-auto no-scrollbar pb-1 gap-2">
+            
+            {/* Left Spacer - desktop only to balance the right actions for perfect centering */}
+            <div className="hidden lg:block flex-1 shrink-0 min-w-0" />
 
-            {/* Columns Filter */}
-            {(viewMode === "bucket" || viewMode === "user") && (
-              <div className="shrink-0">
-                <ColumnsFilter />
-              </div>
-            )}
-
-            {/* Layout Filter */}
-            {(viewMode === "bucket" || viewMode === "user") && (
-              <div className="shrink-0">
-                <LayoutFilter />
-              </div>
-            )}
-
-            {/* Card View Filter */}
-            {(viewMode === "bucket" || viewMode === "user") &&
-              onDetailViewChange && (
-                <div className="shrink-0">
-                  <CardViewFilter />
+            {/* Center Filters */}
+            <div className="flex items-center justify-center gap-0.5 shrink-0 mx-auto">
+              {/* View Toggle - Hide for juniors (only one view) */}
+              {!isJunior && (
+                <div className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-white border border-gray-200 rounded">
+                  <span className="text-[8px] sm:text-[10px] font-medium text-gray-600">VIEW:</span>
+                  <div className="flex bg-gray-50 rounded p-0.5">
+                    <button
+                      onClick={() => setViewMode("bucket")}
+                      className={`px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-medium rounded transition ${viewMode === "bucket" ? "bg-white text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                    >
+                      Bucket
+                    </button>
+                    <button
+                      onClick={() => setViewMode("user")}
+                      className={`px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-medium rounded transition ${viewMode === "user" ? "bg-white text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                    >
+                      User
+                    </button>
+                  </div>
                 </div>
               )}
 
-            {/* Group By Filter (User View only) */}
-            {viewMode === "user" && onGroupByChange && (
-              <div className="shrink-0">
-                <GroupByFilter />
-              </div>
-            )}
-
-            {/* Show/Hide Buckets Filter (Bucket View only) */}
-            {viewMode === "bucket" && onHiddenBucketsChange && (
-              <div className="shrink-0">
-                <HiddenBucketsFilter />
-              </div>
-            )}
-
-            {/* Segregate Buckets Filter (Bucket View only) */}
-            {viewMode === "bucket" && onSegregatedBucketsChange && (
-              <div className="shrink-0">
-                <SegregateFilter />
-              </div>
-            )}
-
-            {/* Show/Hide Users Filter (User View only) */}
-            {viewMode === "user" && onHiddenUsersChange && (
-              <div className="shrink-0">
-                <HiddenUsersFilter />
-              </div>
-            )}
-
-            {/* Sort Filter - Hide when search is expanded */}
-            {(viewMode === "bucket" || viewMode === "user") &&
-              onSortFieldChange &&
-              !searchExpanded && (
+              {/* Columns Filter */}
+              {(viewMode === "bucket" || viewMode === "user") && (
                 <div className="shrink-0">
-                  <SortFilter />
+                  <ColumnsFilter />
                 </div>
               )}
+
+              {/* Layout Filter */}
+              {(viewMode === "bucket" || viewMode === "user") && (
+                <div className="shrink-0">
+                  <LayoutFilter />
+                </div>
+              )}
+
+              {/* Card View Filter */}
+              {(viewMode === "bucket" || viewMode === "user") &&
+                onDetailViewChange && (
+                  <div className="shrink-0">
+                    <CardViewFilter />
+                  </div>
+                )}
+
+              {/* Group By Filter (User View only) */}
+              {viewMode === "user" && onGroupByChange && (
+                <div className="shrink-0">
+                  <GroupByFilter />
+                </div>
+              )}
+
+              {/* Show/Hide Buckets Filter (Bucket View only) */}
+              {viewMode === "bucket" && onHiddenBucketsChange && (
+                <div className="shrink-0">
+                  <HiddenBucketsFilter />
+                </div>
+              )}
+
+              {/* Segregate Buckets Filter (Bucket View only) */}
+              {viewMode === "bucket" && onSegregatedBucketsChange && (
+                <div className="shrink-0">
+                  <SegregateFilter />
+                </div>
+              )}
+
+              {/* Show/Hide Users Filter (User View only) */}
+              {viewMode === "user" && onHiddenUsersChange && (
+                <div className="shrink-0">
+                  <HiddenUsersFilter />
+                </div>
+              )}
+
+              {/* Sort Filter - Hide when search is expanded */}
+              {(viewMode === "bucket" || viewMode === "user") &&
+                onSortFieldChange &&
+                !searchExpanded && (
+                  <div className="shrink-0">
+                    <SortFilter />
+                  </div>
+                )}
+            </div>
 
             {/* Right-aligned: Search + Save/Undo/Reset */}
-            <div className="shrink-0 flex items-center gap-1 ml-auto">
+            <div className="flex-1 flex justify-end items-center gap-1 min-w-0 shrink-0">
               {/* Undo Button */}
               {showUndo && onUndoReset && (
                 <button
