@@ -95,7 +95,7 @@ export function UserSearchDropdown({
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full border border-gray-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-left flex items-center justify-between ${
+        className={`w-full border border-gray-300 rounded-md px-3 py-3 sm:py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-left flex items-center justify-between min-h-[44px] sm:min-h-0 ${
           disabled
             ? "bg-gray-100 cursor-not-allowed text-gray-500"
             : "bg-white cursor-pointer"
@@ -130,7 +130,7 @@ export function UserSearchDropdown({
             <button
               type="button"
               onClick={() => handleSelect("")}
-              className="flex items-center justify-between w-full text-left px-3 py-2 text-xs hover:bg-gray-100 rounded text-gray-500"
+              className="flex items-center justify-between w-full text-left px-3 py-3 sm:py-2 text-xs hover:bg-gray-100 rounded text-gray-500"
             >
               <span>{placeholder}</span>
               {!value && <span className="text-blue-600 ml-2">✓</span>}
@@ -148,7 +148,7 @@ export function UserSearchDropdown({
                     key={user.Email}
                     type="button"
                     onClick={() => handleSelect(user.Email)}
-                    className={`flex items-center justify-between w-full text-left px-3 py-2 text-xs hover:bg-blue-50 rounded ${
+                    className={`flex items-center justify-between w-full text-left px-3 py-3 sm:py-2 text-xs hover:bg-blue-50 rounded ${
                       isSelected ? "bg-blue-50 text-blue-700 font-medium" : ""
                     }`}
                   >
@@ -160,7 +160,7 @@ export function UserSearchDropdown({
                 );
               })
             ) : (
-              <div className="px-3 py-2 text-xs text-gray-400 text-center">
+              <div className="px-3 py-3 sm:py-2 text-xs text-gray-400 text-center">
                 No users found
               </div>
             )}

@@ -25,11 +25,11 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   return (
     <header className="bg-white shadow-sm sticky    top-0 z-50 border-b border-gray-200">
-      <div className="w-full px-2 py-1 sm:px-3">
-        <div className="flex items-center justify-between h-8 sm:h-10">
+      <div className="w-full px-2 py-0.5 sm:px-3 sm:py-1">
+        <div className="flex items-center min-h-[32px] sm:min-h-[60px] gap-1 overflow-visible">
           {/* Logo & Title - Compact for Mobile */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="w-[75px] h-[75px] flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="w-[28px] h-[28px] sm:w-[60px] sm:h-[60px] flex items-center justify-center flex-shrink-0 overflow-hidden">
               <Image
                 src="/Black Hat - Logo jpg.jpg"
                 alt="Query Tracker Logo"
@@ -39,13 +39,13 @@ export function DashboardHeader({
                 priority
               />
             </div>
-            <h1 className="text-xs sm:text-base font-semibold text-gray-800">
+            <h1 className="text-[10px] sm:text-base font-semibold text-gray-800 hidden sm:block">
               Query Tracker
             </h1>
           </div>
 
-          {/* Stats - Hidden on mobile, shows all 7 buckets */}
-          <div className="hidden lg:block">
+          {/* Stats - scrollable in available space */}
+          <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
             <DashboardStats
               stats={stats}
               onTotalClick={onTotalClick}
@@ -54,8 +54,8 @@ export function DashboardHeader({
             />
           </div>
 
-          {/* Actions - Compact */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Actions - pinned right */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={onAddQuery}
               className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-1.5 px-2 sm:px-3 rounded-md shadow-sm flex items-center gap-1 transition-colors"

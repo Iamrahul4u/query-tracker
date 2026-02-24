@@ -359,3 +359,17 @@
 .scrollbar-visible::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.7);
 }
+
+/* Horizontal Scroll with Snap - Mobile Dashboard */
+.snap-x::-webkit-scrollbar {
+  height: 4px;
+}
+
+.snap-x::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.snap-x::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}

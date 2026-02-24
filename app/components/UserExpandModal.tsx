@@ -12,6 +12,7 @@ import {
   getEffectiveQueryType,
 } from "../utils/queryFilters";
 import { X } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 interface UserExpandModalProps {
   user: { email: string; name: string };
@@ -258,6 +259,35 @@ export function UserExpandModal({
     queries.some((q) => q.Status === bucket),
   ).length;
 
+  // Ref for scroll container
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard navigation for horizontal scrolling
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!scrollContainerRef.current) return;
+
+      const scrollAmount = 288; // One column width (280px) + gap (8px)
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        scrollContainerRef.current.scrollBy({
+          left: e.key === "ArrowLeft" ? -scrollAmount : scrollAmount,
+          behavior: "smooth",
+        });
+      } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        scrollContainerRef.current.scrollBy({
+          left: e.key === "ArrowUp" ? -scrollAmount : scrollAmount,
+          behavior: "smooth",
+        });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <div className="fixed inset-0 z-[100] flex flex-col pointer-events-none">
       {/* Modal Content - Newspaper layout like ExpandedBucketModal */}
@@ -287,7 +317,10 @@ export function UserExpandModal({
         </div>
 
         {/* Content Area - Newspaper column layout */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden p-2 bg-gray-50">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-x-auto overflow-y-hidden p-2 bg-gray-50"
+        >
           {queries.length === 0 ? (
             <div className="flex items-center justify-center h-64">
               <p className="text-gray-400 text-lg">

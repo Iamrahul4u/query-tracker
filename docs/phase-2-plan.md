@@ -3,7 +3,7 @@
 > **Based on:** Jan 24th, 26th, 30th, Feb 1st, 5th, 7th, 14th, 16th, **21st** Meeting Transcripts + Feb 7th & 16th Emails  
 > **Status:** Planning  
 > **Last Updated:** Feb 21st, 2026  
-> **Estimated Effort:** 5-7 weeks (35-45 days with AI-assisted dev)  
+> **Estimated Effort:** 4 weeks (20 days with AI-assisted dev)  
 > **Phase 1 Client Feedback:** "App is working very well, purpose is fulfilled, no latency issues. Impressed with the work." *(Feb 14th)*
 
 ---
@@ -12,7 +12,6 @@
 
 | Priority | Category | Items |
 |----------|----------|--------------|
-| 🔴 P0 | Quick Fixes | Delete from G, User View dates bug, Deletion Remarks field, D&D cross-user auto-fill |
 | 🔴 HIGH | Core Features | Enhanced audit trail, **Task Tracker module** (FRD received 21 Feb) |
 | 🟡 MEDIUM | UI | Resizable sub-buckets, save user preferences, separate Restore View/Filter |
 | 🟢 LOW | Reports | Periodic email reports (daily 6:00 PM), manual reports |
@@ -183,18 +182,7 @@ Each ongoing/recurring task has a milestone system:
 
 ---
 
-### 1.3 Quick Fixes (P0 — from 21 Feb conversation) 🆕
 
-These are independent of the Tasks module and can ship immediately:
-
-| Fix | Details | Effort |
-|-----|---------|--------|
-| **Delete from Bucket G** | Allow delete action from G (Discarded → H). Currently restricted. | 1 hr |
-| **User View — Bucket Dates** | Show bucket-specific date (Assignment Date for B, Proposal Sent for C/D, SF Entry for E/F, Discarded for G) instead of Added Date everywhere | 2-3 hrs |
-| **Deletion Remarks field** | New separate field prompted when moving to G or H. Auto-populates from existing Remarks if empty | 3-4 hrs |
-| **D&D Cross-User Reassignment** | Dragging from User X's Bucket B → User Y's Bucket E: auto-fills Entered In SF Date (same logic as manual bucket change), opens modal for optional SF fields | 4-6 hrs |
-
----
 
 ## 2. 🟡 MEDIUM PRIORITY
 
@@ -238,6 +226,17 @@ When users customize their view, it must **persist across sessions**:
 - [ ] Layout changes (widths, heights) are **auto-saved** — no manual save needed
 - [ ] **"Save View" button** is only for saving filter selections
 - [ ] Store in Google Sheets (Preferences tab) + localStorage for immediacy
+
+### 2.4 Mobile Web Optimizations 📱
+
+> *Discussed: Feb 21 — Decided against native app in favor of optimized web view*
+
+- [ ] Implement responsive Tailwind breakpoints (`sm:`, `md:`) across all components
+- [ ] Ensure the horizontal bucket scroll works smoothly with touch swiping
+- [ ] Optimize modals (Add/Edit) to consume full screen width on mobile devices
+- [ ] Stack header stats and filters vertically on small screens
+- [ ] Ensure date pickers and dropdowns are touch-friendly
+- [ ] Add meta viewport tags to prevent unwanted zooming on input focus
 
 ---
 
@@ -492,30 +491,36 @@ Admin / Pseudo-Admin
 
 ```mermaid
 gantt
-    title Phase 2 Timeline (Updated)
+    title Phase 2 Timeline (4-Week Compressed)
     dateFormat  YYYY-MM-DD
-    section P0 Quick Fixes
-    Delete from G + User View dates :2026-02-22, 1d
-    Deletion Remarks field          :2026-02-23, 1d
-    D&D Cross-User auto-fill        :2026-02-24, 2d
     section High Priority
-    Enhanced Audit Trail            :2026-02-26, 4d
+    Enhanced Audit Trail            :2026-02-23, 2d
     section Tasks Module
-    Tasks sheet + API               :2026-03-02, 4d
-    Task RBAC + visibility          :2026-03-06, 2d
-    Tasks tab UI (Bucket+User View) :2026-03-08, 3d
-    Add/Edit Task Modals            :2026-03-11, 3d
-    Milestone CRUD                  :2026-03-14, 4d
-    Red Flag + Reminders            :2026-03-18, 3d
+    Tasks sheet + API               :2026-02-25, 2d
+    Task RBAC + UI + Modals         :2026-02-27, 3d
+    Milestones + Reminders          :2026-03-04, 3d
     section Medium Priority
-    Resizable Sub-Buckets           :2026-03-21, 3d
-    section Reports
-    Email reports (n8n)             :2026-03-24, 4d
-    Manual reports                  :2026-03-28, 3d
-    section Future
-    User hierarchy + groups         :2026-03-31, 3d
-    Drag & Drop (full)              :2026-04-03, 4d
+    Mobile Web Optimizations        :2026-03-07, 2d
+    Resizable Buckets + Prefs       :2026-03-10, 2d
+    section Reports & N8N
+    Email reports + Manual          :2026-03-12, 3d
+    section Future Polish
+    Drag & Drop + User Groups       :2026-03-17, 3d
 ```
+
+### AI-Driven Effort & Cost Estimates (Compressed 4-Week Schedule)
+
+> Based on an expedited 20-working-day timeframe utilizing maximum AI code scaffolding, calculated at **$10/hr** ($80/day).
+
+| Phase Area | Features Included | Dev Days | Est. Hours | Cost @ $10/hr |
+|---|---|---|---|---|
+| **High Priority** | Enhanced Audit Trail | 2 days | 16 hrs | **$160** |
+| **Tasks Module** | API, RBAC, Tasks UI, Add/Edit Modals, Milestones, Red Flag, Reminders | 8 days | 64 hrs | **$640** |
+| **Medium Priority** | Mobile Web Optimizations, Resizable Sub-Buckets, Save Preferences | 4 days | 32 hrs | **$320** |
+| **Reports** | Email reports (n8n integration) & Manual reports generation | 3 days | 24 hrs | **$240** |
+| **Future/Polish** | User groups / hierarchy, full Drag-and-Drop flow with 5s undo toast, Web push notifications | 3 days | 24 hrs | **$240** |
+| | **Total Phase 2 Estimate** | **20 Days** | **160 Hours** | **$1,600 USD** |
+
 
 ---
 

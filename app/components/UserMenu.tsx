@@ -27,8 +27,8 @@ export function UserMenu({ currentUser, onLogout }: UserMenuProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-        <span className="text-xl font-medium text-white">
+      <div className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 bg-blue-600 rounded-full flex items-center justify-center">
+        <span className="text-sm sm:text-base font-medium text-white">
           {currentUser?.Name?.charAt(0).toUpperCase() || "?"}
         </span>
       </div>

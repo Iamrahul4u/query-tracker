@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Query, User } from "../utils/sheets";
 import {
   BUCKETS,
@@ -60,6 +61,16 @@ export function BucketViewDefault({
   hiddenBuckets = [],
   segregatedBuckets = [],
 }: BucketViewDefaultProps) {
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   // Filter visible buckets
   const visibleBuckets = BUCKET_ORDER.filter((b) => !hiddenBuckets.includes(b));
 
@@ -147,8 +158,13 @@ export function BucketViewDefault({
     ? "var(--bucket-height-expanded)"
     : "var(--bucket-height-collapsed)";
 
+  // Container classes - horizontal scroll on mobile, grid on desktop
+  const containerClass = isMobile
+    ? "flex gap-4 overflow-x-auto snap-x snap-mandatory"
+    : `grid gap-4 ${gridClass}`;
+
   return (
-    <div className={`grid gap-4 ${gridClass}`}>
+    <div className={containerClass}>
       {expandedBuckets.map((bucket) => {
         const { key, bucketKey, typeName } = bucket;
         const config = BUCKETS[bucketKey];
@@ -178,30 +194,37 @@ export function BucketViewDefault({
           : config.name;
 
         return (
-          <BucketColumn
+          <div
             key={key}
-            bucketKey={key}
-            config={{ ...config, name: displayName }}
-            queries={queries}
-            users={users}
-            onSelectQuery={onSelectQuery}
-            onAssignQuery={onAssignQuery}
-            onAssignCallQuery={onAssignCallQuery}
-            onEditQuery={onEditQuery}
-            onApproveDelete={onApproveDelete}
-            onRejectDelete={onRejectDelete}
-            onLoadMore={typeName ? undefined : onLoadMore} // Only show Load More for non-segregated buckets
-            onAddQuery={bucketKey === "A" ? onAddQuery : undefined} // Only pass for Bucket A
-            extendedDays={extendedDays[bucketKey] || 3}
-            isLoading={loadingBuckets.has(bucketKey)}
-            disableScroll={false}
-            maxHeight={maxHeight}
-            showDateOnCards={showDateOnCards}
-            dateField={BUCKETS[bucketKey].defaultSortField as DateFieldKey}
-            currentUserRole={currentUserRole}
-            currentUserEmail={currentUserEmail}
-            detailView={detailView}
-          />
+            className={
+              isMobile ? "snap-center shrink-0 min-w-[70vw] max-w-[70vw]" : ""
+            }
+          >
+            <BucketColumn
+              key={key}
+              bucketKey={key}
+              config={{ ...config, name: displayName }}
+              queries={queries}
+              users={users}
+              onSelectQuery={onSelectQuery}
+              onAssignQuery={onAssignQuery}
+              onAssignCallQuery={onAssignCallQuery}
+              onEditQuery={onEditQuery}
+              onApproveDelete={onApproveDelete}
+              onRejectDelete={onRejectDelete}
+              onLoadMore={typeName ? undefined : onLoadMore} // Only show Load More for non-segregated buckets
+              onAddQuery={bucketKey === "A" ? onAddQuery : undefined} // Only pass for Bucket A
+              extendedDays={extendedDays[bucketKey] || 3}
+              isLoading={loadingBuckets.has(bucketKey)}
+              disableScroll={false}
+              maxHeight={maxHeight}
+              showDateOnCards={showDateOnCards}
+              dateField={BUCKETS[bucketKey].defaultSortField as DateFieldKey}
+              currentUserRole={currentUserRole}
+              currentUserEmail={currentUserEmail}
+              detailView={detailView}
+            />
+          </div>
         );
       })}
     </div>

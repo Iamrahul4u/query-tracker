@@ -62,7 +62,7 @@ export function BucketView({
   return (
     <>
       {/* Mobile Tab Navigation */}
-      <div className="md:hidden overflow-x-auto pb-2 mb-2 -mx-4 px-4 flex gap-1.5 no-scrollbar">
+      <div className="md:hidden overflow-x-auto pb-2 mb-2 px-2 flex gap-1.5 no-scrollbar">
         {visibleBuckets.map((bucketKey) => (
           <button
             key={bucketKey}

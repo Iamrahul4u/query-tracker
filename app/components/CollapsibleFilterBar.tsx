@@ -1,15 +1,7 @@
 import { useState } from "react";
-import { SlidersHorizontal } from "lucide-react";
 import { DATE_FIELDS, DateFieldKey } from "../utils/queryFilters";
 import { BUCKETS } from "../config/sheet-constants";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+
 
 interface CollapsibleFilterBarProps {
   viewMode: "bucket" | "user" | "list";
@@ -97,7 +89,6 @@ export function CollapsibleFilterBar({
   allUsers = [],
 }: CollapsibleFilterBarProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [bucketDropdownOpen, setBucketDropdownOpen] = useState(false);
   const [hiddenBucketDropdownOpen, setHiddenBucketDropdownOpen] =
     useState(false);
@@ -172,14 +163,14 @@ export function CollapsibleFilterBar({
 
   // Filter section component for reuse in desktop and drawer
   const ColumnsFilter = () => (
-    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+    <div className="w-full sm:w-auto flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
       <span className="text-[10px] font-medium text-gray-600">COLUMNS:</span>
-      <div className="flex bg-gray-50 rounded p-0.5">
+      <div className="flex flex-1 sm:flex-none bg-gray-50 rounded p-0.5">
         {[2, 3, 4].map((count) => (
           <button
             key={count}
             onClick={() => setColumnCount(count as 2 | 3 | 4)}
-            className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${columnCount === count ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+            className={`flex-1 sm:flex-none px-1.5 py-0.5 text-[10px] font-medium rounded transition ${columnCount === count ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           >
             {count}
           </button>
@@ -189,19 +180,19 @@ export function CollapsibleFilterBar({
   );
 
   const LayoutFilter = () => (
-    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+    <div className="w-full sm:w-auto flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
       <span className="text-[10px] font-medium text-gray-600">LAYOUT:</span>
-      <div className="flex bg-gray-50 rounded p-0.5">
+      <div className="flex flex-1 sm:flex-none bg-gray-50 rounded p-0.5">
         <button
           onClick={() => setBucketViewMode("default")}
-          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${bucketViewMode === "default" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 sm:flex-none px-1.5 py-0.5 text-[10px] font-medium rounded transition ${bucketViewMode === "default" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Independent scroll per bucket"
         >
           Default
         </button>
         <button
           onClick={() => setBucketViewMode("linear")}
-          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${bucketViewMode === "linear" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 sm:flex-none px-1.5 py-0.5 text-[10px] font-medium rounded transition ${bucketViewMode === "linear" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Synchronized row scrolling"
         >
           Linear
@@ -211,19 +202,19 @@ export function CollapsibleFilterBar({
   );
 
   const CardViewFilter = () => (
-    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+    <div className="w-full sm:w-auto flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
       <span className="text-[10px] font-medium text-gray-600">CARD:</span>
-      <div className="flex bg-gray-50 rounded p-0.5">
+      <div className="flex flex-1 sm:flex-none bg-gray-50 rounded p-0.5">
         <button
           onClick={() => onDetailViewChange?.(false)}
-          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${!detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 sm:flex-none px-1.5 py-0.5 text-[10px] font-medium rounded transition ${!detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Single row per card (compact)"
         >
           Compact
         </button>
         <button
           onClick={() => onDetailViewChange?.(true)}
-          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 sm:flex-none px-1.5 py-0.5 text-[10px] font-medium rounded transition ${detailView ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Two rows per card with all dates"
         >
           Detail
@@ -233,19 +224,19 @@ export function CollapsibleFilterBar({
   );
 
   const GroupByFilter = () => (
-    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+    <div className="w-full sm:w-auto flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
       <span className="text-[10px] font-medium text-gray-600">GROUP:</span>
-      <div className="flex bg-gray-50 rounded p-0.5">
+      <div className="flex flex-1 sm:flex-none bg-gray-50 rounded p-0.5">
         <button
           onClick={() => onGroupByChange?.("bucket")}
-          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${groupBy === "bucket" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 sm:flex-none px-1.5 py-0.5 text-[10px] font-medium rounded transition ${groupBy === "bucket" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Group by workflow stage (bucket)"
         >
           Bucket
         </button>
         <button
           onClick={() => onGroupByChange?.("type")}
-          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${groupBy === "type" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+          className={`flex-1 sm:flex-none px-1.5 py-0.5 text-[10px] font-medium rounded transition ${groupBy === "type" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
           title="Group by query type"
         >
           Type
@@ -255,12 +246,12 @@ export function CollapsibleFilterBar({
   );
 
   const SortFilter = () => (
-    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+    <div className="w-full sm:w-auto flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
       <span className="text-[10px] font-medium text-gray-600">SORT:</span>
       <select
         value={sortField || ""}
         onChange={(e) => onSortFieldChange?.(e.target.value as DateFieldKey)}
-        className="px-1 py-0.5 text-[10px] font-medium rounded bg-gray-50 border-0 text-gray-700 focus:ring-1 focus:ring-blue-500 max-w-[100px]"
+        className="flex-1 sm:flex-none px-1 py-0.5 text-[10px] font-medium rounded bg-gray-50 border-0 text-gray-700 focus:ring-1 focus:ring-blue-500 sm:max-w-[100px]"
         title="Sort by date field"
       >
         {DATE_FIELDS.map((f) => (
@@ -392,12 +383,12 @@ export function CollapsibleFilterBar({
 
   // Hidden Buckets Filter (for Bucket View)
   const HiddenBucketsFilter = () => (
-    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+    <div className="w-full sm:w-auto flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
       <span className="text-[10px] font-medium text-gray-600">SHOW:</span>
-      <div className="relative">
+      <div className="relative flex-1 sm:flex-none">
         <button
           onClick={() => setHiddenBucketDropdownOpen(!hiddenBucketDropdownOpen)}
-          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition flex items-center gap-0.5 ${hiddenBuckets.length > 0 ? "bg-orange-50 text-orange-700 hover:bg-orange-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
+          className={`w-full sm:w-auto px-1.5 py-0.5 text-[10px] font-medium rounded transition flex items-center justify-between sm:justify-start gap-0.5 ${hiddenBuckets.length > 0 ? "bg-orange-50 text-orange-700 hover:bg-orange-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
           title="Toggle which buckets to show"
         >
           {hiddenBuckets.length > 0
@@ -480,12 +471,12 @@ export function CollapsibleFilterBar({
 
   // Hidden Users Filter (for User View)
   const HiddenUsersFilter = () => (
-    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+    <div className="w-full sm:w-auto flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
       <span className="text-[10px] font-medium text-gray-600">SHOW:</span>
-      <div className="relative">
+      <div className="relative flex-1 sm:flex-none">
         <button
           onClick={() => setHiddenUserDropdownOpen(!hiddenUserDropdownOpen)}
-          className={`px-1.5 py-0.5 text-xs font-medium rounded transition flex items-center gap-1 ${hiddenUsers.length > 0 ? "bg-orange-50 text-orange-700 hover:bg-orange-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
+          className={`w-full sm:w-auto px-1.5 py-0.5 text-xs font-medium rounded transition flex items-center justify-between sm:justify-start gap-1 ${hiddenUsers.length > 0 ? "bg-orange-50 text-orange-700 hover:bg-orange-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
           title="Toggle which users to show"
         >
           {hiddenUsers.length > 0
@@ -590,12 +581,12 @@ export function CollapsibleFilterBar({
 
   // Segregate Buckets Filter (for Bucket View only)
   const SegregateFilter = () => (
-    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
+    <div className="w-full sm:w-auto flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
       <span className="text-[10px] font-medium text-gray-600">SEGREGATE:</span>
-      <div className="relative">
+      <div className="relative flex-1 sm:flex-none">
         <button
           onClick={() => setSegregatedDropdownOpen(!segregatedDropdownOpen)}
-          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition flex items-center gap-0.5 ${segregatedBuckets.length > 0 ? "bg-purple-50 text-purple-700 hover:bg-purple-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
+          className={`w-full sm:w-auto px-1.5 py-0.5 text-[10px] font-medium rounded transition flex items-center justify-between sm:justify-start gap-0.5 ${segregatedBuckets.length > 0 ? "bg-purple-50 text-purple-700 hover:bg-purple-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
           title="Split selected buckets by query type"
         >
           {segregatedBuckets.length > 0
@@ -706,23 +697,22 @@ export function CollapsibleFilterBar({
 
       {isExpanded && (
         <div className="max-w-full mx-auto px-1 py-1">
-          <div className="flex flex-wrap items-center gap-0.5">
-            {/* View Toggle - Complete white box with label + controls - Hide for juniors (only one view) */}
+          {/* Single scrollable row — all controls visible on all screen sizes */}
+          <div className="flex items-center lg:justify-center gap-0.5 overflow-x-auto no-scrollbar pb-1">
+            {/* View Toggle - Hide for juniors (only one view) */}
             {!isJunior && (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded">
-                <span className="text-[10px] font-medium text-gray-600">
-                  VIEW:
-                </span>
+              <div className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-white border border-gray-200 rounded">
+                <span className="text-[8px] sm:text-[10px] font-medium text-gray-600">VIEW:</span>
                 <div className="flex bg-gray-50 rounded p-0.5">
                   <button
                     onClick={() => setViewMode("bucket")}
-                    className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${viewMode === "bucket" ? "bg-white text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                    className={`px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-medium rounded transition ${viewMode === "bucket" ? "bg-white text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
                   >
                     Bucket
                   </button>
                   <button
                     onClick={() => setViewMode("user")}
-                    className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition ${viewMode === "user" ? "bg-white text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                    className={`px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-medium rounded transition ${viewMode === "user" ? "bg-white text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
                   >
                     User
                   </button>
@@ -730,119 +720,101 @@ export function CollapsibleFilterBar({
               </div>
             )}
 
-            {/* Columns Filter - Complete white box */}
+            {/* Columns Filter */}
             {(viewMode === "bucket" || viewMode === "user") && (
-              <div className="hidden lg:block">
+              <div className="shrink-0">
                 <ColumnsFilter />
               </div>
             )}
 
-            {/* Layout Filter - Individual */}
+            {/* Layout Filter */}
             {(viewMode === "bucket" || viewMode === "user") && (
-              <div className="hidden lg:block">
+              <div className="shrink-0">
                 <LayoutFilter />
               </div>
             )}
 
-            {/* Card View Filter - Individual */}
+            {/* Card View Filter */}
             {(viewMode === "bucket" || viewMode === "user") &&
               onDetailViewChange && (
-                <div className="hidden lg:block">
+                <div className="shrink-0">
                   <CardViewFilter />
                 </div>
               )}
 
-            {/* Group By Filter - Individual (User View only) */}
+            {/* Group By Filter (User View only) */}
             {viewMode === "user" && onGroupByChange && (
-              <div className="hidden lg:block">
+              <div className="shrink-0">
                 <GroupByFilter />
               </div>
             )}
 
-            {/* Show/Hide Buckets Filter - Individual (Bucket View only) */}
+            {/* Show/Hide Buckets Filter (Bucket View only) */}
             {viewMode === "bucket" && onHiddenBucketsChange && (
-              <div className="hidden lg:block">
+              <div className="shrink-0">
                 <HiddenBucketsFilter />
               </div>
             )}
 
-            {/* Segregate Buckets Filter - Individual (Bucket View only) */}
+            {/* Segregate Buckets Filter (Bucket View only) */}
             {viewMode === "bucket" && onSegregatedBucketsChange && (
-              <div className="hidden lg:block">
+              <div className="shrink-0">
                 <SegregateFilter />
               </div>
             )}
 
-            {/* Show/Hide Users Filter - Individual (User View only) */}
+            {/* Show/Hide Users Filter (User View only) */}
             {viewMode === "user" && onHiddenUsersChange && (
-              <div className="hidden lg:block">
+              <div className="shrink-0">
                 <HiddenUsersFilter />
               </div>
             )}
 
-            {/* Sort Filter - Individual - Hide when search is expanded */}
+            {/* Sort Filter - Hide when search is expanded */}
             {(viewMode === "bucket" || viewMode === "user") &&
               onSortFieldChange &&
               !searchExpanded && (
-                <div className="hidden lg:block">
+                <div className="shrink-0">
                   <SortFilter />
                 </div>
               )}
 
-            {/* Search + Save View + Restore Defaults - Hidden on mobile - INLINED to prevent focus loss */}
-            <div className="hidden lg:flex items-center gap-1.5 ml-auto">
-              {/* Undo Button - visible for 10 seconds after reset */}
+            {/* Right-aligned: Search + Save/Undo/Reset */}
+            <div className="shrink-0 flex items-center gap-1 ml-auto">
+              {/* Undo Button */}
               {showUndo && onUndoReset && (
                 <button
                   onClick={onUndoReset}
-                  className="px-2 py-0.5 text-[10px] font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition flex items-center gap-1"
+                  className="px-1.5 sm:px-2 py-0.5 text-[8px] sm:text-[10px] font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition flex items-center gap-0.5"
                   title="Undo reset"
                 >
-                  <svg
-                    className="w-2.5 h-2.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                    />
+                  <svg className="w-2 h-2 sm:w-2.5 sm:h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                   </svg>
                   Undo
                 </button>
               )}
-              {/* Restore Defaults Button - always visible */}
+
+              {/* Restore Defaults */}
               {onResetView && (
                 <button
                   onClick={onResetView}
-                  className="px-2 py-0.5 text-[10px] font-medium rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-200 transition"
+                  className="px-1.5 sm:px-2 py-0.5 text-[8px] sm:text-[10px] font-medium rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-200 transition"
                   title="Reset all filters to defaults"
                 >
-                  Restore Defaults
+                  Reset
                 </button>
               )}
-              {/* Save View Button - visible when there are pending changes - MINIMAL */}
+
+              {/* Save View */}
               {hasPendingChanges && onSaveView && (
                 <button
                   onClick={onSaveView}
-                  className="px-2 py-0.5 text-[10px] font-medium rounded bg-green-600 text-white hover:bg-green-700 transition flex items-center gap-1"
+                  className="px-1.5 sm:px-2 py-0.5 text-[8px] sm:text-[10px] font-medium rounded bg-green-600 text-white hover:bg-green-700 transition flex items-center gap-0.5"
                   title="Save your current view preferences"
                 >
-                  <svg
-                    className="w-2.5 h-2.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
+                  <svg className="w-2 h-2 sm:w-2.5 sm:h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                   Save
                 </button>
@@ -850,42 +822,20 @@ export function CollapsibleFilterBar({
 
               {/* Collapsible Search */}
               {!searchExpanded ? (
-                /* Collapsed: Just the search icon */
                 <button
                   onClick={() => setSearchExpanded(true)}
-                  className="px-2 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-200 rounded transition"
+                  className="px-1.5 sm:px-2 py-0.5 sm:py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-200 rounded transition"
                   title="Search Description"
                 >
-                  <svg
-                    className="h-3.5 w-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
+                  <svg className="h-3 w-3 sm:h-3.5 sm:w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </button>
               ) : (
-                /* Expanded: Full search input */
-                <div className="relative w-48">
-                  <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                    <svg
-                      className="h-3 w-3 text-gray-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
+                <div className="relative w-28 sm:w-48">
+                  <div className="absolute inset-y-0 left-0 pl-1.5 sm:pl-2 flex items-center pointer-events-none">
+                    <svg className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   </div>
                   <input
@@ -893,321 +843,26 @@ export function CollapsibleFilterBar({
                     value={searchQuery}
                     onChange={(e) => onSearchChange?.(e.target.value)}
                     onBlur={() => {
-                      // Collapse if empty
-                      if (!searchQuery) {
-                        setSearchExpanded(false);
-                      }
+                      if (!searchQuery) setSearchExpanded(false);
                     }}
                     autoFocus
-                    className="block w-full pl-6 pr-7 py-1 border border-gray-200 rounded text-[10px] bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition"
-                    placeholder="Search Description"
+                    className="block w-full pl-5 sm:pl-6 pr-6 sm:pr-7 py-0.5 sm:py-1 border border-gray-200 rounded text-[9px] sm:text-[10px] bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition"
+                    placeholder="Search..."
                   />
-                  {/* Close button - always visible when expanded */}
                   <button
                     onClick={() => {
                       onSearchChange?.("");
                       setSearchExpanded(false);
                     }}
-                    className="absolute inset-y-0 right-0 pr-2 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-1.5 sm:pr-2 flex items-center"
                     title="Close search"
                   >
-                    <svg
-                      className="h-3 w-3 text-gray-400 hover:text-gray-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
+                    <svg className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
               )}
-            </div>
-
-            {/* Mobile Filter Button - Shows drawer with all hidden filters */}
-            <div className="lg:hidden ml-auto">
-              <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-                <DrawerTrigger asChild>
-                  <button className="flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
-                    <SlidersHorizontal className="w-3.5 h-3.5" />
-                    <span>Filters</span>
-                  </button>
-                </DrawerTrigger>
-                <DrawerContent>
-                  <DrawerHeader>
-                    <DrawerTitle>Filter Options</DrawerTitle>
-                  </DrawerHeader>
-                  <div className="px-4 pb-6 space-y-4">
-                    {/* Search - INLINED to prevent focus loss */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-gray-600 uppercase">
-                        Search
-                      </label>
-                      <div className="relative w-full">
-                        <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                          <svg
-                            className="h-3 w-3 text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                            />
-                          </svg>
-                        </div>
-                        <input
-                          type="text"
-                          value={searchQuery}
-                          onChange={(e) => onSearchChange?.(e.target.value)}
-                          className="block w-full pl-7 pr-2 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition"
-                          placeholder="Search Description"
-                        />
-                        {searchQuery && (
-                          <button
-                            onClick={() => onSearchChange?.("")}
-                            className="absolute inset-y-0 right-0 pr-2 flex items-center"
-                          >
-                            <svg
-                              className="h-3 w-3 text-gray-400 hover:text-gray-600"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Columns */}
-                    {(viewMode === "bucket" || viewMode === "user") && (
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-600 uppercase">
-                          Columns
-                        </label>
-                        <div className="flex bg-gray-100 rounded-lg p-0.5 w-fit">
-                          {[2, 3, 4].map((count) => (
-                            <button
-                              key={count}
-                              onClick={() => setColumnCount(count as 2 | 3 | 4)}
-                              className={`px-4 py-2 text-sm font-medium rounded-md transition ${columnCount === count ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                            >
-                              {count}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Layout */}
-                    {(viewMode === "bucket" || viewMode === "user") && (
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-600 uppercase">
-                          Layout
-                        </label>
-                        <div className="flex bg-gray-100 rounded-lg p-0.5 w-fit">
-                          <button
-                            onClick={() => setBucketViewMode("default")}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition ${bucketViewMode === "default" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                          >
-                            Default
-                          </button>
-                          <button
-                            onClick={() => setBucketViewMode("linear")}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition ${bucketViewMode === "linear" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                          >
-                            Linear
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Group By - Only in User View */}
-                    {viewMode === "user" && onGroupByChange && (
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-600 uppercase">
-                          Group By
-                        </label>
-                        <div className="flex bg-gray-100 rounded-lg p-0.5 w-fit">
-                          <button
-                            onClick={() => onGroupByChange("bucket")}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition ${groupBy === "bucket" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                          >
-                            Bucket
-                          </button>
-                          <button
-                            onClick={() => onGroupByChange("type")}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition ${groupBy === "type" ? "bg-white shadow text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                          >
-                            Type
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Sort */}
-                    {(viewMode === "bucket" || viewMode === "user") &&
-                      onSortFieldChange && (
-                        <div className="space-y-2">
-                          <label className="text-xs font-semibold text-gray-600 uppercase">
-                            Sort By
-                          </label>
-                          <div className="flex gap-2">
-                            <select
-                              value={sortField}
-                              onChange={(e) =>
-                                onSortFieldChange(
-                                  e.target.value as DateFieldKey,
-                                )
-                              }
-                              className="flex-1 px-3 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 border-0 focus:ring-1 focus:ring-blue-500"
-                            >
-                              {DATE_FIELDS.map((f) => (
-                                <option key={f.value} value={f.value}>
-                                  {f.label}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              onClick={() =>
-                                onSortAscendingChange?.(!sortAscending)
-                              }
-                              className="px-3 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-                            >
-                              {sortAscending ? "↑ Oldest" : "↓ Newest"}
-                            </button>
-                          </div>
-
-                          {/* Bucket Multi-Select */}
-                          {onSortBucketsChange && (
-                            <div className="space-y-2 mt-3">
-                              <label className="text-xs font-semibold text-gray-600 uppercase">
-                                Apply Sort To
-                              </label>
-                              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={allBucketsSelected}
-                                    onChange={() => toggleBucket("ALL")}
-                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                  />
-                                  <span className="text-sm font-medium text-gray-700">
-                                    All Buckets
-                                  </span>
-                                </label>
-                                <div className="border-t border-gray-200 my-2"></div>
-                                <div className="grid grid-cols-4 gap-2">
-                                  {AVAILABLE_BUCKETS.map((bucket) => (
-                                    <label
-                                      key={bucket}
-                                      className="flex items-center gap-1 cursor-pointer"
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={sortBuckets.includes(bucket)}
-                                        onChange={() => toggleBucket(bucket)}
-                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                      />
-                                      <span className="text-sm font-medium text-gray-700">
-                                        {bucket}
-                                      </span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {onResetView && (
-                            <button
-                              onClick={onResetView}
-                              className="w-full px-3 py-2 text-sm font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition"
-                            >
-                              ✕ Reset All Preferences to Defaults
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                    {/* Save View Button - Mobile */}
-                    {hasPendingChanges && onSaveView && (
-                      <button
-                        onClick={() => {
-                          onSaveView();
-                          setDrawerOpen(false); // Close drawer after saving
-                        }}
-                        className="w-full px-4 py-2.5 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition flex items-center justify-center gap-2 shadow-sm"
-                        title="Save your current view preferences"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        Save View
-                      </button>
-                    )}
-
-                    {/* Undo Button - Mobile */}
-                    {showUndo && onUndoReset && (
-                      <button
-                        onClick={() => {
-                          onUndoReset();
-                          setDrawerOpen(false); // Close drawer after undo
-                        }}
-                        className="w-full px-4 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm"
-                        title="Undo reset"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                          />
-                        </svg>
-                        Undo Reset
-                      </button>
-                    )}
-
-                    {/* Close button */}
-                    <DrawerClose asChild>
-                      <button className="w-full mt-4 px-4 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
-                        Done
-                      </button>
-                    </DrawerClose>
-                  </div>
-                </DrawerContent>
-              </Drawer>
             </div>
           </div>
         </div>

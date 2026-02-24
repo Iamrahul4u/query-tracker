@@ -411,11 +411,11 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col"
+        className="bg-white rounded-lg shadow-xl w-full max-w-full sm:max-w-3xl mx-2 sm:mx-4 max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
-          <h3 className="text-base font-semibold text-gray-800">
+          <h3 className="text-base sm:text-base font-semibold text-gray-800">
             Add New Queries
           </h3>
           <button
@@ -442,16 +442,16 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
           onSubmit={handleSubmit}
           className="flex flex-col flex-1 overflow-hidden"
         >
-          <div className="p-4 overflow-y-auto flex-1">
+          <div className="p-3 sm:p-4 overflow-y-auto flex-1">
             {/* Query Rows - Compact single-line layout */}
             <div className="space-y-2">
               {queryRows.map((row, index) => (
                 <div
                   key={row.id}
-                  className="flex items-center gap-2 py-1.5 px-2 bg-gray-50/50 rounded-lg"
+                  className="flex flex-col sm:flex-row sm:items-center gap-2 py-2 px-2 bg-gray-50/50 rounded-lg"
                 >
-                  {/* Row number */}
-                  <span className="text-[10px] text-gray-400 w-4 flex-shrink-0">
+                  {/* Row number - hidden on mobile */}
+                  <span className="hidden sm:block text-[10px] text-gray-400 w-4 flex-shrink-0">
                     {index + 1}.
                   </span>
 
@@ -468,12 +468,12 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                       updateRow(row.id, "description", e.target.value)
                     }
                     maxLength={MAX_CHARS}
-                    className="flex-1 min-w-0 border border-gray-200 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:border-blue-400"
+                    className="w-full sm:flex-1 min-w-0 border border-gray-200 rounded px-2 py-3 sm:py-1 text-base sm:text-sm bg-white focus:outline-none focus:border-blue-400"
                     placeholder="Enter query description..."
                   />
 
                   {/* Query Type - compact pills with border container */}
-                  <div className="flex gap-0.5 flex-shrink-0 border border-gray-200 rounded p-0.5 bg-white">
+                  <div className="flex flex-wrap gap-0.5 w-full sm:w-auto flex-shrink-0 border border-gray-200 rounded p-0.5 bg-white">
                     {QUERY_TYPE_ORDER.filter(
                       (type) => type !== "Already Allocated",
                     ).map((type) => (
@@ -481,7 +481,7 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                         key={type}
                         type="button"
                         onClick={() => updateRow(row.id, "queryType", type)}
-                        className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                        className={`flex-1 sm:flex-none px-2 py-2 sm:py-0.5 text-[10px] font-medium rounded transition-colors min-h-[44px] sm:min-h-0 ${
                           row.queryType === type
                             ? "bg-blue-500 text-white"
                             : "text-gray-500 hover:bg-gray-100"
@@ -494,113 +494,90 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
 
                   {/* User Dropdown - Same AssignDropdown as QueryCardCompact */}
                   {canAllocate && (
-                    <AssignDropdown
-                      isOpen={openDropdownRowId === row.id}
-                      onOpenChange={(open) => {
-                        setOpenDropdownRowId(open ? row.id : null);
-                        if (!open) setUserSearchQuery("");
-                      }}
-                      trigger={
-                        <button
-                          type="button"
-                          className="flex items-center justify-between gap-1 border border-gray-200 bg-white rounded px-1.5 py-1 text-xs text-gray-600 w-24 hover:border-gray-300 focus:outline-none focus:border-blue-400"
-                        >
-                          <span className="truncate">
-                            {row.assignedTo
-                              ? activeUsers
-                                  .find((u) => u.Email === row.assignedTo)
-                                  ?.["Display Name"]?.split(" ")[0] ||
-                                activeUsers
-                                  .find((u) => u.Email === row.assignedTo)
-                                  ?.Name?.split(" ")[0] ||
-                                row.assignedTo.split("@")[0]
-                              : "Unassigned"}
-                          </span>
-                          <ChevronDown
-                            className={`w-3 h-3 flex-shrink-0 transition-transform ${openDropdownRowId === row.id ? "rotate-180" : ""}`}
-                          />
-                        </button>
-                      }
-                    >
-                      {(placement) => {
-                        const opensUp = placement?.startsWith("top");
-                        const filteredUsers = activeUsers.filter((user) => {
-                          if (!userSearchQuery.trim()) return true;
-                          const search = userSearchQuery.toLowerCase();
-
-                          // Extract first name from Display Name
-                          const displayName = user["Display Name"] || "";
-                          const displayFirstName = displayName
-                            .split(" ")[0]
-                            .toLowerCase();
-
-                          // Extract first name from Name
-                          const name = user.Name || "";
-                          const nameFirstName = name
-                            .split(" ")[0]
-                            .toLowerCase();
-
-                          // Match if EITHER Display Name OR Name first name starts with search
-                          return (
-                            displayFirstName.startsWith(search) ||
-                            nameFirstName.startsWith(search)
-                          );
-                        });
-
-                        const SearchBox = () => (
-                          <div
-                            className={`p-2 ${opensUp ? "border-t" : "border-b"} border-gray-100`}
+                    <div className="w-full sm:w-24">
+                      <AssignDropdown
+                        isOpen={openDropdownRowId === row.id}
+                        onOpenChange={(open) => {
+                          setOpenDropdownRowId(open ? row.id : null);
+                          if (!open) setUserSearchQuery("");
+                        }}
+                        trigger={
+                          <button
+                            type="button"
+                            className="flex items-center justify-between gap-1 border border-gray-200 bg-white rounded px-1.5 py-3 sm:py-1 text-xs text-gray-600 w-full hover:border-gray-300 focus:outline-none focus:border-blue-400 min-h-[44px] sm:min-h-0"
                           >
-                            <div className="relative">
-                              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                              <input
-                                type="text"
-                                placeholder="Search users..."
-                                value={userSearchQuery}
-                                onChange={(e) =>
-                                  setUserSearchQuery(e.target.value)
-                                }
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => e.stopPropagation()}
-                                className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:outline-none"
-                                autoFocus
-                              />
-                            </div>
-                          </div>
-                        );
+                            <span className="truncate">
+                              {row.assignedTo
+                                ? activeUsers
+                                    .find((u) => u.Email === row.assignedTo)
+                                    ?.["Display Name"]?.split(" ")[0] ||
+                                  activeUsers
+                                    .find((u) => u.Email === row.assignedTo)
+                                    ?.Name?.split(" ")[0] ||
+                                  row.assignedTo.split("@")[0]
+                                : "Unassigned"}
+                            </span>
+                            <ChevronDown
+                              className={`w-3 h-3 flex-shrink-0 transition-transform ${openDropdownRowId === row.id ? "rotate-180" : ""}`}
+                            />
+                          </button>
+                        }
+                      >
+                        {(placement) => {
+                          const opensUp = placement?.startsWith("top");
+                          const filteredUsers = activeUsers.filter((user) => {
+                            if (!userSearchQuery.trim()) return true;
+                            const search = userSearchQuery.toLowerCase();
 
-                        return (
-                          <div className="bg-white border border-gray-200 rounded-lg shadow-xl w-[200px] max-h-[280px] flex flex-col overflow-hidden">
-                            {!opensUp && <SearchBox />}
-                            <div className="overflow-y-auto flex-1 p-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  updateRow(row.id, "assignedTo", "");
-                                  setOpenDropdownRowId(null);
-                                  setUserSearchQuery("");
-                                  // Move focus back to description input
-                                  setTimeout(() => {
-                                    const input = inputRefsMap.current.get(
-                                      row.id,
-                                    );
-                                    if (input) input.focus();
-                                  }, 0);
-                                }}
-                                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 rounded ${
-                                  !row.assignedTo
-                                    ? "bg-blue-50 text-blue-600 font-medium"
-                                    : "text-gray-700"
-                                }`}
-                              >
-                                Unassigned
-                              </button>
-                              {filteredUsers.map((user) => (
+                            // Extract first name from Display Name
+                            const displayName = user["Display Name"] || "";
+                            const displayFirstName = displayName
+                              .split(" ")[0]
+                              .toLowerCase();
+
+                            // Extract first name from Name
+                            const name = user.Name || "";
+                            const nameFirstName = name
+                              .split(" ")[0]
+                              .toLowerCase();
+
+                            // Match if EITHER Display Name OR Name first name starts with search
+                            return (
+                              displayFirstName.startsWith(search) ||
+                              nameFirstName.startsWith(search)
+                            );
+                          });
+
+                          const SearchBox = () => (
+                            <div
+                              className={`p-2 ${opensUp ? "border-t" : "border-b"} border-gray-100`}
+                            >
+                              <div className="relative">
+                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                <input
+                                  type="text"
+                                  placeholder="Search users..."
+                                  value={userSearchQuery}
+                                  onChange={(e) =>
+                                    setUserSearchQuery(e.target.value)
+                                  }
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                  className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:outline-none"
+                                  autoFocus
+                                />
+                              </div>
+                            </div>
+                          );
+
+                          return (
+                            <div className="bg-white border border-gray-200 rounded-lg shadow-xl w-[200px] max-h-[280px] flex flex-col overflow-hidden">
+                              {!opensUp && <SearchBox />}
+                              <div className="overflow-y-auto flex-1 p-1">
                                 <button
-                                  key={user.Email}
                                   type="button"
                                   onClick={() => {
-                                    updateRow(row.id, "assignedTo", user.Email);
+                                    updateRow(row.id, "assignedTo", "");
                                     setOpenDropdownRowId(null);
                                     setUserSearchQuery("");
                                     // Move focus back to description input
@@ -611,29 +588,58 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                                       if (input) input.focus();
                                     }, 0);
                                   }}
-                                  className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 rounded ${
-                                    row.assignedTo === user.Email
+                                  className={`w-full px-3 py-3 sm:py-2 text-left text-sm hover:bg-gray-50 rounded ${
+                                    !row.assignedTo
                                       ? "bg-blue-50 text-blue-600 font-medium"
                                       : "text-gray-700"
                                   }`}
                                 >
-                                  {user["Display Name"] ||
-                                    user.Name ||
-                                    user.Email.split("@")[0]}
+                                  Unassigned
                                 </button>
-                              ))}
-                              {filteredUsers.length === 0 &&
-                                userSearchQuery && (
-                                  <div className="px-3 py-2 text-sm text-gray-400 text-center">
-                                    No users found
-                                  </div>
-                                )}
+                                {filteredUsers.map((user) => (
+                                  <button
+                                    key={user.Email}
+                                    type="button"
+                                    onClick={() => {
+                                      updateRow(
+                                        row.id,
+                                        "assignedTo",
+                                        user.Email,
+                                      );
+                                      setOpenDropdownRowId(null);
+                                      setUserSearchQuery("");
+                                      // Move focus back to description input
+                                      setTimeout(() => {
+                                        const input = inputRefsMap.current.get(
+                                          row.id,
+                                        );
+                                        if (input) input.focus();
+                                      }, 0);
+                                    }}
+                                    className={`w-full px-3 py-3 sm:py-2 text-left text-sm hover:bg-gray-50 rounded ${
+                                      row.assignedTo === user.Email
+                                        ? "bg-blue-50 text-blue-600 font-medium"
+                                        : "text-gray-700"
+                                    }`}
+                                  >
+                                    {user["Display Name"] ||
+                                      user.Name ||
+                                      user.Email.split("@")[0]}
+                                  </button>
+                                ))}
+                                {filteredUsers.length === 0 &&
+                                  userSearchQuery && (
+                                    <div className="px-3 py-2 text-sm text-gray-400 text-center">
+                                      No users found
+                                    </div>
+                                  )}
+                              </div>
+                              {opensUp && <SearchBox />}
                             </div>
-                            {opensUp && <SearchBox />}
-                          </div>
-                        );
-                      }}
-                    </AssignDropdown>
+                          );
+                        }}
+                      </AssignDropdown>
+                    </div>
                   )}
 
                   {/* Self Assign Button - For Juniors only */}
@@ -656,7 +662,7 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                           localStorage.setItem("lastSelectedUser", newValue);
                         }
                       }}
-                      className={`flex items-center justify-center gap-1 border rounded px-2 py-1 text-[10px] font-medium transition-colors ${
+                      className={`flex items-center justify-center gap-1 border rounded px-2 py-3 sm:py-1 text-[10px] font-medium transition-colors min-h-[44px] sm:min-h-0 ${
                         row.assignedTo === currentUser?.Email
                           ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
                           : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
@@ -679,24 +685,24 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                   )}
 
                   {/* Action buttons - minimal */}
-                  <div className="flex gap-0.5 flex-shrink-0">
+                  <div className="flex gap-0.5 flex-shrink-0 justify-end sm:justify-start">
                     <button
                       type="button"
                       onClick={addNewRow}
-                      className="w-6 h-6 flex items-center justify-center text-green-600 hover:bg-green-100 rounded"
+                      className="w-10 h-10 sm:w-6 sm:h-6 flex items-center justify-center text-green-600 hover:bg-green-100 rounded"
                       title="Add new row"
                     >
-                      <Plus className="w-4 h-4" />
+                      <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
                     </button>
 
                     {queryRows.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeRow(row.id)}
-                        className="w-6 h-6 flex items-center justify-center text-red-400 hover:bg-red-100 rounded"
+                        className="w-10 h-10 sm:w-6 sm:h-6 flex items-center justify-center text-red-400 hover:bg-red-100 rounded"
                         title="Remove this row"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-5 h-5 sm:w-4 sm:h-4" />
                       </button>
                     )}
                   </div>
@@ -705,11 +711,15 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
             </div>
 
             {/* Error */}
-            {error && <div className="mt-2 text-xs text-red-500">{error}</div>}
+            {error && (
+              <div className="mt-2 text-sm sm:text-xs text-red-500">
+                {error}
+              </div>
+            )}
 
             {/* Draft Restored Notification */}
             {draftRestored && (
-              <div className="mt-2 text-xs text-green-600 bg-green-50 border border-green-200 rounded px-2 py-1 flex items-center gap-1">
+              <div className="mt-2 text-sm sm:text-xs text-green-600 bg-green-50 border border-green-200 rounded px-2 py-1 flex items-center gap-1">
                 <Save className="w-3 h-3" />
                 Draft saved/restored
               </div>
@@ -717,16 +727,16 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
           </div>
 
           {/* Footer */}
-          <div className="bg-gray-50 px-4 py-3 flex justify-between border-t">
+          <div className="bg-gray-50 px-3 sm:px-4 py-3 flex justify-between border-t">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">
+              <span className="text-sm sm:text-xs text-gray-500">
                 {queryRows.length}{" "}
                 {queryRows.length === 1 ? "query" : "queries"}
               </span>
 
               {/* Save Status Indicator */}
               {showSavedNotification ? (
-                <span className="text-[10px] text-green-600 flex items-center gap-1 font-medium">
+                <span className="text-xs sm:text-[10px] text-green-600 flex items-center gap-1 font-medium">
                   <Check className="w-3 h-3" />
                   Saved
                 </span>
@@ -734,14 +744,14 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                 <button
                   type="button"
                   onClick={saveDrafts}
-                  className="text-[10px] text-orange-600 flex items-center gap-1 hover:text-orange-700 cursor-pointer underline"
+                  className="text-xs sm:text-[10px] text-orange-600 flex items-center gap-1 hover:text-orange-700 cursor-pointer underline"
                   title="Click to save now"
                 >
                   <Save className="w-3 h-3" />
                   Not Synced (Click to Save)
                 </button>
               ) : lastSaved ? (
-                <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                <span className="text-xs sm:text-[10px] text-gray-400 flex items-center gap-1">
                   <Check className="w-3 h-3 text-green-500" />
                   Saved at{" "}
                   {lastSaved.toLocaleTimeString("en-GB", {
@@ -758,7 +768,7 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                 type="button"
                 onClick={clearDrafts}
                 disabled={isSubmitting}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded disabled:opacity-50"
+                className="flex items-center gap-1 px-2 py-1 text-sm sm:text-xs text-gray-500 hover:bg-gray-100 rounded disabled:opacity-50"
                 title="Clear all drafts"
               >
                 <RotateCcw className="w-3 h-3" />
@@ -776,14 +786,14 @@ export function AddQueryModal({ onClose }: AddQueryModalProps) {
                   }
                 }}
                 disabled={isSubmitting}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+                className="flex items-center gap-1 px-2 py-1 text-sm sm:text-xs text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
                 title="Remove all queries and clear drafts"
               >
                 <X className="w-3 h-3" />
                 Remove All
               </button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
                 onClick={onClose}

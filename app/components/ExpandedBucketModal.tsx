@@ -55,14 +55,38 @@ export function ExpandedBucketModal({
   // Ref for horizontal scroll container
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // ESC key to close modal
+  // ESC key to close modal + Arrow keys for horizontal scrolling
   useEffect(() => {
     if (!isOpen) return;
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const scrollAmount = 288; // One column width (280px) + gap (8px)
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        container.scrollBy({
+          left: e.key === "ArrowLeft" ? -scrollAmount : scrollAmount,
+          behavior: "smooth",
+        });
+      } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        container.scrollBy({
+          left: e.key === "ArrowUp" ? -scrollAmount : scrollAmount,
+          behavior: "smooth",
+        });
+      }
     };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
   // Convert vertical scroll to horizontal scroll inside modal

@@ -132,16 +132,16 @@ export function QueryDetailModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg max-w-lg w-full mx-4 overflow-hidden max-h-[90vh] flex flex-col"
+        className="bg-white rounded-lg max-w-full sm:max-w-lg w-full mx-2 sm:mx-4 overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-start">
+        <div className="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 flex justify-between items-start">
           <div className="flex-1 min-w-0 mr-4">
-            <h2 className="text-lg font-semibold text-gray-800 break-words">
+            <h2 className="text-lg sm:text-lg font-semibold text-gray-800 break-words">
               {query["Query Description"]}
             </h2>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-sm sm:text-xs text-gray-400 mt-1">
               ID: {query["Query ID"]}
             </p>
           </div>
@@ -169,19 +169,19 @@ export function QueryDetailModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto">
+        <div className="p-4 sm:p-6 overflow-y-auto">
           {/* Status & Type */}
-          <div className="flex gap-4 mb-6">
-            <div className="flex-1">
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
+            <div className="flex-1 w-full">
+              <p className="text-sm sm:text-xs text-gray-400 uppercase tracking-wide mb-1">
                 Status
               </p>
               <p className="font-medium text-gray-800">
                 {query["Status"]}) {BUCKET_NAMES[query["Status"]] || "Unknown"}
               </p>
             </div>
-            <div className="flex-1">
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+            <div className="flex-1 w-full">
+              <p className="text-sm sm:text-xs text-gray-400 uppercase tracking-wide mb-1">
                 Type
               </p>
               <p className="font-medium text-gray-800">
@@ -193,7 +193,7 @@ export function QueryDetailModal({
           {/* Assignment */}
           {query["Assigned To"] && (
             <div className="mb-6 p-3 bg-blue-50 rounded-lg">
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+              <p className="text-sm sm:text-xs text-gray-400 uppercase tracking-wide mb-1">
                 Assigned To
               </p>
               <p className="font-medium text-gray-800">
@@ -205,13 +205,13 @@ export function QueryDetailModal({
           {/* Remarks - shown in ALL buckets when present */}
           {query["Remarks"] && (
             <div className="mb-6 p-3 bg-amber-50 rounded-lg">
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+              <p className="text-sm sm:text-xs text-gray-400 uppercase tracking-wide mb-1">
                 Remarks
               </p>
-              <div className="text-sm text-gray-600">
+              <div className="text-base sm:text-sm text-gray-600">
                 <span className="italic">&quot;{query["Remarks"]}&quot;</span>
                 {query["Remark Added By"] && (
-                  <span className="text-xs text-gray-500 ml-2">
+                  <span className="text-sm sm:text-xs text-gray-500 ml-2">
                     —{" "}
                     <span className="font-medium">
                       {displayName(query["Remark Added By"])}
@@ -230,7 +230,7 @@ export function QueryDetailModal({
           {/* Deleted From (for Bucket H only) */}
           {query["Status"] === "H" && query["Previous Status"] && (
             <div className="mb-6 p-3 bg-red-50 rounded-lg">
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+              <p className="text-sm sm:text-xs text-gray-400 uppercase tracking-wide mb-1">
                 Deleted From
               </p>
               <p className="font-medium text-gray-800">
@@ -243,13 +243,13 @@ export function QueryDetailModal({
           {/* Event Info (for E/F) */}
           {(query["Event ID in SF"] || query["Event Title in SF"]) && (
             <div className="mb-6 p-3 bg-purple-50 rounded-lg">
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+              <p className="text-sm sm:text-xs text-gray-400 uppercase tracking-wide mb-1">
                 Salesforce Event
               </p>
               <p className="font-medium text-gray-800">
                 {query["Event Title in SF"] || "—"}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-sm sm:text-xs text-gray-500">
                 ID: {query["Event ID in SF"] || "—"}
               </p>
             </div>
@@ -258,10 +258,12 @@ export function QueryDetailModal({
           {/* What's Pending (for D) */}
           {query["Whats Pending"] && (
             <div className="mb-6 p-3 bg-orange-50 rounded-lg">
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+              <p className="text-sm sm:text-xs text-gray-400 uppercase tracking-wide mb-1">
                 What&apos;s Pending
               </p>
-              <p className="text-sm text-gray-800">{query["Whats Pending"]}</p>
+              <p className="text-base sm:text-sm text-gray-800">
+                {query["Whats Pending"]}
+              </p>
             </div>
           )}
 
@@ -271,7 +273,7 @@ export function QueryDetailModal({
               onClick={() => setShowAuditTrail(!showAuditTrail)}
               className="flex items-center justify-between w-full text-left hover:bg-gray-50 -mx-2 px-2 py-1 rounded transition"
             >
-              <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">
+              <p className="text-sm sm:text-xs text-gray-400 uppercase tracking-wide font-semibold">
                 Audit Trail
               </p>
               {showAuditTrail ? (
@@ -282,7 +284,7 @@ export function QueryDetailModal({
             </button>
 
             {showAuditTrail && (
-              <div className="space-y-2 text-xs text-gray-600 mt-3">
+              <div className="space-y-2 text-sm sm:text-xs text-gray-600 mt-3">
                 {/* Added */}
                 {query["Added By"] && (
                   <div className="flex justify-between items-center">
@@ -527,11 +529,11 @@ export function QueryDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+        <div className="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100 flex justify-end gap-2">
           {onEdit && canEdit && (
             <button
               onClick={handleEdit}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium flex items-center gap-2 transition"
+              className="px-4 py-3 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium flex items-center gap-2 transition min-h-[44px] sm:min-h-0"
             >
               <Pencil className="w-4 h-4" />
               Edit
@@ -539,7 +541,7 @@ export function QueryDetailModal({
           )}
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
+            className="px-4 py-3 sm:py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium min-h-[44px] sm:min-h-0"
           >
             Close
           </button>

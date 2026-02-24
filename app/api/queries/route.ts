@@ -357,7 +357,7 @@ const COL_MAP: Record<string, string> = {
  * Uses cache to avoid repeated API calls.
  * Reads Column A only for efficiency.
  */
-async function findRowIndex(
+async function findRowIndex(  
   sheets: any,
   queryId: string,
 ): Promise<number | null> {

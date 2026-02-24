@@ -332,7 +332,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           extraFields["Deletion Remarks"] = finalDeletionRemarks;
         }
       }
-      updateStatusOptimistic(query["Query ID"], status, { ...cleanFormData, ...extraFields });
+      updateStatusOptimistic(query["Query ID"], status, {
+        ...cleanFormData,
+        ...extraFields,
+      });
     } else {
       // Only fields changed -> Use editQueryOptimistic with clean form data
       editQueryOptimistic(query["Query ID"], cleanFormData);
@@ -344,7 +347,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
     // Open remarks modal instead of native browser confirm()
     setConfirmModal({
       type: "delete",
-      remarks: (formData["Remarks"] || ""),
+      remarks: formData["Remarks"] || "",
     });
   };
 
@@ -356,7 +359,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
       // Determine final deletion remarks:
       // Use explicit deletionRemarks if set, otherwise fall back to provided remarks
       const finalDeletionRemarks =
-        deletionRemarks.trim() || remarks.trim() || (query["Remarks"] || "").trim();
+        deletionRemarks.trim() ||
+        remarks.trim() ||
+        (query["Remarks"] || "").trim();
       deleteQueryOptimistic(
         query["Query ID"],
         currentUser?.Email || "",
@@ -437,11 +442,13 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col"
+        className="bg-white rounded-lg shadow-xl w-full max-w-full sm:max-w-lg mx-2 sm:mx-4 overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-gray-800">Edit Query</h3>
+          <h3 className="text-lg sm:text-lg font-semibold text-gray-800">
+            Edit Query
+          </h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -462,9 +469,12 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           </button>
         </div>
 
-        <div ref={contentRef} className="p-4 overflow-y-auto scrollbar-visible">
+        <div
+          ref={contentRef}
+          className="p-3 sm:p-4 overflow-y-auto scrollbar-visible"
+        >
           {/* Read-Only Info */}
-          <div className="text-xs text-gray-400 mb-2 flex gap-4">
+          <div className="text-sm sm:text-xs text-gray-400 mb-2 flex gap-4">
             <span>ID: {query["Query ID"]}</span>
           </div>
 
@@ -492,7 +502,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 disabled={!canEdit}
               />
               {!assignedTo && status !== "A" && (
-                <p className="text-xs text-orange-600 mt-1">
+                <p className="text-sm sm:text-xs text-orange-600 mt-1">
                   ⚠️ Query must be assigned before moving to next status
                 </p>
               )}
@@ -522,13 +532,13 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
 
           {/* Editable Date Fields Section */}
           <div className="mb-3 p-2 bg-gray-50 rounded-lg">
-            <h4 className="text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
+            <h4 className="text-sm sm:text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
               Date Fields
             </h4>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-2">
               {/* Added Date - Show for all buckets */}
               <div>
-                <label className="block text-xs text-gray-500 mb-1">
+                <label className="block text-sm sm:text-xs text-gray-500 mb-1">
                   Added Date
                 </label>
                 <input
@@ -544,14 +554,17 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                       convertFromDateTimeLocal(e.target.value),
                     )
                   }
-                  className={getInputClass("Added Date Time", "text-xs")}
+                  className={getInputClass(
+                    "Added Date Time",
+                    "text-xs px-2 py-3 sm:py-2 min-h-[44px] sm:min-h-0",
+                  )}
                 />
               </div>
 
               {/* Assigned Date - Show for B-H (not A) */}
               {status !== "A" && (
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">
+                  <label className="block text-sm sm:text-xs text-gray-500 mb-1">
                     Assigned Date
                   </label>
                   <input
@@ -569,7 +582,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                         convertFromDateTimeLocal(e.target.value),
                       )
                     }
-                    className={getInputClass("Assignment Date Time", "text-xs")}
+                    className={getInputClass(
+                      "Assignment Date Time",
+                      "text-xs px-2 py-3 sm:py-2 min-h-[44px] sm:min-h-0",
+                    )}
                   />
                 </div>
               )}
@@ -577,7 +593,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               {/* Proposal Sent Date - Show for C-H (not A, B) */}
               {!["A", "B"].includes(status) && (
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">
+                  <label className="block text-sm sm:text-xs text-gray-500 mb-1">
                     Proposal Sent Date
                   </label>
                   <input
@@ -597,7 +613,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     }
                     className={getInputClass(
                       "Proposal Sent Date Time",
-                      "text-xs",
+                      "text-xs px-2 py-3 sm:py-2 min-h-[44px] sm:min-h-0",
                     )}
                   />
                 </div>
@@ -606,7 +622,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               {/* SF Entry Date - Show for E-H (not A, B, C, D) */}
               {["E", "F", "G", "H"].includes(status) && (
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">
+                  <label className="block text-sm sm:text-xs text-gray-500 mb-1">
                     SF Entry Date
                   </label>
                   <input
@@ -626,7 +642,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     }
                     className={getInputClass(
                       "Entered In SF Date Time",
-                      "text-xs",
+                      "text-xs px-2 py-3 sm:py-2 min-h-[44px] sm:min-h-0",
                     )}
                   />
                 </div>
@@ -635,7 +651,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               {/* Discarded Date - Show only for G - Only seniors can access G */}
               {status === "G" && (
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">
+                  <label className="block text-sm sm:text-xs text-gray-500 mb-1">
                     Discarded Date
                   </label>
                   <input
@@ -653,7 +669,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                         convertFromDateTimeLocal(e.target.value),
                       )
                     }
-                    className={getInputClass("Discarded Date Time", "text-xs")}
+                    className={getInputClass(
+                      "Discarded Date Time",
+                      "text-xs px-2 py-3 sm:py-2 min-h-[44px] sm:min-h-0",
+                    )}
                   />
                 </div>
               )}
@@ -661,7 +680,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               {/* Deleted Date - Show only for H - Only seniors can access H */}
               {status === "H" && (
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">
+                  <label className="block text-sm sm:text-xs text-gray-500 mb-1">
                     Deleted Date
                   </label>
                   <input
@@ -681,7 +700,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     }
                     className={getInputClass(
                       "Delete Requested Date Time",
-                      "text-xs",
+                      "text-xs px-2 py-3 sm:py-2 min-h-[44px] sm:min-h-0",
                     )}
                   />
                 </div>
@@ -693,21 +712,21 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               isFieldModified("Entered In SF Date Time") ||
               isFieldModified("Discarded Date Time") ||
               isFieldModified("Delete Requested Date Time")) && (
-              <p className="text-xs text-blue-600 mt-2">
+              <p className="text-sm sm:text-xs text-blue-600 mt-2">
                 * Modified fields shown in blue
               </p>
             )}
           </div>
 
           {!canEdit && (
-            <div className="bg-yellow-50 text-yellow-800 p-2 rounded text-sm mb-3">
+            <div className="bg-yellow-50 text-yellow-800 p-2 rounded text-base sm:text-sm mb-3">
               You do not have permission to edit this query.
             </div>
           )}
 
           {/* Status Selector */}
           <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-0.5">
+            <label className="block text-base sm:text-sm font-medium text-gray-700 mb-0.5">
               Status
             </label>
             <select
@@ -719,7 +738,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 setFormData((prev) => ({ ...prev, Status: newStatus }));
               }}
               disabled={!canEdit}
-              className="w-full border border-gray-300 rounded-md p-2 text-sm"
+              className="w-full border border-gray-300 rounded-md px-3 py-3 sm:py-2 text-sm min-h-[44px] sm:min-h-0"
             >
               {/* Show allowed transitions based on role
                   Juniors CAN move to G (Discarded) but NOT to H (Deleted) - they must use delete button for H
@@ -746,10 +765,12 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           {/* Query Description (A, B, C, D) */}
           {showField("Query Description") && (
             <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-0.5">
+              <label className="block text-base sm:text-sm font-medium text-gray-700 mb-0.5">
                 Query Description
                 {isFieldModified("Query Description") && (
-                  <span className="text-xs text-blue-600 ml-2">* Modified</span>
+                  <span className="text-sm sm:text-xs text-blue-600 ml-2">
+                    * Modified
+                  </span>
                 )}
               </label>
               <textarea
@@ -759,7 +780,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 }
                 disabled={!canEdit}
                 rows={3}
-                className={getInputClass("Query Description")}
+                className={getInputClass(
+                  "Query Description",
+                  "px-3 py-3 sm:py-2",
+                )}
               />
             </div>
           )}
@@ -767,10 +791,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           {/* Query Type (A, B) */}
           {showField("Query Type") && (
             <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-0.5">
+              <label className="block text-base sm:text-sm font-medium text-gray-700 mb-0.5">
                 Query Type
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {QUERY_TYPE_ORDER.filter(
                   (type) => type !== "Already Allocated",
                 ).map((type) => (
@@ -779,7 +803,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     type="button"
                     onClick={() => updateField("Query Type", type)}
                     disabled={!canEdit}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                    className={`flex-1 py-3 sm:py-1.5 text-xs font-medium rounded-md border transition-colors min-h-[44px] sm:min-h-0 ${
                       formData["Query Type"] === type
                         ? "bg-blue-50 border-blue-500 text-blue-700"
                         : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
@@ -821,10 +845,12 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           {/* Remarks (B) */}
           {showField("Remarks") && (
             <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-0.5">
+              <label className="block text-base sm:text-sm font-medium text-gray-700 mb-0.5">
                 Remarks
                 {isFieldModified("Remarks") && (
-                  <span className="text-xs text-blue-600 ml-2">* Modified</span>
+                  <span className="text-sm sm:text-xs text-blue-600 ml-2">
+                    * Modified
+                  </span>
                 )}
               </label>
               <input
@@ -832,7 +858,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 value={formData["Remarks"]}
                 onChange={(e) => updateField("Remarks", e.target.value)}
                 disabled={!canEdit}
-                className={getInputClass("Remarks")}
+                className={getInputClass("Remarks", "px-3 py-3 sm:py-2")}
               />
             </div>
           )}
@@ -840,10 +866,12 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           {/* Whats Pending (D, E, F) */}
           {showField("Whats Pending") && (
             <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-0.5">
+              <label className="block text-base sm:text-sm font-medium text-gray-700 mb-0.5">
                 What's Pending?
                 {isFieldModified("Whats Pending") && (
-                  <span className="text-xs text-blue-600 ml-2">* Modified</span>
+                  <span className="text-sm sm:text-xs text-blue-600 ml-2">
+                    * Modified
+                  </span>
                 )}
               </label>
               <input
@@ -851,19 +879,19 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 value={formData["Whats Pending"]}
                 onChange={(e) => updateField("Whats Pending", e.target.value)}
                 disabled={!canEdit}
-                className={getInputClass("Whats Pending")}
+                className={getInputClass("Whats Pending", "px-3 py-3 sm:py-2")}
               />
             </div>
           )}
 
           {/* Event ID in SF/Title (E, F) */}
           {(showField("Event ID in SF") || showField("Event Title in SF")) && (
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-2 mb-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                <label className="block text-base sm:text-sm font-medium text-gray-700 mb-0.5">
                   Event ID in SF
                   {isFieldModified("Event ID in SF") && (
-                    <span className="text-xs text-blue-600 ml-2">
+                    <span className="text-sm sm:text-xs text-blue-600 ml-2">
                       * Modified
                     </span>
                   )}
@@ -875,14 +903,17 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     updateField("Event ID in SF", e.target.value)
                   }
                   disabled={!canEdit}
-                  className={getInputClass("Event ID in SF")}
+                  className={getInputClass(
+                    "Event ID in SF",
+                    "px-3 py-3 sm:py-2",
+                  )}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                <label className="block text-base sm:text-sm font-medium text-gray-700 mb-0.5">
                   Event Title in SF
                   {isFieldModified("Event Title in SF") && (
-                    <span className="text-xs text-blue-600 ml-2">
+                    <span className="text-sm sm:text-xs text-blue-600 ml-2">
                       * Modified
                     </span>
                   )}
@@ -894,7 +925,10 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                     updateField("Event Title in SF", e.target.value)
                   }
                   disabled={!canEdit}
-                  className={getInputClass("Event Title in SF")}
+                  className={getInputClass(
+                    "Event Title in SF",
+                    "px-3 py-3 sm:py-2",
+                  )}
                 />
               </div>
             </div>
@@ -903,9 +937,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
           {/* Deletion Remarks (G or H) - separate from general Remarks */}
           {["G", "H"].includes(status) && (
             <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-0.5">
+              <label className="block text-base sm:text-sm font-medium text-gray-700 mb-0.5">
                 Deletion Remarks
-                <span className="text-xs text-gray-400 ml-2">
+                <span className="text-sm sm:text-xs text-gray-400 ml-2">
                   (auto-filled from Remarks if left empty)
                 </span>
               </label>
@@ -915,8 +949,9 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
                 disabled={!canEdit}
                 rows={2}
                 placeholder={`Reason for ${status === "G" ? "discarding" : "deleting"}...`}
-                className={`w-full border rounded-md p-2 text-sm ${
-                  deletionRemarks && deletionRemarks !== (query["Deletion Remarks"] || "")
+                className={`w-full border rounded-md px-3 py-3 sm:py-2 text-sm ${
+                  deletionRemarks &&
+                  deletionRemarks !== (query["Deletion Remarks"] || "")
                     ? "border-blue-500 text-blue-700 bg-blue-50"
                     : "border-gray-300"
                 }`}
@@ -953,25 +988,25 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
         <div className="bg-gray-50 px-4 py-3 flex justify-between items-center border-t border-gray-100">
           {/* Delete Button - shown for non-H queries that the user can edit.
                G-bucket queries CAN be deleted from here (Fix: removed G from block list) */}
-          {(isAdminOrSenior || isAssignedToMe) &&
-            query.Status !== "H" && (
-              <button
-                onClick={handleDelete}
-                className="text-red-500 text-sm hover:text-red-700 font-medium"
-              >
-                {query.Status === "G" ? "Delete (from Discarded)" : "Delete Query"}
-              </button>
-            )}
-          {(!isAdminOrSenior && !isAssignedToMe) ||
-          query.Status === "H" ? (
+          {(isAdminOrSenior || isAssignedToMe) && query.Status !== "H" && (
+            <button
+              onClick={handleDelete}
+              className="text-red-500 text-sm hover:text-red-700 font-medium py-3 sm:py-0 min-h-[44px] sm:min-h-0"
+            >
+              {query.Status === "G"
+                ? "Delete (from Discarded)"
+                : "Delete Query"}
+            </button>
+          )}
+          {(!isAdminOrSenior && !isAssignedToMe) || query.Status === "H" ? (
             <div></div>
           ) : null}
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 text-sm"
+              className="px-4 py-3 sm:py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 text-sm min-h-[44px] sm:min-h-0"
             >
               Cancel
             </button>
@@ -979,7 +1014,7 @@ export function EditQueryModal({ query, onClose }: EditQueryModalProps) {
               <button
                 type="button"
                 onClick={() => handleSave()}
-                className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 text-sm"
+                className="px-4 py-3 sm:py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 text-sm min-h-[44px] sm:min-h-0"
               >
                 {!isAdminOrSenior &&
                 query.Status === "A" &&
@@ -1114,7 +1149,9 @@ function RemarksConfirmModal({
             } border-gray-300`}
           />
           {!remarks.trim() && (
-            <p className="text-xs text-gray-400 mt-1">Remarks are required to proceed.</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Remarks are required to proceed.
+            </p>
           )}
         </div>
 
