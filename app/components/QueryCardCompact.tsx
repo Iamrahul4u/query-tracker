@@ -728,7 +728,7 @@ export const QueryCardCompact = memo(function QueryCardCompact({
                 // If no dates, just show the date without tooltip
                 if (applicableDates.length === 0) {
                   return (
-                    <span className="text-[12px] text-blue-600 flex-shrink-0 group-hover:opacity-0 transition-opacity px-1">
+                    <span className="text-[12px] text-blue-600 flex-shrink-0 sm:group-hover:opacity-0 transition-opacity px-1">
                       {dateDisplay}
                     </span>
                   );
@@ -738,7 +738,7 @@ export const QueryCardCompact = memo(function QueryCardCompact({
                 return (
                   <Tooltip delayDuration={300}>
                     <TooltipTrigger asChild>
-                      <span className="text-[12px] text-blue-600 flex-shrink-0 group-hover:opacity-0 transition-opacity px-1">
+                      <span className="text-[12px] text-blue-600 flex-shrink-0 sm:group-hover:opacity-0 transition-opacity px-1">
                         {dateDisplay}
                       </span>
                     </TooltipTrigger>
@@ -766,7 +766,7 @@ export const QueryCardCompact = memo(function QueryCardCompact({
               })()}
 
             {/* Actions - Overlay on hover with matching blue background */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-blue-50 pl-1 pr-0.5 opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 bg-blue-50 pl-1 pr-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
               {/* Assign/Reassign Button */}
               {showAssignButton && (
                 <AssignDropdown

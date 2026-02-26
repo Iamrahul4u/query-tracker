@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { DATE_FIELDS, DateFieldKey } from "../utils/queryFilters";
 import { BUCKETS } from "../config/sheet-constants";
 
@@ -96,6 +96,25 @@ export function CollapsibleFilterBar({
   const [segregatedDropdownOpen, setSegregatedDropdownOpen] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [searchExpanded, setSearchExpanded] = useState(false);
+
+  // Refs for dropdown trigger buttons (to compute fixed-position for panels)
+  const bucketDropdownRef = useRef<HTMLButtonElement>(null);
+  const hiddenBucketDropdownRef = useRef<HTMLButtonElement>(null);
+  const hiddenUserDropdownRef = useRef<HTMLButtonElement>(null);
+  const segregatedDropdownRef = useRef<HTMLButtonElement>(null);
+
+  // Compute fixed dropdown position from a trigger ref
+  const getDropdownStyle = useCallback(
+    (ref: React.RefObject<HTMLButtonElement | null>) => {
+      if (!ref.current) return { top: 0, left: 0 };
+      const rect = ref.current.getBoundingClientRect();
+      return {
+        top: rect.bottom + 4,
+        left: Math.max(4, Math.min(rect.left, window.innerWidth - 200)),
+      };
+    },
+    [],
+  );
 
   // Check if user is Junior (cannot access User View)
   const isJunior = currentUserRole.toLowerCase() === "junior";
@@ -277,6 +296,7 @@ export function CollapsibleFilterBar({
       {sortField && (
         <div className="relative">
           <button
+            ref={bucketDropdownRef}
             onClick={() => setBucketDropdownOpen(!bucketDropdownOpen)}
             className="px-1 py-0.5 text-[10px] font-medium rounded bg-blue-50 text-blue-700 hover:bg-blue-100 transition flex items-center gap-0.5"
             title="Select buckets to apply custom sort"
@@ -304,7 +324,10 @@ export function CollapsibleFilterBar({
                 className="fixed inset-0 z-40"
                 onClick={() => setBucketDropdownOpen(false)}
               />
-              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]">
+              <div
+                className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]"
+                style={getDropdownStyle(bucketDropdownRef)}
+              >
                 <div className="p-2 space-y-1">
                   <label className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
                     <input
@@ -387,6 +410,7 @@ export function CollapsibleFilterBar({
       <span className="text-[10px] font-medium text-gray-600">SHOW:</span>
       <div className="relative flex-1 sm:flex-none">
         <button
+          ref={hiddenBucketDropdownRef}
           onClick={() => setHiddenBucketDropdownOpen(!hiddenBucketDropdownOpen)}
           className={`w-full sm:w-auto px-1.5 py-0.5 text-[10px] font-medium rounded transition flex items-center justify-between sm:justify-start gap-0.5 ${hiddenBuckets.length > 0 ? "bg-orange-50 text-orange-700 hover:bg-orange-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
           title="Toggle which buckets to show"
@@ -414,7 +438,10 @@ export function CollapsibleFilterBar({
               className="fixed inset-0 z-40"
               onClick={() => setHiddenBucketDropdownOpen(false)}
             />
-            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]">
+            <div
+              className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]"
+              style={getDropdownStyle(hiddenBucketDropdownRef)}
+            >
               <div className="p-2 space-y-1">
                 {/* Hide All / Show All buttons */}
                 <div className="flex gap-1 mb-1">
@@ -475,6 +502,7 @@ export function CollapsibleFilterBar({
       <span className="text-[10px] font-medium text-gray-600">SHOW:</span>
       <div className="relative flex-1 sm:flex-none">
         <button
+          ref={hiddenUserDropdownRef}
           onClick={() => setHiddenUserDropdownOpen(!hiddenUserDropdownOpen)}
           className={`w-full sm:w-auto px-1.5 py-0.5 text-xs font-medium rounded transition flex items-center justify-between sm:justify-start gap-1 ${hiddenUsers.length > 0 ? "bg-orange-50 text-orange-700 hover:bg-orange-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
           title="Toggle which users to show"
@@ -502,7 +530,10 @@ export function CollapsibleFilterBar({
               className="fixed inset-0 z-40"
               onClick={() => setHiddenUserDropdownOpen(false)}
             />
-            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[220px] max-h-[300px] flex flex-col">
+            <div
+              className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[220px] max-h-[300px] flex flex-col"
+              style={getDropdownStyle(hiddenUserDropdownRef)}
+            >
               {/* Search input */}
               <div className="p-2 border-b border-gray-100">
                 <input
@@ -585,6 +616,7 @@ export function CollapsibleFilterBar({
       <span className="text-[10px] font-medium text-gray-600">SEGREGATE:</span>
       <div className="relative flex-1 sm:flex-none">
         <button
+          ref={segregatedDropdownRef}
           onClick={() => setSegregatedDropdownOpen(!segregatedDropdownOpen)}
           className={`w-full sm:w-auto px-1.5 py-0.5 text-[10px] font-medium rounded transition flex items-center justify-between sm:justify-start gap-0.5 ${segregatedBuckets.length > 0 ? "bg-purple-50 text-purple-700 hover:bg-purple-100" : "bg-gray-50 text-gray-700 hover:bg-gray-100"}`}
           title="Split selected buckets by query type"
@@ -612,7 +644,10 @@ export function CollapsibleFilterBar({
               className="fixed inset-0 z-40"
               onClick={() => setSegregatedDropdownOpen(false)}
             />
-            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]">
+            <div
+              className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px]"
+              style={getDropdownStyle(segregatedDropdownRef)}
+            >
               <div className="p-2 space-y-1">
                 {/* Hide All / Show All buttons */}
                 <div className="flex gap-1 mb-1">
@@ -697,11 +732,11 @@ export function CollapsibleFilterBar({
 
       {isExpanded && (
         <div className="max-w-full mx-auto px-1 py-1">
-          {/* Filters flow left-to-right, wrapping on small screens. Right actions pinned to the end. */}
-          <div className="flex items-center flex-wrap w-full pb-1 gap-1 sm:gap-2">
+          {/* Mobile: horizontal scroll with hidden scrollbar. Desktop (sm+): flex-wrap, no scroll needed. */}
+          <div className="flex items-center w-full pb-1 gap-1 sm:gap-2 overflow-x-auto scrollbar-hide sm:overflow-visible sm:flex-wrap">
 
-            {/* Filters — flow left to right */}
-            <div className="flex items-center flex-wrap gap-0.5 shrink-0">
+            {/* Filters — left to right. No-wrap on mobile (scroll), wrap on desktop. */}
+            <div className="flex items-center gap-0.5 shrink-0 sm:flex-wrap">
               {/* View Toggle - Hide for juniors (only one view) */}
               {!isJunior && (
                 <div className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-white border border-gray-200 rounded">
@@ -784,7 +819,7 @@ export function CollapsibleFilterBar({
             </div>
 
             {/* Right-aligned: Search + Save/Undo/Reset */}
-            <div className="flex justify-end items-center gap-1 min-w-0 ml-auto">
+            <div className="flex justify-end items-center gap-1 min-w-0 ml-auto shrink-0">
               {/* Undo Button */}
               {showUndo && onUndoReset && (
                 <button

@@ -157,6 +157,7 @@ export function BucketViewLinear({
           onApproveDelete={onApproveDelete}
           onRejectDelete={onRejectDelete}
           onLoadMore={onLoadMore}
+          onAddQuery={onAddQuery}
           extendedDays={extendedDays}
           loadingBuckets={loadingBuckets}
           isFilterExpanded={isFilterExpanded}
@@ -188,6 +189,7 @@ function SynchronizedRow({
   onApproveDelete,
   onRejectDelete,
   onLoadMore,
+  onAddQuery,
   extendedDays = {},
   loadingBuckets = new Set(),
   isFilterExpanded = true,
@@ -208,6 +210,7 @@ function SynchronizedRow({
   onApproveDelete?: (query: Query) => void;
   onRejectDelete?: (query: Query) => void;
   onLoadMore?: (bucketKey: string) => void;
+  onAddQuery?: () => void;
   extendedDays?: Record<string, number>;
   loadingBuckets?: Set<string>;
   isFilterExpanded?: boolean;
