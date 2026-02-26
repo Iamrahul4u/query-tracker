@@ -697,15 +697,11 @@ export function CollapsibleFilterBar({
 
       {isExpanded && (
         <div className="max-w-full mx-auto px-1 py-1">
-          {/* Single scrollable row — all controls visible on all screen sizes */}
-          {/* Three-column flex layout to safely center filters while pinning right-actions */}
-          <div className="flex items-center justify-between w-full overflow-x-auto no-scrollbar pb-1 gap-2">
-            
-            {/* Left Spacer - desktop only to balance the right actions for perfect centering */}
-            <div className="hidden lg:block flex-1 shrink-0 min-w-0" />
+          {/* Filters flow left-to-right, wrapping on small screens. Right actions pinned to the end. */}
+          <div className="flex items-center flex-wrap w-full pb-1 gap-1 sm:gap-2">
 
-            {/* Center Filters */}
-            <div className="flex items-center justify-center gap-0.5 shrink-0 mx-auto">
+            {/* Filters — flow left to right */}
+            <div className="flex items-center flex-wrap gap-0.5 shrink-0">
               {/* View Toggle - Hide for juniors (only one view) */}
               {!isJunior && (
                 <div className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-white border border-gray-200 rounded">
@@ -788,7 +784,7 @@ export function CollapsibleFilterBar({
             </div>
 
             {/* Right-aligned: Search + Save/Undo/Reset */}
-            <div className="flex-1 flex justify-end items-center gap-1 min-w-0 shrink-0">
+            <div className="flex justify-end items-center gap-1 min-w-0 ml-auto">
               {/* Undo Button */}
               {showUndo && onUndoReset && (
                 <button
