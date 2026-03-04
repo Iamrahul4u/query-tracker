@@ -159,13 +159,27 @@ function DashboardContent() {
     ]),
   );
 
-  // Group by user (now with historyDays filter and sorting applied)
+  // Group by user — sort per-bucket WITHIN each user group
+  // This ensures each bucket uses its own default sort field (A→Added Date,
+  // B→Assignment, etc.) and custom sort fields only apply to matching buckets
   const groupedByUserRaw = groupQueriesByUser(historyFilteredQueries);
   const groupedByUser = Object.fromEntries(
-    Object.entries(groupedByUserRaw).map(([user, queries]) => [
-      user,
-      applySorting(queries),
-    ]),
+    Object.entries(groupedByUserRaw).map(([user, queries]) => {
+      // Group this user's queries by bucket, sort each bucket independently
+      const byBucket: Record<string, Query[]> = {};
+      queries.forEach((q) => {
+        const bucket = q.Status;
+        if (!byBucket[bucket]) byBucket[bucket] = [];
+        byBucket[bucket].push(q);
+      });
+
+      // Sort each bucket with its own logic, then flatten back
+      const sorted = Object.entries(byBucket).flatMap(([bucket, bQueries]) =>
+        applySorting(bQueries, bucket),
+      );
+
+      return [user, sorted];
+    }),
   );
 
   // Stats calculated from historyFilteredQueries (only visible queries on screen)
