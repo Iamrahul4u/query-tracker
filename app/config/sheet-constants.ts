@@ -1,4 +1,4 @@
-export const SPREADSHEET_ID = "1Itpin1gPmJIy0KK6kBDklfhgOnNapvqywgypZ0h2bqA";
+export const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID || "";
 // Actually, I should check if there is an existing constants file or if I should hardcode the ID I saw in previous file view.
 // In previous view of route.ts, SPREADSHEET_ID was hardcoded or imported. Let's check route.ts first to be safe, but for now I will define the ranges.
 

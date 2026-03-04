@@ -16,8 +16,8 @@ interface CollapsibleFilterBarProps {
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   // Sorting and date display options
-  sortField?: DateFieldKey;
-  onSortFieldChange?: (field: DateFieldKey) => void;
+  sortField?: DateFieldKey | undefined;
+  onSortFieldChange?: (field: DateFieldKey | undefined) => void;
   sortAscending?: boolean;
   onSortAscendingChange?: (ascending: boolean) => void;
   sortBuckets?: string[]; // Buckets to apply custom sort to
@@ -62,9 +62,9 @@ export function CollapsibleFilterBar({
   onCollapseChange,
   searchQuery = "",
   onSearchChange,
-  sortField = "Added Date Time",
+  sortField,
   onSortFieldChange,
-  sortAscending = true,
+  sortAscending = false,
   onSortAscendingChange,
   sortBuckets = ["ALL"],
   onSortBucketsChange,
@@ -269,10 +269,11 @@ export function CollapsibleFilterBar({
       <span className="text-[10px] font-medium text-gray-600">SORT:</span>
       <select
         value={sortField || ""}
-        onChange={(e) => onSortFieldChange?.(e.target.value as DateFieldKey)}
+        onChange={(e) => onSortFieldChange?.(e.target.value ? e.target.value as DateFieldKey : undefined)}
         className="flex-1 sm:flex-none px-1 py-0.5 text-[10px] font-medium rounded bg-gray-50 border-0 text-gray-700 focus:ring-1 focus:ring-blue-500 sm:max-w-[100px]"
         title="Sort by date field"
       >
+        <option value="">Default</option>
         {DATE_FIELDS.map((f) => (
           <option key={f.value} value={f.value}>
             {f.label}

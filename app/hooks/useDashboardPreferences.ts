@@ -29,7 +29,7 @@ export function useDashboardPreferences() {
   const [sortField, setSortField] = useState<DateFieldKey | undefined>(
     undefined,
   );
-  const [sortAscending, setSortAscending] = useState<boolean>(true);
+  const [sortAscending, setSortAscending] = useState<boolean>(false);
   const [sortBuckets, setSortBuckets] = useState<string[]>(["ALL"]);
   const [groupBy, setGroupBy] = useState<"type" | "bucket">("bucket");
   const [hiddenBuckets, setHiddenBuckets] = useState<string[]>([]);
@@ -59,7 +59,7 @@ export function useDashboardPreferences() {
         columns: 4,
         detailView: false,
         sortField: "",
-        sortAscending: true,
+        sortAscending: false,
         sortBuckets: "ALL",
         groupBy: "bucket",
         hiddenBuckets: "",
@@ -70,7 +70,7 @@ export function useDashboardPreferences() {
         columns: 4,
         detailView: false,
         sortField: "",
-        sortAscending: true,
+        sortAscending: false,
         sortBuckets: "ALL",
         groupBy: "bucket",
         hiddenBuckets: "",
@@ -113,8 +113,8 @@ export function useDashboardPreferences() {
     setBucketViewMode((viewPrefs.layout || "default") as BucketViewMode);
     setColumnCount((viewPrefs.columns || 4) as ColumnCount);
     setDetailView(viewPrefs.detailView || false);
-    setSortField(viewPrefs.sortField || undefined);
-    setSortAscending(viewPrefs.sortAscending !== false);
+    setSortField((viewPrefs.sortField || undefined) as DateFieldKey | undefined);
+    setSortAscending(viewPrefs.sortAscending === true);
     setGroupBy((viewPrefs.groupBy || "bucket") as "type" | "bucket");
 
     // Parse sortBuckets
@@ -164,8 +164,8 @@ export function useDashboardPreferences() {
           setBucketViewMode((viewPrefs.layout || "default") as BucketViewMode);
           setColumnCount((viewPrefs.columns || 4) as ColumnCount);
           setDetailView(viewPrefs.detailView || false);
-          setSortField(viewPrefs.sortField || undefined);
-          setSortAscending(viewPrefs.sortAscending !== false);
+          setSortField((viewPrefs.sortField as DateFieldKey) || undefined as DateFieldKey | undefined);
+          setSortAscending(viewPrefs.sortAscending === true);
           setGroupBy((viewPrefs.groupBy || "bucket") as "type" | "bucket");
 
           if (viewPrefs.sortBuckets === "ALL" || !viewPrefs.sortBuckets) {
@@ -182,7 +182,7 @@ export function useDashboardPreferences() {
         setColumnCount(4);
         setDetailView(false);
         setSortField(undefined);
-        setSortAscending(true);
+        setSortAscending(false);
         setSortBuckets(["ALL"]);
         setGroupBy("bucket");
       }
@@ -215,6 +215,8 @@ export function useDashboardPreferences() {
 
   const updateSortField = (field: DateFieldKey | undefined) => {
     setSortField(field);
+    // Always reset to newest-first when changing sort field
+    setSortAscending(false);
     setHasPendingChanges(true);
   };
 
@@ -273,7 +275,7 @@ export function useDashboardPreferences() {
         columns: 3, // Default to 3 columns
         detailView: false,
         sortField: "",
-        sortAscending: true,
+        sortAscending: false,
         sortBuckets: "ALL",
         groupBy: "bucket",
         hiddenBuckets: "",
@@ -284,7 +286,7 @@ export function useDashboardPreferences() {
         columns: 3, // Default to 3 columns
         detailView: false,
         sortField: "",
-        sortAscending: true,
+        sortAscending: false,
         sortBuckets: "ALL",
         groupBy: "bucket",
         hiddenBuckets: "",
@@ -298,7 +300,7 @@ export function useDashboardPreferences() {
     setColumnCount(3); // Default to 3 columns
     setDetailView(false);
     setSortField(undefined);
-    setSortAscending(true);
+    setSortAscending(false);
     setSortBuckets(["ALL"]);
     setGroupBy("bucket");
     setHiddenBuckets([]);
@@ -344,8 +346,8 @@ export function useDashboardPreferences() {
     setBucketViewMode((viewPrefs.layout || "default") as BucketViewMode);
     setColumnCount((viewPrefs.columns || 3) as ColumnCount);
     setDetailView(viewPrefs.detailView || false);
-    setSortField(viewPrefs.sortField || undefined);
-    setSortAscending(viewPrefs.sortAscending !== false);
+    setSortField((viewPrefs.sortField || undefined) as DateFieldKey | undefined);
+    setSortAscending(viewPrefs.sortAscending === true);
     setGroupBy((viewPrefs.groupBy || "bucket") as "type" | "bucket");
 
     if (viewPrefs.sortBuckets === "ALL" || !viewPrefs.sortBuckets) {
