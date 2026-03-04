@@ -449,7 +449,7 @@ function parseDate(dateStr: string | undefined): Date | null {
 export function sortQueriesByDate(
   queries: Query[],
   dateField: DateFieldKey,
-  ascending: boolean = true,
+  ascending: boolean = false,
 ): Query[] {
   return [...queries].sort((a, b) => {
     const dateA = parseDate(a[dateField]);
