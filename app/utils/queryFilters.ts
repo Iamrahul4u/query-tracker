@@ -418,18 +418,18 @@ export const DATE_FIELDS = [
 export type DateFieldKey = (typeof DATE_FIELDS)[number]["value"];
 
 /**
- * Parse date string in MM/DD/YYYY, HH:MM:SS format (US format from Google Sheets)
+ * Parse date string in DD/MM/YYYY, HH:MM:SS format (IST format from Google Sheets)
  */
 function parseDate(dateStr: string | undefined): Date | null {
   if (!dateStr) return null;
 
   try {
-    // Format: "MM/DD/YYYY, HH:MM:SS" or "MM/DD/YYYY HH:MM:SS"
+    // Format: "DD/MM/YYYY, HH:MM:SS" or "DD/MM/YYYY HH:MM:SS"
     const normalized = dateStr.replace(", ", " ");
     const parts = normalized.split(" ")[0].split("/");
 
     if (parts.length === 3) {
-      const [month, day, year] = parts.map((p) => parseInt(p, 10));
+      const [day, month, year] = parts.map((p) => parseInt(p, 10));
       const timePart = normalized.split(" ")[1] || "00:00:00";
       const [hours, minutes] = timePart.split(":").map((t) => parseInt(t, 10));
       return new Date(year, month - 1, day, hours || 0, minutes || 0);
