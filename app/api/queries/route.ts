@@ -9,6 +9,7 @@ import {
   parsePreferences,
   Query,
 } from "../../utils/sheets";
+import { auth } from "../../../auth";
 
 // ----------------------------------------------------------------------
 // SERVICE ACCOUNT AUTH (for write operations)
@@ -102,37 +103,28 @@ async function withRetry<T>(
   throw new Error("Retry failed"); // Should never reach here
 }
 
+
 // ----------------------------------------------------------------------
 // GET HANDLER
-// Uses service account for reads, user token just for identity verification
+// Uses service account for reads, user session for identity verification
 // ----------------------------------------------------------------------
 export async function GET(request: NextRequest) {
-  const token =
-    request.nextUrl.searchParams.get("token") ||
-    request.headers.get("Authorization")?.replace("Bearer ", "");
+  const session = await auth();
+  const userEmail = session?.user?.email;
 
-  if (!token) {
-    return NextResponse.json({ error: "Missing token" }, { status: 401 });
+  if (!userEmail) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    // Validate user token to get their email (for personalization/preferences)
-    const userAuth = new google.auth.OAuth2();
-    userAuth.setCredentials({ access_token: token });
-    const oauth2 = google.oauth2({ version: "v2", auth: userAuth });
-    const tokenInfo = await oauth2.tokeninfo({ access_token: token });
-    const userEmail = tokenInfo.data.email;
-
-    // Use service account for reading sheets (if available)
-    let sheets;
+    // Use service account for reading sheets
     const serviceAuth = getServiceAccountAuth();
-    if (serviceAuth) {
-      console.log("[GET] Using service account for read operation");
-      sheets = google.sheets({ version: "v4", auth: serviceAuth });
-    } else {
-      console.log("[GET] No service account, falling back to user token");
-      sheets = google.sheets({ version: "v4", auth: userAuth });
+    if (!serviceAuth) {
+      throw new Error("Service account is missing but required for sheet operations");
     }
+    
+    console.log("[GET] Using service account for read operation");
+    const sheets = google.sheets({ version: "v4", auth: serviceAuth });
 
     // Fetch in parallel
     const [queriesRes, usersRes, prefsRes] = await Promise.all([
@@ -192,9 +184,11 @@ export async function GET(request: NextRequest) {
 // Uses service account for writes, user token just for identity verification
 // ----------------------------------------------------------------------
 export async function POST(request: NextRequest) {
-  const token = request.headers.get("Authorization")?.replace("Bearer ", "");
-  if (!token) {
-    return NextResponse.json({ error: "Missing token" }, { status: 401 });
+  const session = await auth();
+  const userEmail = session?.user?.email;
+
+  if (!userEmail) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -203,18 +197,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`[POST] Action: ${action}, QueryID: ${queryId}`, data);
 
-    // Use service account for writes (if available), otherwise fall back to user token
-    let sheets;
+    // Use service account for writes
     const serviceAuth = getServiceAccountAuth();
-    if (serviceAuth) {
-      console.log("[POST] Using service account for write operation");
-      sheets = google.sheets({ version: "v4", auth: serviceAuth });
-    } else {
-      console.log("[POST] No service account, falling back to user token");
-      const userAuth = new google.auth.OAuth2();
-      userAuth.setCredentials({ access_token: token });
-      sheets = google.sheets({ version: "v4", auth: userAuth });
+    if (!serviceAuth) {
+      throw new Error("Service account is missing but required for write operations");
     }
+    console.log("[POST] Using service account for write operation");
+    const sheets = google.sheets({ version: "v4", auth: serviceAuth });
 
     switch (action) {
       case "assign":

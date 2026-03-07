@@ -46,7 +46,7 @@ interface QueryState {
   syncError: string | null;
 
   // Actions (Instant)
-  initialize: (token: string) => Promise<void>;
+  initialize: () => Promise<void>;
   setQueries: (queries: Query[]) => void;
   setUsers: (users: User[]) => void;
   setCurrentUser: (user: User | null) => void;
@@ -151,7 +151,8 @@ export const useQueryStore = create<QueryState>()(
           state.lastSyncedAt = new Date();
 
           // Re-set current user from updated users list
-          const userEmail = localStorage.getItem("user_email");
+          // userEmail comes from the API response (via auth() session)
+          const userEmail = event.detail.userEmail;
           if (userEmail) {
             const emailLower = userEmail.toLowerCase();
             const foundUser = users.find(
@@ -197,7 +198,11 @@ export const useQueryStore = create<QueryState>()(
       // ═══════════════════════════════════════════════════════════════
       // INITIALIZE - Load from cache or fetch
       // ═══════════════════════════════════════════════════════════════
-      initialize: async (token: string) => {
+      initialize: async () => {
+        // Guard against double-initialization (React strict mode, rapid re-renders)
+        const state = get();
+        if (!state.isLoading && state.lastSyncedAt) return;
+
         const syncManager = SyncManager.getInstance();
 
         set({ isLoading: true });
@@ -212,8 +217,9 @@ export const useQueryStore = create<QueryState>()(
             state.isLoading = false;
             state.lastSyncedAt = new Date();
 
-            // Set current user
-            const userEmail = localStorage.getItem("user_email");
+            // Set current user from API response
+            // userEmail comes from the API GET handler (via auth() session)
+            const userEmail = data.userEmail;
             if (userEmail) {
               const emailLower = userEmail.toLowerCase();
               const foundUser = state.users.find(
@@ -716,15 +722,11 @@ export const useQueryStore = create<QueryState>()(
           }
         });
 
-        const token = localStorage.getItem("auth_token");
-        if (!token) return;
-
         try {
           await fetch("/api/preferences", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify(prefs),
           });

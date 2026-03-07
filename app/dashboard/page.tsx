@@ -3,10 +3,9 @@
 import { useState, useEffect } from "react";
 import { useQueryStore } from "../stores/queryStore";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
-import { useAuth } from "../hooks/useAuth";
+import { useSession, signOut } from "next-auth/react";
 import { useDashboardPreferences } from "../hooks/useDashboardPreferences";
 import { useToast } from "../hooks/useToast";
-import { AuthProvider } from "../components/AuthProvider";
 import { DashboardHeader } from "../components/DashboardHeader";
 import { CollapsibleFilterBar } from "../components/CollapsibleFilterBar";
 import { BucketView } from "../components/BucketView";
@@ -34,7 +33,9 @@ import { Query } from "../utils/sheets";
 
 function DashboardContent() {
   // Hooks
-  const { authChecked, logout } = useAuth();
+  const { data: session, status } = useSession();
+  const authChecked = status === "authenticated";
+  const logout = () => signOut({ callbackUrl: "/" });
   const {
     viewMode,
     bucketViewMode,
@@ -65,7 +66,7 @@ function DashboardContent() {
     saveView,
     resetToDefaults,
     undoReset,
-  } = useDashboardPreferences();
+  } = useDashboardPreferences(session?.user?.email);
 
   // Store
   const {
@@ -77,10 +78,27 @@ function DashboardContent() {
     assignCallOptimistic,
     approveDeleteOptimistic,
     rejectDeleteOptimistic,
+    initialize, 
   } = useQueryStore();
 
   // Toast notifications
   const { toasts, hideToast } = useToast();
+
+  // Initialize store when authenticated
+  useEffect(() => {
+    if (authChecked) {
+      initialize();
+    }
+  }, [authChecked, initialize]);
+
+  // Handle RefreshTokenError — Google refresh token was revoked or expired permanently.
+  // Without this, the user stays on a broken dashboard seeing endless API failures.
+  useEffect(() => {
+    if (session?.error === "RefreshTokenError") {
+      console.error("🔐 [AUTH] Refresh token expired/revoked. Forcing re-login.");
+      signOut({ callbackUrl: "/" });
+    }
+  }, [session?.error]);
 
   // Auto-refresh (only after auth)
   useAutoRefresh(60000, authChecked);
@@ -415,10 +433,9 @@ function DashboardContent() {
 
 export default function Dashboard() {
   return (
-    <AuthProvider>
-      <TooltipProvider delayDuration={500}>
-        <DashboardContent />
-      </TooltipProvider>
-    </AuthProvider>
+    <TooltipProvider delayDuration={500}>
+      <DashboardContent />
+    </TooltipProvider>
   );
 }
+

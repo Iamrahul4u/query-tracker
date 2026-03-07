@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { SPREADSHEET_ID, SHEET_RANGES } from "../../config/sheet-constants";
 import { Preferences, ViewPreferences } from "../../utils/sheets";
+import { auth } from "../../../auth";
 
 // Service account auth helper (same pattern as queries/route.ts)
 function getServiceAccountAuth() {
@@ -47,37 +48,27 @@ function getServiceAccountAuth() {
   });
 }
 
+
 export async function POST(request: NextRequest) {
-  const token = request.headers.get("Authorization")?.replace("Bearer ", "");
-  if (!token) {
-    return NextResponse.json({ error: "Missing token" }, { status: 401 });
+  const session = await auth();
+  const userEmail = session?.user?.email;
+
+  if (!userEmail) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const body = await request.json();
     const preferences: Partial<Preferences> = body;
 
-    // Validate user token to get their email
-    const userAuth = new google.auth.OAuth2();
-    userAuth.setCredentials({ access_token: token });
-    const oauth2 = google.oauth2({ version: "v2", auth: userAuth });
-    const tokenInfo = await oauth2.tokeninfo({ access_token: token });
-    const userEmail = tokenInfo.data.email;
-
-    if (!userEmail) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
     // Use service account for sheets access
-    let sheets;
     const serviceAuth = getServiceAccountAuth();
-    if (serviceAuth) {
-      console.log("[PREFERENCES] Using service account for write operation");
-      sheets = google.sheets({ version: "v4", auth: serviceAuth });
-    } else {
-      console.log("[PREFERENCES] No service account, falling back to user token");
-      sheets = google.sheets({ version: "v4", auth: userAuth });
+    if (!serviceAuth) {
+      throw new Error("Service account is missing but required for preferences operations");
     }
+    
+    console.log("[PREFERENCES] Using service account for write operation");
+    const sheets = google.sheets({ version: "v4", auth: serviceAuth });
 
     // 1. Find User Row in Preferences Sheet
     const response = await sheets.spreadsheets.values.get({

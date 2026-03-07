@@ -17,7 +17,7 @@ const LOCALSTORAGE_KEY_PREFIX = "dashboard_prefs_";
  * - Then persists to backend (async)
  * - Separate preferences for Bucket View and User View
  */
-export function useDashboardPreferences() {
+export function useDashboardPreferences(userEmail?: string | null) {
   const { preferences, savePreferences } = useQueryStore();
 
   const [viewMode, setViewMode] = useState<ViewMode>("bucket");
@@ -46,11 +46,12 @@ export function useDashboardPreferences() {
   const [undoTimer, setUndoTimer] = useState<NodeJS.Timeout | null>(null);
 
   // Get current user email for localStorage key
-  const userEmail = localStorage.getItem("user_email") || "default";
-  const localStorageKey = `${LOCALSTORAGE_KEY_PREFIX}${userEmail}`;
+  const safeEmail = userEmail || "default";
+  const localStorageKey = `${LOCALSTORAGE_KEY_PREFIX}${safeEmail}`;
 
   // Load preferences from localStorage ONLY (ignore backend until save)
   useEffect(() => {
+    if (!userEmail) return; // Wait until we have the user email
     // Always start with defaults
     const defaultPrefs: Preferences = {
       preferredView: "bucket",

@@ -11,7 +11,6 @@
 
 import { LocalStorageCache } from "../utils/localStorageCache";
 import { Query, User, Preferences } from "../utils/sheets";
-import { refreshAccessToken, clearAllAuth } from "../utils/tokenRefresh";
 
 interface SyncResult {
   success: boolean;
@@ -84,13 +83,14 @@ export class SyncManager {
     queries: Query[];
     users: User[];
     preferences: Preferences;
+    userEmail?: string;
   }> {
     // Try cache first for instant UI
     const cached = LocalStorageCache.loadAll();
 
     if (cached) {
-      // Return cached data immediately
-      // Fetch fresh data in background
+      // Return cached data immediately (no userEmail from cache)
+      // The background refresh will populate currentUser via the data-refreshed event
       this.refreshInBackground();
 
       return cached;
@@ -107,60 +107,18 @@ export class SyncManager {
     queries: Query[];
     users: User[];
     preferences: Preferences;
+    userEmail?: string;
   }> {
     try {
-      // Always get fresh token from localStorage (it may have been refreshed)
-      const currentToken = localStorage.getItem("auth_token");
-      if (!currentToken) {
-        throw new Error("No auth token available");
-      }
+      const response = await fetch("/api/queries");
 
-      const response = await fetch("/api/queries", {
-        headers: { Authorization: `Bearer ${currentToken}` },
-      });
-
-      // Handle unauthorized - token expired, try to refresh
+      // Handle unauthorized
       if (response.status === 401) {
-        console.log("🔄 [SYNC] Got 401, attempting token refresh...");
-        const refreshResult = await refreshAccessToken();
-
-        if (refreshResult.token) {
-          // Retry with new token
-          console.log("🔄 [SYNC] Retrying request with refreshed token...");
-          const retryResponse = await fetch("/api/queries", {
-            headers: { Authorization: `Bearer ${refreshResult.token}` },
-          });
-
-          if (retryResponse.ok) {
-            const data = await retryResponse.json();
-            LocalStorageCache.saveAll({
-              queries: data.queries,
-              users: data.users,
-              preferences: data.preferences,
-            });
-            return {
-              queries: data.queries,
-              users: data.users,
-              preferences: data.preferences,
-            };
-          }
-        }
-
-        // Only logout if token was actually revoked, not on network error
-        if (refreshResult.wasRevoked) {
-          console.error("❌ [SYNC] Token revoked, logging out");
-          clearAllAuth();
-          this.stopBackgroundRefresh();
-          this.clearCache();
-          window.location.href = "/";
-          throw new Error("Unauthorized - token revoked");
-        } else {
-          // Network error during refresh - let the error propagate, don't logout
-          console.warn(
-            "⚠️ [SYNC] Token refresh failed (network), will retry later",
-          );
-          throw new Error("Token refresh failed - network error");
-        }
+        console.error("❌ [SYNC] Session expired, redirecting to login");
+        this.stopBackgroundRefresh();
+        this.clearCache();
+        window.location.href = "/";
+        throw new Error("Unauthorized - session expired");
       }
 
       if (!response.ok) {
@@ -169,7 +127,7 @@ export class SyncManager {
 
       const data = await response.json();
 
-      // Update cache
+      // Update cache (userEmail is not cached — it comes from the session)
       LocalStorageCache.saveAll({
         queries: data.queries,
         users: data.users,
@@ -180,6 +138,7 @@ export class SyncManager {
         queries: data.queries,
         users: data.users,
         preferences: data.preferences,
+        userEmail: data.userEmail,
       };
     } catch (error) {
       throw error;
@@ -187,55 +146,24 @@ export class SyncManager {
   }
 
   /**
-   * Helper method for POST requests with automatic token refresh on 401
+   * Helper method for POST requests. Handles 401 by redirecting to login.
    * Returns the response object or throws an error
    */
   private async fetchWithRetry(url: string, body: object): Promise<Response> {
-    const currentToken = localStorage.getItem("auth_token");
-    if (!currentToken) {
-      throw new Error("No auth token available");
-    }
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
-    const makeRequest = async (token: string): Promise<Response> => {
-      return fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-    };
-
-    let response = await makeRequest(currentToken);
-
-    // If 401, try to refresh token and retry once
     if (response.status === 401) {
-      console.log("🔄 [SYNC] POST got 401, attempting token refresh...");
-      const refreshResult = await refreshAccessToken();
-
-      if (refreshResult.token) {
-        console.log("🔄 [SYNC] Retrying POST with refreshed token...");
-        response = await makeRequest(refreshResult.token);
-      }
-
-      // If still 401 after refresh attempt, check why
-      if (response.status === 401) {
-        if (refreshResult.wasRevoked) {
-          console.error("❌ [SYNC] Token revoked, logging out");
-          clearAllAuth();
-          this.stopBackgroundRefresh();
-          this.clearCache();
-          window.location.href = "/";
-          throw new Error("Unauthorized - token revoked");
-        } else {
-          // Network error during refresh - don't logout, let error propagate
-          console.warn(
-            "⚠️ [SYNC] Token refresh failed (network), will retry later",
-          );
-          throw new Error("Token refresh failed - network error");
-        }
-      }
+      console.error("❌ [SYNC] Session expired, redirecting to login");
+      this.stopBackgroundRefresh();
+      this.clearCache();
+      window.location.href = "/";
+      throw new Error("Unauthorized - session expired");
     }
 
     return response;
