@@ -16,6 +16,7 @@ import { EditQueryModal } from "../components/EditQueryModal";
 import { AllQueriesModal } from "../components/AllQueriesModal";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { ToastContainer } from "../components/Toast";
+import { ConnectionToast } from "../components/ConnectionToast";
 import { PendingDeletions } from "../components/PendingDeletions";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -427,6 +428,9 @@ function DashboardContent() {
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={hideToast} />
+
+      {/* Connection Status Toast (Gmail-style) */}
+      <ConnectionToast onReconnect={() => initialize()} />
     </div>
   );
 }

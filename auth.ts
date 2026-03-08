@@ -76,9 +76,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Fall back to the old one if a new one is not received.
           refresh_token: tokensOrError.refresh_token ?? token.refresh_token,
         };
-      } catch (error) {
-        console.error("Error refreshing access_token", error);
-        return { ...token, error: "RefreshTokenError" };
+      } catch (error: any) {
+        // Network errors (offline, DNS failure, timeout) → keep stale token, retry next time
+        const cause = error?.cause;
+        const isNetworkError =
+          cause?.code === "ENOTFOUND" ||
+          cause?.code === "ETIMEDOUT" ||
+          cause?.code === "ECONNREFUSED" ||
+          cause?.code === "ECONNRESET" ||
+          cause?.code === "EAI_AGAIN" ||
+          error?.name === "TypeError" && error?.message === "fetch failed";
+
+        if (isNetworkError) {
+          console.warn("⚠️ [Auth.js] Network error during token refresh, keeping stale token");
+          return token;
+        }
+
+        // Actual token rejection (revoked, invalid) → force re-login
+        console.error("❌ [Auth.js] Token refresh rejected, forcing re-login", error);
+        return { ...token, error: "RefreshTokenError" as const };
       }
     },
     async session({ session, token }) {
