@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AuthProvider } from "./components/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "Query Tracker",
-  description: "Manage your queries efficiently",
+  title: "Query Tracker Phase 2",
+  description:
+    "Query Tracker has moved to Phase 2. Use the new dashboard to continue.",
   icons: {
     icon: "/download.png",
+  },
+  robots: {
+    index: false,
+    follow: true,
   },
 };
 
@@ -17,9 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gray-50 min-h-screen">
-        <AuthProvider>{children}</AuthProvider>
-      </body>
+      <body className="bg-gray-50 min-h-screen">{children}</body>
     </html>
   );
 }

@@ -1,5 +1,5 @@
 import { PhaseTwoMigrationPage } from "../components/PhaseTwoMigrationPage";
 
-export default function Dashboard() {
+export default function PublicCatchAllPage() {
   return <PhaseTwoMigrationPage />;
 }
